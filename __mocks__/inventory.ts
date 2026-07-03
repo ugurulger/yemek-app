@@ -1,0 +1,68 @@
+import type { InventoryItem } from '@/types/inventory';
+
+export const mockInventoryItems: InventoryItem[] = [
+  {
+    id: '1',
+    name: 'Domates',
+    qty: 6,
+    unit: 'adet',
+    emoji: '🍅',
+    confidence: 'high',
+  },
+  {
+    id: '2',
+    name: 'Süt',
+    qty: 1,
+    unit: 'l',
+    emoji: '🥛',
+    confidence: 'high',
+  },
+  {
+    id: '3',
+    name: 'Yumurta',
+    qty: 10,
+    unit: 'adet',
+    emoji: '🥚',
+    confidence: 'high',
+  },
+  {
+    id: '4',
+    name: 'Soğan',
+    qty: 4,
+    unit: 'adet',
+    emoji: '🧅',
+    confidence: 'low',
+  },
+  {
+    id: '5',
+    name: 'Tavuk Göğsü',
+    qty: 750,
+    unit: 'g',
+    emoji: '🍗',
+    confidence: 'high',
+  },
+  {
+    id: '6',
+    name: 'Beyaz Peynir',
+    qty: 500,
+    unit: 'g',
+    emoji: '🧀',
+    confidence: 'low',
+  },
+  {
+    id: '7',
+    name: 'Maydanoz',
+    qty: 1,
+    unit: 'demet',
+    emoji: '🌿',
+    confidence: 'high',
+  },
+  {
+    id: '8',
+    name: 'Zeytinyağı',
+    qty: 500,
+    unit: 'ml',
+    emoji: '🫒',
+    confidence: 'high',
+  },
+];
