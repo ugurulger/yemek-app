@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import InventoryList from '@/components/inventory/InventoryList';
 import { extractInventoryFromImages, InventoryVisionError } from '@/lib/claude/extractInventoryFromImages';
 import { extractVideoFramesAsBase64 } from '@/lib/media/extractVideoFrames';
+import { resizeImageToBase64 } from '@/lib/media/resizeImageToBase64';
 import { useInventoryStore } from '@/store/inventoryStore';
 
 export default function MutfagimScreen() {
@@ -30,8 +31,6 @@ export default function MutfagimScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
-      base64: true,
-      quality: 0.7,
       allowsEditing: false,
     });
 
@@ -52,10 +51,9 @@ export default function MutfagimScreen() {
         }
         images = frames;
       } else {
-        if (!asset.base64) {
-          throw new InventoryVisionError('Fotoğraf okunamadı, tekrar deneyin.');
-        }
-        images = [asset.base64];
+        // Fotoğrafı Claude vision'a göndermeden önce boyutlandır: tam çözünürlüklü
+        // telefon fotoğrafları API limitlerini zorlar, yavaş ve pahalıdır.
+        images = [await resizeImageToBase64(asset.uri, asset.width, asset.height)];
       }
 
       const extractedItems = await extractInventoryFromImages(images);

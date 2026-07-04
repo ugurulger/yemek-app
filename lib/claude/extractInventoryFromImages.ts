@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { callClaudeForText } from './client';
 
 import type {
   InventoryConfidence,
@@ -136,23 +136,18 @@ export async function extractInventoryFromImages(
       ? `${BASE_SYSTEM_PROMPT}${MULTI_FRAME_SYSTEM_PROMPT_SUFFIX}`
       : BASE_SYSTEM_PROMPT;
 
-  const client = new Anthropic({
-    apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY,
-    dangerouslyAllowBrowser: true, // client-taraflı çağrı için resmi SDK opsiyonu
-  });
-
-  const imageBlocks: Anthropic.Messages.ImageBlockParam[] = images.map((data) => ({
-    type: 'image',
+  const imageBlocks = images.map((data) => ({
+    type: 'image' as const,
     source: {
-      type: 'base64',
-      media_type: 'image/jpeg',
+      type: 'base64' as const,
+      media_type: 'image/jpeg' as const,
       data,
     },
   }));
 
   let responseText: string;
   try {
-    const message = await client.messages.create({
+    responseText = await callClaudeForText({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
@@ -169,16 +164,6 @@ export async function extractInventoryFromImages(
         },
       ],
     });
-
-    const textBlock = message.content.find(
-      (block): block is Anthropic.Messages.TextBlock => block.type === 'text'
-    );
-
-    if (!textBlock) {
-      throw new InventoryVisionError('Claude yanıtı ayrıştırılamadı, tekrar deneyin');
-    }
-
-    responseText = textBlock.text;
   } catch (error) {
     if (error instanceof InventoryVisionError) {
       throw error;

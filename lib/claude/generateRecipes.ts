@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { callClaudeForText } from './client';
 
 import type { InventoryItem } from '@/types/inventory';
 import type { Recipe, RecipeMacros } from '@/types/recipe';
@@ -170,11 +170,6 @@ export async function generateRecipes(inventory: InventoryItem[]): Promise<Recip
     throw new RecipeGenerationError('Tarif önermek için envanterde ürün olmalı');
   }
 
-  const client = new Anthropic({
-    apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY,
-    dangerouslyAllowBrowser: true, // client-taraflı çağrı için resmi SDK opsiyonu
-  });
-
   const simplifiedInventory = inventory.map((item) => ({
     name: item.name,
     qty: item.qty,
@@ -183,7 +178,7 @@ export async function generateRecipes(inventory: InventoryItem[]): Promise<Recip
 
   let responseText: string;
   try {
-    const message = await client.messages.create({
+    responseText = await callClaudeForText({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system: SYSTEM_PROMPT,
@@ -194,16 +189,6 @@ export async function generateRecipes(inventory: InventoryItem[]): Promise<Recip
         },
       ],
     });
-
-    const textBlock = message.content.find(
-      (block): block is Anthropic.Messages.TextBlock => block.type === 'text'
-    );
-
-    if (!textBlock) {
-      throw new RecipeGenerationError('Claude yanıtı ayrıştırılamadı, tekrar deneyin');
-    }
-
-    responseText = textBlock.text;
   } catch (error) {
     if (error instanceof RecipeGenerationError) {
       throw error;
