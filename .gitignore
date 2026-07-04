@@ -44,3 +44,13 @@ yarn-error.*
 # Claude Code local / runtime files
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# vision eval fixture medyası (kişisel fotoğraf/video, repo'ya girmemeli —
+# bkz. tests/vision-eval/fixtures/README.md). ground-truth.json ve README
+# izleniyor.
+tests/vision-eval/fixtures/*.jpg
+tests/vision-eval/fixtures/*.jpeg
+tests/vision-eval/fixtures/*.png
+tests/vision-eval/fixtures/*.mp4
+tests/vision-eval/fixtures/*.mov
+tests/vision-eval/fixtures/*.MOV

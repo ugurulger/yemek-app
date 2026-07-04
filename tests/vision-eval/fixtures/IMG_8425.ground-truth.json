@@ -1,0 +1,13 @@
+[
+  { "name": "süt", "qty": 2, "unit": "adet" },
+  { "name": "tereyağı", "qty": 1, "unit": "adet" },
+  { "name": "turşu", "qty": 2, "unit": "adet" },
+  { "name": "yumurta", "qty": 10, "unit": "adet" },
+  { "name": "milner peyniri", "qty": 1, "unit": "adet" },
+  { "name": "gouda peyniri", "qty": 1, "unit": "adet" },
+  { "name": "mozzarella", "qty": 1, "unit": "adet" },
+  { "name": "mayonez", "qty": 1, "unit": "adet" },
+  { "name": "salata sosu", "qty": 1, "unit": "adet" },
+  { "name": "domates", "qty": 1, "unit": "adet" },
+  { "name": "kırmızı şarap", "qty": 2, "unit": "adet" }
+]

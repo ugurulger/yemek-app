@@ -15,6 +15,10 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 - **Navigasyon:** expo-router, alt tab bar ile 4 sekme
 - **Backend:** Supabase (auth, Postgres, storage)
 - **AI:** Claude API (`claude-sonnet-4-6`) — fotoğraf analizi, tarif üretimi, tarif chat'i
+- **AI:** Claude API + Gemini API (vision sağlayıcı karşılaştırması,
+  `VISION_PROVIDER` ile seçilir) — envanter çıkarımı için, bkz. `services/vision/`.
+  MVP-2 testi sonrası varsayılan `claude` (kazanan sağlayıcı, bkz. "Sağlayıcı
+  karşılaştırma notları"); Gemini kod tabanında A/B için tutulur.
 - **State:** Zustand (global), TanStack Query (server state)
 - API anahtarları asla client koduna gömülmez; Supabase Edge Function
   üzerinden proxy'lenir.
@@ -70,18 +74,44 @@ Demo'da onaylanan görsel dil. Bundan sapma:
 ## Claude API çağrı formatları
 
 ### Fotoğraf/Video → envanter
-- **Fotoğraf:** doğrudan base64 image bloğu olarak gönderilir.
+- **Fotoğraf:** `resizeImageToBase64` ile uzun kenar 1568px'i aşmayacak
+  şekilde küçültülüp base64 image bloğu olarak gönderilir.
 - **Video:** Claude API video kabul etmez. Cihazda `expo-video-thumbnails`
-  ile videodan kare çıkarılır (saniyede 1 kare, en fazla 8 kare),
+  ile videodan kare çıkarılır (saniyede 1 kare, en fazla 8 kare), her kare
+  aynı 1568px sınırından geçirilir (bkz. `lib/media/extractVideoFrames.ts`),
   kareler tek istekte çoklu image bloğu olarak gönderilir. Sistem
   talimatına "kareler aynı buzdolabının farklı anları, ürünleri
-  TEKİLLEŞTİR" kuralı eklenir.
+  TEKİLLEŞTİR" kuralı eklenir. Kare sayısı (8) MVP-2 testinde bilinçli
+  tutuldu — 8 saniyelik test videosunda farklı ürünler kare 1, 4, 5, 6, 7,
+  8'e dağılmıştı; azaltmak kayda değer ürün kaybına yol açardı.
 
-Sistem talimatı: fiş/buzdolabı görüntülerinden ürünleri çıkar, SADECE JSON dön:
+Sistem talimatı (MVP-2'de güncellendi — bkz. altta): fiş/buzdolabı
+görüntülerinden ürünleri çıkar, SADECE JSON dön:
 `[{ "name": string, "qty": number, "unit": "adet|g|kg|ml|l|demet", "emoji": string, "confidence": "high|low" }]`
-Markdown backtick yok, açıklama yok. `confidence: low` olan ürünler
-arayüzde "onayla" rozetiyle gösterilir. Yanıt parse edilemezse kullanıcıya
-"tekrar dene" durumu göster, asla boş envanter yazma.
+`"name"` alanı **Türkçe ve genel ürün adı** olmalı (örn. "süt", "peynir",
+"domates") — marka adı veya ambalaj üzerindeki yabancı dil metni
+KULLANILMAMALI; aynı genel üründen birden fazla adet/paket varsa TEK
+satırda toplanıp miktar buna göre verilmeli. Markdown backtick yok,
+açıklama yok. `confidence: low` olan ürünler arayüzde "onayla" rozetiyle
+gösterilir. Yanıt parse edilemezse kullanıcıya "tekrar dene" durumu göster,
+asla boş envanter yazma.
+
+> **MVP-2 prompt değişikliği neden yapıldı:** İlk testte modeller ürünleri
+> doğru buluyor ama markalı/yabancı dil isimlerle dönüyordu (örn. "süt"
+> yerine "Arla Bio Halfvolle Melk", "domates" yerine "tomato"). Bu hem
+> test eşleşmesini hem de gerçek tarif eşleştirmesini (envanterdeki isim
+> tarif malzemesiyle örtüşmeli) bozuyordu. Genel Türkçe isim + tekilleştirme
+> kuralı eklenince doğruluk Claude'da %18 → %91, Gemini'de %0 → %82'ye
+> çıktı (bkz. "Sağlayıcı karşılaştırma notları").
+
+Bu çıkarım artık sağlayıcıdan bağımsız (`services/vision/`, bkz.
+`VisionProvider` arayüzü): Claude (`claude-provider.ts`) ve Gemini
+(`gemini-provider.ts`) aynı sistem talimatını ve yukarıdaki JSON şemasını
+kullanır, ikisi de aynı şekilde parse/doğrulanır. `EXPO_PUBLIC_VISION_PROVIDER`
+(`claude` | `gemini`) ile kod değiştirmeden geçiş yapılır. Sistem talimatı
+Claude tarafında `cache_control: {"type": "ephemeral"}` ile işaretlenir
+(maliyet kuralı); Gemini tarafında 2.5 modellerinin varsayılan "implicit
+caching"i aynı işlevi görür, ayrıca kod gerekmez.
 
 ### Envanter → tarif önerisi
 Girdi: envanter listesi. Çıktı: SADECE JSON, 4-6 tarif:
@@ -93,6 +123,41 @@ Her istek şunları içerir: tarifin tamamı + o tarife ait geçmiş mesajlar
 (`recipe_chats` tablosundan). Sistem talimatı: "Türkçe konuşan bir şefsin,
 yalnızca bu tarif bağlamında yanıt ver, tarifte değişiklik önerirken
 miktarları da güncelle."
+
+## Sağlayıcı karşılaştırma notları
+
+**MVP-2 test sonucu (2026-07-04, 1 video fixture — 8 saniyelik buzdolabı
+videosu, 11 ürünlük ground truth, MVP-2 prompt+boyutlandırma
+optimizasyonundan sonra):**
+
+| Sağlayıcı | Doğruluk | Yanlış pozitif | Yanıt süresi | Tahmini maliyet |
+|---|---|---|---|---|
+| **Claude Sonnet 4.6 (kazanan)** | %91 (10/11) | 4 | 8.1s | ~$0.05 |
+| Gemini 2.5 Flash | %82 (9/11) | 2 | 17.6s | hesaplanmadı (fiyat girilmedi) |
+
+**Karar: `EXPO_PUBLIC_VISION_PROVIDER=claude` varsayılan.** Claude hem daha
+doğru hem ~2 kat daha hızlı; Gemini'nin daha az yanlış pozitif üretmesi
+(2 vs 4) bu farkı dengelemiyor. Örneklem küçük (tek video) — daha fazla
+fixture eklenip eval tekrar çalıştırıldıkça bu karar güncellenmeli.
+
+Optimizasyon öncesi (ilk ham test, aynı video): sistem talimatı marka/yabancı
+dil isimlerini engellemiyordu ve video kareleri 1568px sınırından
+geçmiyordu — Claude %18, Gemini %0 doğruluk ölçülmüştü (görünüşte düşük
+ama aslında çoğu ürün doğru bulunmuş, sadece "Arla Bio Halfvolle Melk" gibi
+markalı/yabancı isimlerle dönmüştü, ground truth'taki jenerik Türkçe
+isimlerle eşleşmedi). Bkz. "Fotoğraf/Video → envanter" bölümündeki prompt
+notu ve altındaki eval seti açıklaması.
+
+Karar için elle ölçüm sağlayan bir eval seti var: `tests/vision-eval/`.
+Kullanıcı `fixtures/` altına gerçek fotoğraf/video + elle girilmiş
+ground-truth.json koyar; `npx tsx tests/vision-eval/run-eval.ts` her
+fixture'ı hem Claude hem Gemini'den geçirip doğruluk oranı, yanlış pozitif
+sayısı, yanıt süresi ve tahmini token/maliyet raporunu
+`tests/vision-eval/results/` altına tarihli bir `.md` dosyası olarak yazar
+(bkz. `fixtures/README.md`). Video fixture'ları için ffmpeg kurulu olmalı
+(`brew install ffmpeg`) — uygulamadaki gerçek kare çıkarımı
+`expo-video-thumbnails` ile yapılır, script masaüstünde çalıştığı için
+ffmpeg'e ihtiyaç duyar.
 
 ## Çalışma kuralları
 

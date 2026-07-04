@@ -1,6 +1,8 @@
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { File } from 'expo-file-system';
 
+import { resizeImageToBase64 } from './resizeImageToBase64';
+
 export interface ExtractVideoFramesOptions {
   /** Maximum number of frames to extract. Defaults to 8. */
   maxFrames?: number;
@@ -46,8 +48,10 @@ export async function extractVideoFramesAsBase64(
     thumbnailUrisToCleanUp.push(thumbnail.uri);
 
     try {
-      const file = new File(thumbnail.uri);
-      const base64 = await file.base64();
+      // Video kareleri fotoğraf yolundaki gibi 1568px uzun kenar sınırından
+      // geçirilir — cihaz kamerası çözünürlüğünde (örn. 1080x1920) kareler
+      // aksi halde gereksiz token/maliyet getirir (bkz. resizeImageToBase64).
+      const base64 = await resizeImageToBase64(thumbnail.uri, thumbnail.width, thumbnail.height);
       framesBase64.push(base64);
     } catch {
       // Couldn't read/convert this particular frame; skip it and keep going.

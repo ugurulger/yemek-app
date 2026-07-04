@@ -1,0 +1,5 @@
+[
+  { "name": "yumurta", "qty": 6, "unit": "adet" },
+  { "name": "süt", "qty": 1, "unit": "l" },
+  { "name": "domates", "qty": 4, "unit": "adet" }
+]
