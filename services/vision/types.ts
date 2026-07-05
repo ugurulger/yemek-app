@@ -44,6 +44,24 @@ export interface ExtractInventoryOptions {
 }
 
 /**
+ * MVP-9 (performans): `extractInventoryFromVideo`'nun video girdisi.
+ * `expo-file-system`'in `File` sınıfı bu şekle uyar (`Blob`'u implemente
+ * eder — senkron `.size`, inline/Files API kararı için — ve `.base64()`
+ * sunar). `services/vision` katmanı `expo-file-system`'e bağımlı olmasın
+ * diye tip burada minimal/duck-typed tanımlanır.
+ *
+ * ⚠️ `File`'ı Files API'ye (`ai.files.upload`) DOĞRUDAN Blob olarak
+ * geçirmeyin — gerçek cihazda çöker (bkz. `gemini-provider.ts` —
+ * `extractInventoryFromVideoNative` içindeki MVP-9 notu: RN'in `Blob`
+ * polyfill'i `File.slice()`'ın kullandığı ArrayBuffer→Blob dönüşümünü
+ * desteklemiyor). `.base64()` ile alıp `fetch(\`data:...\`).blob()`
+ * üzerinden RN'in native Blob'unu üretin, Files API'ye onu verin.
+ */
+export interface VideoFileSource extends Blob {
+  base64(): Promise<string>;
+}
+
+/**
  * Tüm vision sağlayıcılarının uyması gereken ortak arayüz. Sağlayıcılar
  * (Claude, Gemini, ...) SKILL.md'deki "Fotoğraf/Video → envanter" bölümünde
  * tanımlı InventoryItem şemasıyla birebir aynı çıktıyı üretmek zorundadır —
@@ -51,6 +69,17 @@ export interface ExtractInventoryOptions {
  */
 export interface VisionProvider {
   extractInventory(images: string[], options?: ExtractInventoryOptions): Promise<InventoryItem[]>;
+  /**
+   * MVP-7: video girdisini kare çıkarmadan, TEK native-video çağrısıyla
+   * işler (bkz. SKILL.md "Video → envanter (native, MVP-7)"). Opsiyonel —
+   * sadece Gemini implement eder; Claude video kabul etmediği için bu
+   * metodu tanımlamaz, çağıran taraf (`app/(tabs)/index.tsx`) varlığını
+   * kontrol edip yoksa eski kare-tabanlı akışa döner.
+   */
+  extractInventoryFromVideo?(
+    video: { file: VideoFileSource; mimeType: string },
+    options?: ExtractInventoryOptions
+  ): Promise<InventoryItem[]>;
 }
 
 export type VisionProviderName = 'claude' | 'gemini';

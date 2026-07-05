@@ -65,6 +65,44 @@ Demo'da onaylanan görsel dil. Bundan sapma:
   buton metinleri eylemi söyler ("Malzemeleri sepete ekle", "Gönder" değil)
 - Boş durumlar yönlendirme içerir ("Tarif sayfasından malzeme
   ekleyebilirsin"), asla sadece "Liste boş" yazmaz.
+- **Ürün adı / marka ayrımı (MVP-8):** kart başlığında ürün adı büyük ve
+  kalın (`Outfit_600SemiBold`, `text-base text-stone-900`); marka varsa
+  altında küçük, gri, ikincil bir etiket olarak (`Outfit_400Regular`,
+  `text-xs text-stone-400`). Marka adı ASLA ürün adıyla birleştirilip tek
+  uzun başlık yapılmaz.
+- **Kategori grupları + "Buzdolabım" dış kart (MVP-10):** ham 7 kategori
+  (bkz. "Envanter ekranı" altında) görüntülemede 5 üst gruba birleştirilir
+  (`CATEGORY_GROUPS`, `app/(tabs)/index.tsx`): **Süt & Peynir, Et &
+  Şarküteri, Meyve & Sebze, İçecek & Sos, Diğer**. Tüm gruplar TEK bir
+  "🧊 Buzdolabım" dış kartı (`rounded-2xl`, `shadow-sm`, `ring-stone-200`)
+  içinde, aralarında ince `border-stone-100` ayraçlarla ayrılan iç
+  bölümler olarak gösterilir (düz art arda kartlar DEĞİL, "dolap/raf"
+  hissi). Grup başlıkları "chip" görünümünde: `bg-stone-100 rounded-full
+  px-3 py-1`, `Outfit_600SemiBold`, `text-sm` — önceki (MVP-8) soluk
+  `text-sm text-stone-500` başlıktan daha belirgin.
+- **Kart ikonu yerine renkli şerit (MVP-10):** kart solunda tabak/çatal
+  emoji'si YERİNE grup bazlı ince bir renkli şerit (`GROUP_STRIPE_COLORS`)
+  — emerald-900/amber-500 paletinin ton varyasyonları (emerald-900,
+  emerald-500, amber-500, amber-300, stone-300), yeni bir renk ailesi
+  İCAT EDİLMEDİ. Confidence rozeti (`%92` gibi) ana kategorili listede
+  ARTIK GÖSTERİLMİYOR (zaten `CONFIDENCE_THRESHOLD`'un üzerindeki ürünler
+  gösteriliyor, rozet bilgi değeri taşımıyordu) — SADECE "emin olunamayan
+  ürünler" modalında gösterilmeye devam ediyor.
+- **⚠️ İki farklı kart render yolu var (MVP-10 mimari notu):** ana
+  kategorili liste artık `components/inventory/InventoryRow.tsx`'i
+  KULLANMIYOR — `app/(tabs)/index.tsx` içinde yerel tanımlı `ProductCard`
+  (ikon yok, rozet yok, renkli şerit) kullanıyor. "Emin olunamayan
+  ürünler" modalı ise HÂLÂ eski `InventoryList`/`InventoryRow`'u (ikon +
+  confidence rozetiyle) kullanıyor — bilinçli bir ayrım (MVP-10 görevinin
+  kapsamı SADECE `app/(tabs)/index.tsx`'in render katmanıyla
+  sınırlandırılmıştı, `InventoryRow.tsx`'e dokunulmadı). Yani modal
+  kartları ile ana liste kartları görsel olarak FARKLI — bu kasıtlı,
+  birleştirme istenirse `InventoryRow.tsx`'in de kapsama alınması gerekir.
+- **"Emin olunamayan ürünler" bildirimi (MVP-10):** artık soluk tek
+  satırlık bir link değil, amber vurgu renginde ayrı bir uyarı kartı
+  (`bg-amber-50`, `ring-amber-200`, `text-amber-900`, "⚠️ N ürün kontrol
+  bekliyor" + `chevron-forward` ikonu) — "Buzdolabım" dış kartının
+  DIŞINDA, listenin en üstünde.
 
 ## Veritabanı şeması (Supabase)
 
@@ -91,46 +129,178 @@ Demo'da onaylanan görsel dil. Bundan sapma:
 
 - **Fotoğraf:** `resizeImageToBase64` ile uzun kenar 2576px'i aşmayacak
   şekilde küçültülüp base64 image bloğu olarak gönderilir (MVP-3'te
-  1568 → 2576, bkz. altta "MVP-3" notu).
-- **Video:** Claude API video kabul etmez. Cihazda `expo-video-thumbnails`
-  ile videodan kare çıkarılır (saniyede 1 kare, en fazla 12 kare — MVP-3'te
-  8 → 12, bkz. `lib/media/extractVideoFrames.ts`), her kare aynı 2576px
-  sınırından geçirilir. "Sahne bazlı" kare seçimi (`kamera hareketine göre`)
-  `expo-video-thumbnails`'in zaman-bazlı API'siyle YAPILAMIYOR (içerik
-  farkına bakan bir filtre sunmuyor) — bu yüzden uygulanmadı, sabit
-  aralıklı örnekleme kullanılıyor.
+  1568 → 2576, bkz. altta "MVP-3" notu). Bu akış DEĞİŞMEDİ, hâlâ altta
+  anlatılan iki aşamalı JSON mimarisini kullanıyor.
+- **Video, MVP-7'den itibaren sağlayıcıya göre AYRIŞIYOR** (bkz. altta
+  "Video → envanter (native, MVP-7)"):
+  - **Gemini** (varsayılan sağlayıcı): kare çıkarma YOK, video native
+    olarak tek çağrıda gönderilir, iki aşamalı JSON mimarisi
+    KULLANILMAZ — bkz. o bölüm.
+  - **Claude:** video API'si kabul etmediği için DEĞİŞMEDİ — cihazda
+    `expo-video-thumbnails` ile kare çıkarılır (saniyede 1 kare, en
+    fazla 12 kare — MVP-3'te 8 → 12, bkz. `lib/media/extractVideoFrames.ts`),
+    her kare aynı 2576px sınırından geçirilir, altta anlatılan iki
+    aşamalı JSON mimarisi kullanılır. "Sahne bazlı" kare seçimi
+    (`kamera hareketine göre`) `expo-video-thumbnails`'in zaman-bazlı
+    API'siyle YAPILAMIYOR (içerik farkına bakan bir filtre sunmuyor) —
+    bu yüzden uygulanmadı, sabit aralıklı örnekleme kullanılıyor. Bu
+    kare-tabanlı akış, sağlayıcı `extractInventoryFromVideo` metodunu
+    tanımlamadığında (`app/(tabs)/index.tsx`) genel geriye-dönük
+    uyumluluk yolu olarak da kullanılır.
 
-**İki sağlayıcı, ORTAK iki aşamalı mimari** (`services/vision/`, bkz.
-`VisionProvider` arayüzü; paylaşılan promptlar `services/vision/prompt.ts`'te
-tanımlı). Kök neden: tek-aşamalı sıkı JSON şeması modelin gözlem detayını
-kısıtlıyordu (kullanıcı, kısıtlamasız/serbest bir promptla çok daha
-detaylı/doğru sonuç alındığını doğruladı — bkz. altta MVP-3/MVP-4 notları).
-Çözüm ikisi için de aynı:
+### Fotoğraf (ve Claude video) → envanter: iki aşamalı JSON mimarisi
 
-1. **Aşama 1 — gözlem** (vision, yüksek çözünürlük): görselleri/kareleri
-   ŞEMA DAYATMADAN, serbest metinle "gördüğün TÜM ürünleri madde madde
-   anlat; marka, raf/çekmece konumu, miktar, emin olamadığın noktaları
-   belirt" diye ister (`OBSERVATION_SYSTEM_PROMPT`). Düz metin döner,
-   JSON değil. Claude: `claude-sonnet-5` (2576px'e kadar yüksek çözünürlük
-   destekler, `thinking: {type:"disabled"}` ile — bkz. altta). Gemini:
-   `gemini-2.5-flash` (`EXPO_PUBLIC_GEMINI_MODEL` ile değiştirilebilir).
-2. **Aşama 2 — yapılandırma** (ucuz, metin girdili): Aşama 1'in metnini
-   `[{ name, qty, unit, brand, confidence }]` şemasına çevirir ("hiçbir
-   ürünü atlama" talimatıyla, `STRUCTURING_SYSTEM_PROMPT`). `"name"` yine
-   jenerik Türkçe; marka ayrı `"brand"` alanına konur (bkz.
-   `types/inventory.ts` — `InventoryItem.brand`, opsiyonel). Claude:
-   `claude-haiku-4-5`. Gemini: aynı `gemini-2.5-flash` (sağlayıcı
-   bağımsızlığı için — Gemini akışı Claude API'sine bağımlı olmamalı).
+**İki aşamalı mimari** (`services/vision/`, bkz. `VisionProvider` arayüzü;
+paylaşılan Aşama 1 promptu `services/vision/prompt.ts`'te tanımlı). Kök
+neden: tek-aşamalı sıkı JSON şeması modelin gözlem detayını kısıtlıyordu
+(kullanıcı, kısıtlamasız/serbest bir promptla çok daha detaylı/doğru sonuç
+alındığını doğruladı — bkz. altta MVP-3/MVP-4 notları).
+
+1. **Aşama 1 — gözlem** (vision, yüksek çözünürlük, İKİ SAĞLAYICIDA DA
+   AYNI): görselleri/kareleri ŞEMA DAYATMADAN, serbest metinle "gördüğün
+   TÜM ürünleri madde madde anlat; marka, raf/çekmece konumu, miktar, emin
+   olamadığın noktaları belirt" diye ister (`OBSERVATION_SYSTEM_PROMPT`).
+   Düz metin döner, JSON değil. Claude: `claude-sonnet-5` (2576px'e kadar
+   yüksek çözünürlük destekler, `thinking: {type:"disabled"}` ile — bkz.
+   altta). Gemini: `gemini-2.5-flash` (`EXPO_PUBLIC_GEMINI_MODEL` ile
+   değiştirilebilir).
+2. **Aşama 2 — yapılandırma, MVP-6'dan itibaren SAĞLAYICIYA GÖRE FARKLI
+   mimari** (bkz. altta "MVP-6" notu):
+   - **Claude:** ayrı/bağımsız bir çağrı, katı JSON şeması
+     (`STRUCTURING_SYSTEM_PROMPT`, `claude-haiku-4-5`) — "hiçbir ürünü
+     atlama" talimatıyla Aşama 1 metnini
+     `[{ name, qty, unit, brand, location, match_confidence }]` şemasına
+     çevirir. Bu mimari DEĞİŞMEDİ (MVP-6, sadece Gemini'yi değiştirdi).
+   - **Gemini:** ayrı bir çağrı DEĞİL — Aşama 1'in AYNI konuşmasının
+     devamı (`contents` dizisinde ek `user`/`model` turları, bkz.
+     `runInventoryConversation` in `gemini-provider.ts`). İkinci tur
+     (`TABULATION_TURN_PROMPT`) kullanıcının kendi AI Studio testindeki
+     basit talimata yakın, kısa ve az kısıtlayıcı: "envanteri bölüm/
+     konuma göre gruplanmış bir tablo olarak göster, her satırda ad/
+     miktar/0-100 net-olma yüzdesi ver" — bizim eski "her ürünü ayrı
+     satır yap" gibi zorlayıcı kurallarımız YOK, Gemini'nin kendi
+     tablolaştırma sezgisine güveniliyor. Aynı `gemini-2.5-flash` modeli
+     kullanılır (ayrı bir yapılandırma modeline gerek yok, Gemini API
+     durumsuz olduğu için ikinci tur ucuz — sadece metin girdisi).
+   İkisinde de `"name"` jenerik Türkçe; marka ayrı `"brand"` alanına
+   konur (bkz. `types/inventory.ts` — `InventoryItem.brand`, opsiyonel).
+   `"location"` ürünün hangi raf/çekmecede/bölümde olduğunu tutar (örn.
+   "buzdolabı kapısı", "sebze çekmecesi") — kullanıcının kendi Gemini
+   testinde bölüm bazlı gruplama işine yaradığı gözlemlendiği için
+   eklendi, opsiyonel (`InventoryItem.location`). `"match_confidence"`
+   0-100 arası tam sayı (MVP-5'te ikili `"high"|"low"`'dan bu şemaya
+   geçildi — bkz. altta "Confidence şemasının yüzdeselleştirilmesi").
 
 Aşama 2'nin çıktısı her iki sağlayıcıda da aynı `parseInventoryItems` ile
-ayrıştırılır (opsiyonel `brand` alanı dahil) — ikisi de aynı
-`InventoryItem[]` şeklini üretir. `EXPO_PUBLIC_VISION_PROVIDER`
-(`claude` | `gemini`) ile kod değiştirmeden sağlayıcı geçişi yapılır.
-`confidence: low` olan ürünler arayüzde "onayla" rozetiyle gösterilir.
-Yanıt parse edilemezse kullanıcıya "tekrar dene" durumu göster, asla boş
-envanter yazma. Claude sistem talimatını `cache_control: {"type":
-"ephemeral"}` ile önbellekler; Gemini 2.5'in varsayılan "implicit
-caching"i aynı işlevi görür.
+ayrıştırılır (opsiyonel `brand`/`location` alanları ve 0-100 aralık
+kontrolünden geçen `match_confidence` dahil) — ikisi de aynı
+`InventoryItem[]` şeklini üretir. Bu şema `"category"` ÜRETMEZ (iki aşamalı
+JSON akışının şeması kategori sormuyor) — `app/(tabs)/index.tsx` bu akıştan
+gelen ürünleri kategorisiz kabul edip "Diğer" bölümü altında gösterir (bkz.
+altta "Envanter ekranı: kategori + eşik davranışı (MVP-8)"). `category`
+sadece video → tablo akışının (MVP-7) ayrıştırıcısı (`parseInventoryTable`)
+doldurur. `EXPO_PUBLIC_VISION_PROVIDER` (`claude` | `gemini`) ile kod
+değiştirmeden sağlayıcı geçişi yapılır. Yanıt parse edilemezse kullanıcıya
+"tekrar dene" durumu göster, asla boş envanter yazma. Claude sistem
+talimatını `cache_control: {"type": "ephemeral"}` ile önbellekler; Gemini
+2.5'in varsayılan "implicit caching"i aynı işlevi görür.
+
+#### Envanter ekranı: kategori + eşik davranışı (MVP-8)
+
+`app/(tabs)/index.tsx`'teki `CONFIDENCE_THRESHOLD` sabiti **50 → 90'a
+çıkarıldı** — kullanıcı belirsiz ürünlerin ana listede yer kaplamasını
+istemedi, eşik yükseltilerek daha az ürün "kesin" sayılıyor. Davranış:
+
+- **`confidence >= 90` (veya `confidence` yok):** ürün, `item.category`'nin
+  eşlendiği GÖRÜNTÜLEME grubuna (bkz. altta MVP-10 — `CATEGORY_GROUPS`,
+  5 üst grup) göre "Buzdolabım" dış kartı içindeki bir bölümde `ProductCard`
+  ile gösterilir. `category` alanı yoksa (iki aşamalı JSON akışı) "Diğer"
+  grubuna düşer.
+- **`confidence < 90`:** ürün kategorili listede HİÇBİR YER KAPLAMAZ.
+  Bunun yerine listenin en üstünde belirgin bir amber uyarı kartı
+  gösterilir ("⚠️ N ürün kontrol bekliyor", bkz. altta MVP-10). Tıklanınca
+  bir `Modal` (pageSheet) açılır, içinde bu ürünler mevcut
+  `InventoryList`/`InventoryRow` + "Envantere ekle" akışıyla tam kart
+  olarak gösterilir — silinmiş değildir, "Envantere ekle" ile ana listeye
+  taşınır (bu, ürünün `confidence` değerini eşiğin üzerine çıkarır).
+
+> **MVP-10 (2026-07-05) — kategori grupları + kart redesign:** Kullanıcı
+> ham 7 kategorinin çok ince taneli durduğunu, kart üzerindeki tabak/çatal
+> emoji'sinin anlamsız/tekrarlı olduğunu ve "emin olunamayan ürünler"
+> bildiriminin çok pasif kaldığını belirtti — SADECE görsel bir redesign
+> istendi (yeni API çağrısı yok, `services/vision/` DEĞİŞMEDİ, mevcut
+> cache'lenmiş `InventoryItem[]` üzerinde çalışır). Görev kapsamı SADECE
+> `app/(tabs)/index.tsx`'in render katmanıyla sınırlandırıldığı için
+> `components/inventory/InventoryRow.tsx`'e BİLİNÇLİ OLARAK dokunulmadı —
+> bu yüzden ana liste artık `InventoryRow`'u değil yerel `ProductCard`'ı
+> kullanıyor, "emin olunamayan ürünler" modalı ise eski `InventoryRow`'da
+> kaldı (iki farklı kart görünümü şu an bilinçli olarak bir arada var,
+> bkz. "Tasarım sistemi" — "İki farklı kart render yolu" notu). Detaylar
+> için bkz. "Tasarım sistemi" — "Kategori grupları", "Kart ikonu yerine
+> renkli şerit", "Emin olunamayan ürünler bildirimi" maddeleri.
+
+### Video → envanter (native, MVP-7)
+
+Kullanıcı kendi AI Studio testinde videoyu native olarak (kare çıkarma
+YOK) Gemini'ye verip TEK çağrıda markdown TABLO isteyerek çok iyi sonuç
+aldı. Karar: video girdisi için TÜM işi (gözlem + yapılandırma AYRI
+aşamalar değil) tek bir Gemini çağrısına devret, kullanıcının tablosunu
+birebir kullan — üstüne gruplama/şema mühendisliği dayatma. Bu mimari
+SADECE Gemini'de var (`extractInventoryFromVideo`, `VisionProvider`
+arayüzünde opsiyonel — bkz. `services/vision/types.ts`); Claude bu metodu
+tanımlamıyor, video seçildiğinde `app/(tabs)/index.tsx` bu metodun
+varlığını kontrol eder, yoksa yukarıdaki eski kare-tabanlı akışa döner.
+
+- **Prompt** (`VIDEO_TABLE_PROMPT`, `services/vision/prompt.ts`): videoyu
+  kare kare incele, markdown tablo döndür — sabit sütunlar (MVP-8'de 5'ten
+  7'ye çıkarıldı, bkz. altta): `Bölüm / Konum | Ürün Adı (Genel) | Marka |
+  Miktar / Detay | Kategori | Doğruluk İhtimali | Notlar / Gerekçe`.
+  "Ürün Adı (Genel)" jenerik Türkçe ad olmalı (örn. "Mayonez", "Peynir",
+  "Yumurta") — marka adı bu sütuna DEĞİL, ayrı "Marka" sütununa yazılır
+  (marka görünmüyorsa "-"). "Kategori" sütunu için modele SABİT bir liste
+  verilir, sadece bu listeden seçmesi istenir: İçecek, Süt Ürünleri,
+  Peynir, Şarküteri, Meyve & Sebze, Sos & Baharat, Diğer. Tablonun en
+  altına sabit bir "Buzdolabı Dışı (Eklenecek)" placeholder satırı
+  eklenmesini ister (gelecekteki manuel eklemeler için yer tutucu —
+  inventory'e ürün olarak EKLENMEZ, bkz. altta). MVP-8 öncesi kullanıcının
+  orijinal İngilizce promptu birebir korunuyordu ("marka dahil özel isim
+  kullan" talimatıyla); kategori/marka ayrımı ihtiyacı nedeniyle bu artık
+  kullanıcının orijinal metninden SAPIYOR (bkz. `prompt.ts` içindeki
+  "MVP-8" yorumu).
+- **Çağrı** (`extractInventoryFromVideoNative`, `gemini-provider.ts`):
+  TEK istek, `systemInstruction` KULLANILMAZ (talimat zaten tek `user`
+  mesajının `text` parçası, kullanıcının orijinal yapısı korunur),
+  `responseMimeType` ayarlanmaz (çıktı düz markdown, JSON değil). Model:
+  `gemini-2.5-pro` (video anlama için `flash`'tan güçlü — iki aşamalı
+  akışla AYNI `EXPO_PUBLIC_GEMINI_MODEL` değişkeniyle override edilir,
+  ayarlanırsa ikisini de etkiler). Video ~18MB'ı geçerse otomatik olarak
+  Gemini Files API'sine yüklenir (`uploadVideoToFilesApi`, `ai.files.upload`
+  + `ai.files.get` ile `PROCESSING` → `ACTIVE` beklenir) ve `fileData`
+  parçası olarak gönderilir — küçük videolar hâlâ `inlineData` ile
+  doğrudan gönderilir. `onUsage` tek bir `stage: "video-table"` event'iyle
+  çağrılır (aşama ayrımı yok).
+- **Ayrıştırma** (`parseInventoryTable`, `services/vision/markdown-table.ts`):
+  yanıtta ilk `|` karakterinden başlayan satırları tablo kabul eder
+  (öncesi/sonrası düz metinse atılır), başlık + `---` ayırıcı satırlarını
+  atlar, her veri satırını 7 hücreye böler (MVP-8'de 5'ten 7'ye çıktı):
+  `location, name, brand, detailRaw, categoryRaw, confidenceRaw, note`.
+  "Buzdolabı Dışı" placeholder satırı (location/name içinde "Buzdolabı
+  Dışı" veya "Yeni ürünleri" geçiyorsa) inventory'e EKLENMEZ. "Marka"
+  hücresi "-" veya boşsa `InventoryItem.brand` set edilmez (undefined
+  kalır), aksi halde trim'lenmiş hali `brand`'e yazılır. "Kategori"
+  hücresi `parseCategory` ile `InventoryCategory` sabit listesine
+  eşlenir — listede olmayan/tanınmayan bir değer "Diğer"e düşer (silinmez,
+  sadece o bölüme gruplanır). "Miktar / Detay" hücresinden regex ile
+  baştaki sayı + birim kelimesi (`adet|paket|kutu|kavanoz|dilim|kg|g|ml|l|demet`)
+  çıkarılır — `InventoryUnit` olmayanlar (paket/kutu/kavanoz/dilim)
+  `adet`'e eşlenir, bulunamazsa `qty=1`/`unit="adet"` varsayılır; ham
+  metin her durumda `InventoryItem.detail`'de saklanır (opsiyonel alan,
+  bkz. `types/inventory.ts`). "Doğruluk İhtimali" hücresinden `%`
+  öncesi sayı `match_confidence`'a çekilir, bulunamazsa 50 varsayılır ve
+  `console.warn` basılır. "Notlar / Gerekçe" hücresi `InventoryItem.note`
+  alanına (opsiyonel) aynen konur. Hiç geçerli satır bulunamazsa
+  `parseInventoryItems` ile aynı davranış: `InventoryVisionError`
+  fırlatılır ("tekrar dene").
 
 > **MVP-2 prompt değişikliği neden yapıldı** (her iki sağlayıcının
 > yapılandırma promptu için hâlâ geçerli): İlk testte modeller ürünleri
@@ -155,6 +325,36 @@ caching"i aynı işlevi görür.
 > varsayılan sağlayıcı `gemini` yapıldı — bkz. "Sağlayıcı karşılaştırma
 > notları".
 
+> **MVP-5 confidence şemasının yüzdeselleştirilmesi:** Kullanıcı, kendi
+> manuel Gemini (AI Studio) testinde uygulamadan daha detaylı envanter
+> çıkarımı aldığını gözlemledi. Kök neden: (a) yapılandırma şeması
+> kullanıcının kendi akışı kadar esnek değildi (konum/bölüm bilgisi
+> alınmıyordu), (b) `confidence` ikili (`high`/`low`) olduğu için ürün
+> bazlı güvenilirlik ayrımı yapılamıyordu. Çözüm: `STRUCTURING_SYSTEM_PROMPT`
+> şemasına opsiyonel `"location"` alanı ve 0-100 arası `"match_confidence"`
+> eklendi (yukarıdaki "Aşama 2" maddesine bakın); UI'da `CONFIDENCE_THRESHOLD`
+> (varsayılan 50) altındaki ürünler ayrı bir bölümde gösteriliyor. Eski
+> `confidence: low` → "onayla" rozeti davranışı kaldırıldı.
+
+> **MVP-6 Gemini Aşama 2'yi kendi şema mühendisliğimizden Gemini'nin doğal
+> tablolaştırma sezgisine bıraktık:** Kullanıcı kendi manuel Gemini (AI
+> Studio) testinde HİÇBİR bizim tarzı mühendislik yapmadan (gruplama
+> yasağı, confidence hesaplama talimatı vb. yok), sadece iki doğal mesajla
+> ("ürünleri tanımlayıp envanterini çıkar" → "bunu tablo olarak göster,
+> bölüm bölüm, sadece gerekli bilgiler") çok iyi sonuç aldığını gözlemledi.
+> Karar: bu basit iki-mesajlık akışı birebir taklit etmek için Gemini'nin
+> Aşama 1 (gözlem) ve Aşama 2 (yapılandırma) çağrılarını AYRI/BAĞIMSIZ
+> istekler olmaktan çıkarıp `contents` dizisinde `user`/`model` turları
+> olan TEK bir konuşmaya birleştirdik (`runInventoryConversation`,
+> `gemini-provider.ts`) ve Aşama 2 talimatını (`TABULATION_TURN_PROMPT`,
+> `prompt.ts`) kullanıcının kendi promptuna yakın, kısa ve az kısıtlayıcı
+> hale getirdik — eski "aşırı gruplama yasağı" paragrafları kaldırıldı,
+> Gemini'nin kendi tablolaştırma/gruplama sezgisine güveniliyor. Sorun
+> çıkarsa gerçek veriyle (eval sonuçlarıyla) düzeltilecek — önden aşırı
+> kısıtlama yapılmadı. Claude'un mimarisi DEĞİŞMEDİ (hâlâ ayrı çağrı +
+> katı şema, `STRUCTURING_SYSTEM_PROMPT`) — Claude zaten A/B için pasif
+> tutuluyor, öncelik Gemini'de.
+
 > **Debug/deneysel notlar:** Aşama 1 (gözlem) ham metnini görmek için
 > Mutfağım ekranındaki **geçici** "[DEBUG] Ham Metni Gör" butonu
 > kullanılabilir (analiz sonrası görünür, bir modal'da düz metin gösterir —
@@ -166,6 +366,19 @@ caching"i aynı işlevi görür.
 > aktifken anlamlıdır, Claude video kabul etmiyor. İnline video için Google'ın
 > önerdiği sınır ~20MB/istek — aşılırsa API'ye hiç istek atılmadan net bir
 > hata gösterilir (Files API bu deneysel yol kapsamında UYGULANMADI).
+
+> **MVP-8 kategori + marka ayrımı + eşik yükseltme:** Kullanıcı üç UI/veri
+> iyileştirmesi istedi: (1) ürünleri kategoriye göre grupla, (2) doğruluk
+> eşiğini yükselt (50 → 90), belirsiz ürünleri minimal göster, (3) genel
+> ürün adını markadan görsel olarak ayır. Kapsam SADECE `services/vision/`,
+> `app/(tabs)/index.tsx`, `types/inventory.ts` olarak verildi, ama madde
+> (3)'ün kart görünümü değişikliği (`components/inventory/InventoryRow.tsx`)
+> bu dosyalardan hiçbirinde yaşamıyor — kullanıcıya soruldu, kapsam bu tek
+> dosyayı da kapsayacak şekilde genişletildi (bkz. `InventoryRow.tsx` —
+> ad büyük/kalın başlık, marka küçük/gri ikincil etiket). `VIDEO_TABLE_PROMPT`
+> 5 sütundan 7 sütuna çıktı (Marka + Kategori eklendi, bkz. yukarıda),
+> `parseInventoryTable` buna göre güncellendi, `InventoryItem.category`
+> eklendi (opsiyonel — iki aşamalı JSON akışı bu alanı üretmiyor).
 
 ### Envanter → tarif önerisi
 Girdi: envanter listesi. Çıktı: SADECE JSON, 4-6 tarif:
@@ -179,6 +392,25 @@ yalnızca bu tarif bağlamında yanıt ver, tarifte değişiklik önerirken
 miktarları da güncelle."
 
 ## Sağlayıcı karşılaştırma notları
+
+> **Native-video (MVP-7) maliyet karşılaştırması — ÖLÇÜLMEDİ:** Bu bölümdeki
+> MVP-2/3/4 rakamlarının hepsi `tests/vision-eval/run-eval.ts`'in her iki
+> sağlayıcı için de çağırdığı **iki aşamalı `extractInventory`** akışına ait
+> (video fixture'ları bile bu script'te ffmpeg ile karelere ayrılıp iki
+> aşamalı akıştan geçiyor, bkz. `extractFramesFromVideo`). Script,
+> `extractInventoryFromVideoNative`'i (MVP-7 tek-çağrı video→tablo akışı,
+> `stage: "video-table"`) HİÇ ÇAĞIRMIYOR — bu yüzden `tests/vision-eval/
+> results/` altında `video-table` aşamalı bir rapor yok ve bu akışın gerçek
+> token/maliyet rakamı henüz kaydedilmedi. Rakam uydurmak yerine bu boşluk
+> burada açıkça belirtiliyor: karşılaştırma yapılabilmesi için `run-eval.ts`'e
+> native-video yolunu da çağıran bir kol eklenmesi gerekiyor (ayrı bir görev
+> olarak değerlendirilebilir — mevcut script sadece `provider.extractInventory`
+> çağırıyor, `provider.extractInventoryFromVideo` opsiyonel metodunu hiç
+> kullanmıyor). Yön tahmini: native akış TEK çağrı (gözlem+yapılandırma
+> ayrımı yok) olduğu için toplam token/gecikme muhtemelen iki aşamalı
+> gemini akışından daha düşük olacaktır, ama bu DOĞRULANMADI — `gemini-2.5-pro`
+> (video-table'ın varsayılan modeli) `gemini-2.5-flash`'tan (iki aşamalı
+> akışın varsayılanı) pahalı olduğu için bu tahmin ters de çıkabilir.
 
 **MVP-4 test sonucu (2026-07-05, aynı video fixture, iki aşamalı mimari
 ARTIK HER İKİ sağlayıcıda da; rakamlar API `usage` alanından GERÇEK):**
@@ -283,6 +515,124 @@ hesaplanan GERÇEK token/maliyet raporunu (Claude'da aşama bazında dahil)
 Video fixture'ları için ffmpeg kurulu olmalı (`brew install ffmpeg`) —
 uygulamadaki gerçek kare çıkarımı `expo-video-thumbnails` ile yapılır,
 script masaüstünde çalıştığı için ffmpeg'e ihtiyaç duyar.
+
+## Performans notları
+
+**MVP-9 (2026-07-05) — native-video (MVP-7) gecikme profili, gerçek API
+çağrılarıyla ölçüldü** (aynı `tests/vision-eval/fixtures/IMG_8425.MOV`
+fixture'ı — 24.5MB, 23s, 1920×1080 HEVC; gerçek `EXPO_PUBLIC_GOOGLE_API_KEY`
+ile, masaüstünde geçici bir Node/tsx script'iyle — `run-eval.ts` bu akışı
+çağırmıyor, bkz. yukarıdaki "Native-video (MVP-7) maliyet karşılaştırması"
+notu). Her ölçüm ayrı bir gerçek API çağrısı, rakamlar tahmini değil.
+
+**Ölçüm sonucu — aşama dökümü** (optimizasyon sonrası, `gemini-provider.ts`
+içindeki `logStage` console.log'larından, aynı fixture, `gemini-2.5-pro`):
+
+| Aşama | Süre (4 gerçek çalıştırma aralığı) | Not |
+|---|---|---|
+| (a) video sıkıştırma/işleme | yok (0ms) | Cihazda hiçbir sıkıştırma/küçültme adımı YOK — video olduğu gibi gönderiliyor (bkz. altta "720p" bulgusu) |
+| (b) base64'e çevirme (client) | ~10ms (masaüstünde) | MVP-9 sonrası SADECE inline (<18MB) videolarda çalışıyor; Files API yoluna giden büyük videolarda ARTIK HİÇ ÇALIŞMIYOR (bkz. altta) |
+| (c) Files API yükleme + işleme bekleme | ~12–14s (3 ölçüm) | Sabit maliyet, dosya boyutuyla orantılı büyür |
+| (c) Gemini isteği (model çıkarımı) | ~14.5–35s (4 ölçüm, BÜYÜK varyans) | Toplam sürenin en büyük ve en değişken parçası — sunucu/model tarafı, client kodundan etkilenmiyor |
+| (d) markdown parse | ~1–3ms | İhmal edilebilir |
+| (d) state güncelleme (`addItems`) | ölçülmedi (RN gerektirir) | Zustand `set` + küçük dizi (~15-20 öğe) için mikrosaniyeler mertebesinde beklenir, cihazda ayrıca ölçülmedi |
+| **TOPLAM** | **~35–47s** (4 gerçek çalıştırma) | Aynı kod/prompt/model ile bile geniş varyans — Gemini'nin video anlama gecikmesi doğası gereği değişken (bkz. SKILL.md'deki MVP-3 notundaki benzer varyans gözlemi) |
+
+**Ana bulgu: gecikmenin ~%70-95'i ağ/model tarafında (Files API + model
+çıkarımı), client tarafındaki kod (encode/parse/state) toplamın %1'inden
+az.** Bu yüzden client-side mikro-optimizasyonların (base64/parse hızı)
+wall-clock süreye etkisi ölçülemeyecek kadar küçük; asıl kaldıraç video
+boyutu/süresi ve model seçimi.
+
+**Uygulanan optimizasyonlar** (hepsi çıktı şemasını/kaliteyi DEĞİŞTİRMEDİ):
+
+1. ~~Çift base64 dönüşümü kaldırıldı~~ — **DENENDİ, GERÇEK CİHAZDA ÇÖKTÜ,
+   GERİ ALINDI.** İlk versiyon `expo-file-system`'in `File`'ını (Blob'u
+   implemente ediyor, `.size` senkron) `ai.files.upload`'a DOĞRUDAN
+   geçiriyordu — masaüstü Node script'inde (bu bölümdeki tüm ölçümler)
+   sorunsuz çalıştı, ama kullanıcı gerçek iOS cihazında test edince şu
+   hatayla çöktü: `"Creating blobs from 'ArrayBuffer' and 'ArrayBufferView'
+   are not supported"`. **Kök neden:** `@google/genai`'nin resumable/chunked
+   upload'ı büyük dosyaları `file.slice()` ile parçalıyor;
+   `expo-file-system`'in `File.slice()` implementasyonu bir noktada
+   `new Blob([arrayBuffer])` çağırıyor, ve React Native'in `Blob` polyfill'i
+   (Node'un `Blob`'unun aksine) ArrayBuffer/ArrayBufferView'dan Blob
+   oluşturmayı DESTEKLEMİYOR — bu yüzden Node testinde YAKALANAMADI
+   (masaüstü ölçüm metodolojisinin bir sınırı: RN'e özgü polyfill
+   farklarını göremez). **Düzeltme** (`extractInventoryFromVideoNative`):
+   Files API'ye yüklenecek videolar için hâlâ `video.file.base64()`
+   çağrılıyor, ama şimdi `fetch(\`data:...;base64,...\`).blob()` ile RN'in
+   KENDİ native (ağ tabanlı) Blob'u elde ediliyor — bu blob'un `.slice()`'ı
+   native olarak destekleniyor (bu, MVP-7'nin özgün, cihazda çalıştığı
+   doğrulanmış çözümüydü). **Sonuç: bu optimizasyon aslında UYGULANAMADI**
+   — Files API yoluna giden (>18MB, pratikte neredeyse tüm gerçek
+   videolar) her istek hâlâ base64 dönüşümünden geçiyor, MVP-7 öncesiyle
+   aynı. Ders: masaüstü/Node ile ölçülen "client tarafı ihmal edilebilir"
+   bulgusu (aşağıda) hâlâ doğru (base64 encode ~10-20ms, wall-clock'a
+   etkisi yok) ama BU YÜZDEN zaten kaybedilecek bir şey yoktu — gerçek
+   kazanç yalnızca poll aralığı oldu (altta) — streaming de aşağıdaki gibi
+   geri alındı.
+2. ~~Streaming (`generateContentStream`)~~ — **DENENDİ, GERÇEK CİHAZDA
+   ÇÖKTÜ, GERİ ALINDI.** "Gemini video tablo çağrısı başarısız oldu:
+   Response body is empty". **Kök neden:** `@google/genai`'nin stream
+   okuyucusu (`processStreamResponse`) yanıtı `response.body.getReader()`
+   ile okuyor — bu, fetch'in gerçek bir `ReadableStream` body döndürmesini
+   gerektirir. React Native'in yerleşik `fetch`'i (Node/tarayıcı fetch'inin
+   aksine) `response.body`'yi ReadableStream olarak SUNMUYOR (RN'de
+   `undefined`) — bu yüzden yine Node testinde (Node'un fetch'i WHATWG
+   streams'i tam destekliyor) YAKALANAMADI, gerçek cihazda ortaya çıktı.
+   **Bu, MVP-9'daki İKİNCİ "masaüstünde çalıştı ama cihazda çökmedi"
+   bulgusu** (ilki yukarıdaki Blob/ArrayBuffer sorunu) — ders: bu tür
+   RN'e özgü network/polyfill farkları masaüstü Node script'leriyle asla
+   YAKALANAMAZ, gerçek cihaz/simülatör testi ZORUNLU. **Düzeltme:** normal
+   (non-streaming) `callGemini`/`generateContent`'e geri dönüldü,
+   `app/(tabs)/index.tsx`'teki "canlı ilerleme" (`streamedRowCount`)
+   göstergesi de kaldırıldı (artık hiçbir zaman tetiklenmeyecekti — RN'de
+   gerçek streaming olmadan `onObservation` yine tek seferde, sonda
+   çağrılıyor). Gerçek streaming isteniyorsa (`expo/fetch` gibi
+   ReadableStream destekli bir fetch polyfill'i eklemek) AYRI bir
+   bağımlılık kararı gerekir.
+3. **Files API poll aralığı 2000ms → 1000ms** (`FILES_API_POLL_INTERVAL_MS`):
+   dosya `PROCESSING`den `ACTIVE`'e geçtikten sonraki "boşa" bekleme
+   süresini kısaltır. Ölçümde poll sayısı 2-3 arasında değişti, net etki
+   küçük ve gürültü seviyesinde kaldı (bkz. tablo) — zararsız, tutuldu.
+
+**Test edildi ama UYGULANMADI (bulgu raporlandı, kod DEĞİŞTİRİLMEDİ):**
+
+- **gemini-2.5-flash vs gemini-2.5-pro** (aynı fixture, gerçek çağrı):
+  Flash %36 daha hızlı (27.6s vs 38.9s) ama ground-truth doğruluğu
+  belirgin düştü (**%64 (7/11) vs %82 (9/11)**, `tereyağı, turşu,
+  mozzarella, salata sosu` kaçırıldı). Kullanıcının kendi kriterine göre
+  ("kalite belirgin düşüyorsa pro'da kal") — **varsayılan `gemini-2.5-pro`
+  olarak KALDI**, flash'a geçilmedi. Tek fixture'lı ölçüm — yine de fark
+  (18 puan) MVP-3/4'teki ölçüm gürültüsünden büyük, karar için yeterli
+  görüldü.
+- **720p'ye sıkıştırma** (ffmpeg ile masaüstünde `scale=-2:720, libx264,
+  crf 23` — cihazda YAPILMADI, sadece hipotezi test etmek için): dosya
+  boyutu **24.49MB → 2.72MB (%89 küçülme)**, bu da dosyayı Files API
+  eşiğinin (18MB) ALTINA düşürdü — yükleme+poll aşaması TAMAMEN atlandı
+  (0ms), toplam süre **25.9s** (24.5MB HEVC ile aynı promptla ölçülen
+  35-47s aralığının belirgin altında). **Ama iki önemli bulgu:** (1) girdi
+  token sayısı AZALMADI, hatta hafif arttı (7659 vs 7389) — Gemini'nin
+  video tokenizasyonu kare/süre bazlı görünüyor, bit hızı/çözünürlükten
+  bağımsız; bu optimizasyon TOKEN/maliyet kazandırmaz, sadece
+  yükleme süresini (ve Files API eşiğini aşıp aşmama durumunu) etkiler.
+  (2) Ground-truth doğruluğu **%73 (8/11)** — pro'nun bu videodaki diğer
+  ölçümlerinden (%82-100) düşük ama tek örneklemli karşılaştırmalarda
+  zaten görülen doğal varyans aralığında (bkz. MVP-3 notu) — kaliteyi
+  KESİN olarak bozduğu SÖYLENEMEZ, ama KESİN olarak korunduğu da
+  söylenemez (n=1). **Karar: uygulanmadı.** Cihazda gerçek video
+  sıkıştırma/transcode yapmak için projede HİÇBİR bağımlılık yok
+  (`expo-video-thumbnails` sadece kare/thumbnail çıkarır, transcode
+  etmez) — yeni bir native paket (örn. `react-native-compressor` veya
+  `ffmpeg-kit-react-native`) eklemek gerekir, bu "yeni paket eklemeden
+  önce kullanıcıya sor" kuralına göre AYRI bir karar. **Öneri:** birden
+  fazla fixture'la (n>1) doğruluk teyit edilirse ve kullanıcı yeni
+  bağımlılığı onaylarsa, bu güçlü bir sonraki adım adayı (upload+poll
+  aşamasını komple atlıyor, ~12-20s kazandırıyor).
+- **Ölü kare kırpma ipucu:** kullanıcı bunu opsiyonel/UI-ipucu olarak
+  tanımladığı için kod eklenmedi — Bölüm B'nin ekranı yeniden düzenlediği
+  göz önüne alınarak, ekleme kararı o redesign'dan sonraya bırakıldı.
 
 ## Çalışma kuralları
 
