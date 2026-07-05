@@ -4,13 +4,20 @@ import { File } from 'expo-file-system';
 import { resizeImageToBase64 } from './resizeImageToBase64';
 
 export interface ExtractVideoFramesOptions {
-  /** Maximum number of frames to extract. Defaults to 8. */
+  /** Maximum number of frames to extract. Defaults to 12. */
   maxFrames?: number;
   /** Interval between frames in milliseconds. Defaults to 1000 (1 frame per second). */
   intervalMs?: number;
 }
 
-const DEFAULT_MAX_FRAMES = 8;
+// MVP-3: 8 → 12'ye yükseltildi. Bu, 8 saniyelik test videosunun kare
+// yoğunluğunu DEĞİŞTİRMEZ (video zaten 1fps'te tamamen örnekleniyordu, bkz.
+// SKILL.md § MVP-2) — amaç daha UZUN videoların (>8sn) ortadan kesilmesini
+// önlemek. Yoğunluğu (fps) artırmak yerine sınırı artırmak tercih edildi:
+// yoğunluğu 2 katına çıkarmak bu video için çoğunlukla neredeyse aynı
+// karelerin tekrarı olurdu (kamera zaten panoramik geziniyor), sınırı
+// artırmak ise gerçek ek kapsam (daha uzun videolarda) sağlıyor.
+const DEFAULT_MAX_FRAMES = 12;
 const DEFAULT_INTERVAL_MS = 1000;
 
 /**

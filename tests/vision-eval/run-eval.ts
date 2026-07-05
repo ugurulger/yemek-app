@@ -1,7 +1,7 @@
 // Vision sağlayıcı (Claude / Gemini) karşılaştırma eval script'i.
 // Kullanım: npx tsx tests/vision-eval/run-eval.ts
 // fixtures/ altındaki her görsel/video + eşleşen ground-truth.json'ı her iki
-// sağlayıcıdan geçirir, doğruluk/yanlış pozitif/süre/tahmini maliyet raporu üretir.
+// sağlayıcıdan geçirir, doğruluk/yanlış pozitif/süre/gerçek maliyet raporu üretir.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -11,8 +11,7 @@ import { randomUUID } from 'node:crypto';
 
 import { claudeVisionProvider } from '../../services/vision/claude-provider';
 import { geminiVisionProvider } from '../../services/vision/gemini-provider';
-import { buildSystemPrompt } from '../../services/vision/prompt';
-import type { InventoryItem, VisionProvider } from '../../services/vision/types';
+import type { InventoryItem, UsageEvent, VisionProvider } from '../../services/vision/types';
 
 // .env yükleme — proje bir bağımlılık olarak dotenv taşımıyor, bu yüzden
 // minimal bir parser kullanılıyor (harici paket eklemeye gerek yok).
@@ -37,24 +36,27 @@ const FIXTURES_DIR = join(__dirname, 'fixtures');
 const RESULTS_DIR = join(__dirname, 'results');
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
 const VIDEO_EXTENSIONS = ['.mp4', '.mov'];
-const USER_TEXT = 'Görüntülerdeki ürünleri JSON olarak çıkar.';
 // lib/media/resizeImageToBase64.ts (MAX_EDGE) ve lib/media/extractVideoFrames.ts
 // (DEFAULT_MAX_FRAMES) ile aynı değerler — production davranışını yansıtsın diye.
-const MAX_IMAGE_EDGE = 1568;
-const MAX_VIDEO_FRAMES = 8;
+const MAX_IMAGE_EDGE = 2576;
+const MAX_VIDEO_FRAMES = 12;
 
-// Fiyatlar $/1M token. Claude Sonnet 4.6 fiyatı doğrulanmış (Anthropic
-// claude-api referansı, 2026-06-24 itibarıyla önbelleklenmiş): $3 girdi / $15
-// çıktı. Gemini 2.5 Flash fiyatı bu script'te DOĞRULANMADI — ai.google.dev/pricing
-// üzerinden güncel değeri girip doldurun; null bırakılırsa maliyet hesaplanmaz,
-// yalnızca tahmini token sayısı raporlanır.
+// Fiyatlar $/1M token, model bazında (Claude iki aşamalı akışta iki farklı
+// model kullanıyor — bkz. services/vision/claude-provider.ts). Anthropic
+// claude-api referansı (2026-06-24 itibarıyla önbelleklenmiş): Sonnet 5
+// girdi/çıktı fiyatı $2/$10 — bu 2026-08-31'e kadar geçerli TANITIM
+// fiyatı, sonrasında $3/$15'e döner (bu tarihten sonra güncelleyin). Haiku
+// 4.5: $1/$5. Gemini 2.5 Flash fiyatı bu script'te DOĞRULANMADI —
+// ai.google.dev/pricing üzerinden güncel değeri girip doldurun; null
+// bırakılırsa o modelin/aşamanın maliyeti hesaplanmaz.
 interface PricingPerMillion {
   input: number | null;
   output: number | null;
 }
-const PRICING: Record<'claude' | 'gemini', PricingPerMillion> = {
-  claude: { input: 3.0, output: 15.0 },
-  gemini: { input: null, output: null },
+const PRICING_PER_MODEL: Record<string, PricingPerMillion> = {
+  'claude-sonnet-5': { input: 2.0, output: 10.0 },
+  'claude-haiku-4-5': { input: 1.0, output: 5.0 },
+  'gemini-2.5-flash': { input: null, output: null },
 };
 
 const PROVIDERS: Record<'claude' | 'gemini', VisionProvider> = {
@@ -101,7 +103,7 @@ function discoverFixtures(): Fixture[] {
 
 // Uygulamada video karelere expo-video-thumbnails ile ayrılıyor (RN'e özgü,
 // bu masaüstü script'inde kullanılamaz). Burada aynı kural (1 sn'de 1 kare,
-// en fazla MAX_VIDEO_FRAMES kare, uzun kenar 1568px'i aşmasın — bkz.
+// en fazla MAX_VIDEO_FRAMES kare, uzun kenar MAX_IMAGE_EDGE'i aşmasın — bkz.
 // lib/media/resizeImageToBase64.ts MAX_EDGE) ffmpeg ile uygulanıyor.
 function extractFramesFromVideo(videoPath: string): string[] {
   const outDir = join(tmpdir(), `vision-eval-${randomUUID()}`);
@@ -191,43 +193,10 @@ function compareToGroundTruth(predicted: InventoryItem[], truth: GroundTruthItem
   };
 }
 
-// Anthropic'in genel görüntü-token formülü: (genişlik × yükseklik) / 750.
-// Gemini için ayrı/farklı bir formül olabilir; burada karşılaştırılabilirlik
-// için aynı formül uygulanıyor — Gemini tarafı için bu daha da kaba bir tahmindir.
-function getImageDimensions(base64: string): { width: number; height: number } | null {
-  const buf = Buffer.from(base64, 'base64');
-
-  if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504e47) {
-    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
-  }
-
-  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
-    let offset = 2;
-    while (offset < buf.length - 9) {
-      if (buf[offset] !== 0xff) {
-        offset++;
-        continue;
-      }
-      const marker = buf[offset + 1];
-      if (marker >= 0xc0 && marker <= 0xc3) {
-        const height = buf.readUInt16BE(offset + 5);
-        const width = buf.readUInt16BE(offset + 7);
-        return { width, height };
-      }
-      const segmentLength = buf.readUInt16BE(offset + 2);
-      offset += 2 + segmentLength;
-    }
-  }
-
-  return null;
-}
-
-function estimateImageTokens(images: string[]): number {
-  return images.reduce((sum, img) => {
-    const dims = getImageDimensions(img);
-    if (!dims) return sum + 1600; // boyut çözülemezse muhafazakar tahmin
-    return sum + Math.ceil((dims.width * dims.height) / 750);
-  }, 0);
+function costForUsage(event: UsageEvent): number | null {
+  const pricing = PRICING_PER_MODEL[event.model];
+  if (!pricing || pricing.input == null || pricing.output == null) return null;
+  return (event.inputTokens / 1e6) * pricing.input + (event.outputTokens / 1e6) * pricing.output;
 }
 
 interface ProviderResult {
@@ -240,9 +209,8 @@ interface ProviderResult {
   falsePositives: number;
   missedNames: string[];
   falsePositiveNames: string[];
-  estimatedInputTokens: number;
-  estimatedOutputTokens: number;
-  estimatedCostUsd: number | null;
+  usageEvents: UsageEvent[];
+  totalCostUsd: number | null;
   error?: string;
 }
 
@@ -252,22 +220,19 @@ async function runProviderOnFixture(
   fixture: Fixture,
   images: string[]
 ): Promise<ProviderResult> {
-  const systemPrompt = buildSystemPrompt(images.length);
-  const imageTokens = estimateImageTokens(images);
-  const inputTextTokens = Math.ceil((systemPrompt.length + USER_TEXT.length) / 4);
-  const estimatedInputTokens = imageTokens + inputTextTokens;
-  const pricing = PRICING[providerName];
-
+  const usageEvents: UsageEvent[] = [];
   const start = performance.now();
   try {
-    const items = await provider.extractInventory(images);
+    const items = await provider.extractInventory(images, {
+      onUsage: (event) => usageEvents.push(event),
+    });
     const elapsedMs = performance.now() - start;
     const comparison = compareToGroundTruth(items, fixture.groundTruth);
-    const estimatedOutputTokens = Math.ceil(JSON.stringify(items).length / 4);
-    const estimatedCostUsd =
-      pricing.input != null && pricing.output != null
-        ? (estimatedInputTokens / 1e6) * pricing.input + (estimatedOutputTokens / 1e6) * pricing.output
-        : null;
+
+    const costs = usageEvents.map(costForUsage);
+    const totalCostUsd = costs.every((c): c is number => c != null)
+      ? costs.reduce((a, b) => a + b, 0)
+      : null;
 
     return {
       provider: providerName,
@@ -279,9 +244,8 @@ async function runProviderOnFixture(
       falsePositives: comparison.falsePositives,
       missedNames: comparison.missedNames,
       falsePositiveNames: comparison.falsePositiveNames,
-      estimatedInputTokens,
-      estimatedOutputTokens,
-      estimatedCostUsd,
+      usageEvents,
+      totalCostUsd,
     };
   } catch (error) {
     const elapsedMs = performance.now() - start;
@@ -295,9 +259,8 @@ async function runProviderOnFixture(
       falsePositives: 0,
       missedNames: fixture.groundTruth.map((t) => normalizeName(t.name)),
       falsePositiveNames: [],
-      estimatedInputTokens,
-      estimatedOutputTokens: 0,
-      estimatedCostUsd: null,
+      usageEvents,
+      totalCostUsd: null,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -323,19 +286,19 @@ function writeReport(results: ProviderResult[]): string {
 
   let md = `# Vision Provider Karşılaştırma Raporu\n\n`;
   md += `Tarih: ${new Date().toISOString()}\n\n`;
-  md += `> Token/maliyet rakamları **tahminidir** (karakter sayısına dayalı kaba yaklaşım + Claude'un\n`;
-  md += `> genel görüntü-token formülü \`(genişlik × yükseklik) / 750\`); gerçek API faturalandırmasıyla\n`;
-  md += `> birebir eşleşmeyebilir. Gemini fiyatlandırması bu script'te doğrulanmadı — bkz. \`PRICING\` sabiti\n`;
-  md += `> (run-eval.ts) ve ai.google.dev/pricing.\n\n`;
+  md += `> Token/maliyet rakamları sağlayıcının API yanıtındaki GERÇEK \`usage\` alanından\n`;
+  md += `> hesaplanıyor (tahmini değil). Gemini fiyatlandırması bu script'te doğrulanmadı —\n`;
+  md += `> bkz. \`PRICING_PER_MODEL\` sabiti (run-eval.ts) ve ai.google.dev/pricing; fiyat\n`;
+  md += `> girilmeden o modelin maliyeti "hesaplanmadı" görünür.\n\n`;
 
   md += `## Özet\n\n`;
-  md += `| Sağlayıcı | Ort. Doğruluk | Toplam Yanlış Pozitif | Ort. Yanıt Süresi | Toplam Tahmini Maliyet |\n`;
+  md += `| Sağlayıcı | Ort. Doğruluk | Toplam Yanlış Pozitif | Ort. Yanıt Süresi | Toplam Gerçek Maliyet |\n`;
   md += `|---|---|---|---|---|\n`;
   for (const [provider, rs] of Object.entries(byProvider)) {
     const avgAccuracy = average(rs.map((r) => r.accuracy)) * 100;
     const totalFP = rs.reduce((sum, r) => sum + r.falsePositives, 0);
     const avgTime = average(rs.map((r) => r.elapsedMs));
-    const costs = rs.map((r) => r.estimatedCostUsd);
+    const costs = rs.map((r) => r.totalCostUsd);
     const totalCost = costs.every((c): c is number => c != null)
       ? costs.reduce((a, b) => a + (b ?? 0), 0)
       : null;
@@ -346,13 +309,29 @@ function writeReport(results: ProviderResult[]): string {
   const fixtureNames = [...new Set(results.map((r) => r.fixture))];
   for (const fixtureName of fixtureNames) {
     md += `### ${fixtureName}\n\n`;
-    md += `| Sağlayıcı | Doğruluk | Yanlış Pozitif | Süre | Tahmini Maliyet | Eksik Ürünler | Yanlış Ürünler | Hata |\n`;
+    md += `| Sağlayıcı | Doğruluk | Yanlış Pozitif | Süre | Gerçek Maliyet | Eksik Ürünler | Yanlış Ürünler | Hata |\n`;
     md += `|---|---|---|---|---|---|---|---|\n`;
     for (const r of results.filter((res) => res.fixture === fixtureName)) {
       md +=
         `| ${r.provider} | %${(r.accuracy * 100).toFixed(0)} (${r.matchedCount}/${r.totalTruth}) | ` +
-        `${r.falsePositives} | ${r.elapsedMs.toFixed(0)}ms | ${formatCost(r.estimatedCostUsd)} | ` +
+        `${r.falsePositives} | ${r.elapsedMs.toFixed(0)}ms | ${formatCost(r.totalCostUsd)} | ` +
         `${r.missedNames.join(', ') || '-'} | ${r.falsePositiveNames.join(', ') || '-'} | ${r.error ?? '-'} |\n`;
+    }
+
+    // Sağlayıcı çok aşamalı ise (Claude: gözlem + yapılandırma) aşama bazında
+    // token/maliyet dökümü — "Aşama 2 ucuz" iddiasını gerçek rakamla göstermek için.
+    const multiStageResults = results.filter(
+      (res) => res.fixture === fixtureName && res.usageEvents.length > 1
+    );
+    for (const r of multiStageResults) {
+      md += `\n**${r.provider} aşama dökümü:**\n\n`;
+      md += `| Aşama | Model | Girdi Token | Çıktı Token | Maliyet |\n`;
+      md += `|---|---|---|---|---|\n`;
+      for (const event of r.usageEvents) {
+        md +=
+          `| ${event.stage} | ${event.model} | ${event.inputTokens} | ${event.outputTokens} | ` +
+          `${formatCost(costForUsage(event))} |\n`;
+      }
     }
     md += `\n`;
   }
@@ -392,7 +371,7 @@ async function main(): Promise<void> {
         console.log(
           `  ${providerName}: doğruluk %${(result.accuracy * 100).toFixed(0)} ` +
             `(${result.matchedCount}/${result.totalTruth}), yanlış pozitif ${result.falsePositives}, ` +
-            `süre ${result.elapsedMs.toFixed(0)}ms`
+            `süre ${result.elapsedMs.toFixed(0)}ms, maliyet ${formatCost(result.totalCostUsd)}`
         );
       }
     }

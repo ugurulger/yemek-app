@@ -1,8 +1,12 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
-// Claude vision için önerilen en uzun kenar. Daha büyük görüntüler hem API
-// boyut limitlerini zorlar hem de gereksiz token/gecikme maliyeti getirir.
-const MAX_EDGE = 1568;
+// Claude vision için önerilen en uzun kenar. MVP-3'te 1568 → 2576'ya
+// yükseltildi: Claude Sonnet 5 (services/vision/claude-provider.ts'te
+// gözlem aşaması için kullanılan model) 2576px'e kadar yüksek çözünürlüğü
+// destekliyor — küçük ambalaj yazılarının okunabilmesi için gerekliydi.
+// Daha büyük görüntüler hem API boyut limitlerini zorlar hem de gereksiz
+// token/gecikme maliyeti getirir, bu yüzden sınırsız değil.
+const MAX_EDGE = 2576;
 const JPEG_COMPRESS = 0.7;
 
 /**

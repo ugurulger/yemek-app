@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 
 import InventoryList from '@/components/inventory/InventoryList';
-import { extractInventoryFromImages, InventoryVisionError } from '@/lib/claude/extractInventoryFromImages';
+import { extractInventory, InventoryVisionError } from '@/services/vision';
 import { extractVideoFramesAsBase64 } from '@/lib/media/extractVideoFrames';
 import { resizeImageToBase64 } from '@/lib/media/resizeImageToBase64';
 import { useInventoryStore } from '@/store/inventoryStore';
+
+// DENEYSEL: Gemini'nin native video girişini dener (bkz. services/vision/gemini-provider.ts).
+// Kapalıyken davranış değişmez. Sadece Gemini aktifken anlamlıdır — Claude
+// video kabul etmiyor (bkz. SKILL.md).
+const NATIVE_VIDEO_ENABLED = process.env.EXPO_PUBLIC_GEMINI_NATIVE_VIDEO === 'true';
 
 export default function MutfagimScreen() {
   const items = useInventoryStore((state) => state.items);
@@ -19,9 +25,13 @@ export default function MutfagimScreen() {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // DEBUG — kaldırılacak: Aşama 1 (gözlem) ham metnini görüntülemek için.
+  const [observationText, setObservationText] = useState<string | null>(null);
+  const [isObservationModalVisible, setIsObservationModalVisible] = useState(false);
 
   async function handlePickAndAnalyze() {
     setErrorMessage(null);
+    setObservationText(null);
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -42,21 +52,30 @@ export default function MutfagimScreen() {
     setIsAnalyzing(true);
 
     try {
-      let images: string[];
+      let extractedItems;
 
-      if (asset.type === 'video') {
+      if (asset.type === 'video' && NATIVE_VIDEO_ENABLED) {
+        // DENEYSEL: kare çıkarmadan ham videoyu doğrudan gönder (bkz.
+        // services/vision/gemini-provider.ts). Sadece Gemini aktifken çalışır.
+        const videoFile = new File(asset.uri);
+        const videoBase64 = await videoFile.base64();
+        extractedItems = await extractInventory([], {
+          video: { data: videoBase64, mimeType: 'video/mp4' },
+          onObservation: setObservationText,
+        });
+      } else if (asset.type === 'video') {
         const frames = await extractVideoFramesAsBase64(asset.uri);
         if (frames.length === 0) {
           throw new InventoryVisionError('Video işlenemedi, tekrar deneyin.');
         }
-        images = frames;
+        extractedItems = await extractInventory(frames, { onObservation: setObservationText });
       } else {
         // Fotoğrafı Claude vision'a göndermeden önce boyutlandır: tam çözünürlüklü
         // telefon fotoğrafları API limitlerini zorlar, yavaş ve pahalıdır.
-        images = [await resizeImageToBase64(asset.uri, asset.width, asset.height)];
+        const image = await resizeImageToBase64(asset.uri, asset.width, asset.height);
+        extractedItems = await extractInventory([image], { onObservation: setObservationText });
       }
 
-      const extractedItems = await extractInventoryFromImages(images);
       addItems(extractedItems);
     } catch (error) {
       const message =
@@ -118,6 +137,18 @@ export default function MutfagimScreen() {
         </View>
       )}
 
+      {/* DEBUG — kaldırılacak: Aşama 1 (gözlem) ham metnini görüntüleme butonu. */}
+      {observationText && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setIsObservationModalVisible(true)}
+          className="mx-5 mb-2 self-start active:scale-95">
+          <Text className="text-xs text-stone-400" style={{ fontFamily: 'Outfit_500Medium' }}>
+            [DEBUG] Ham Metni Gör
+          </Text>
+        </Pressable>
+      )}
+
       {hasItems ? (
         <View className="flex-1 px-5">
           <InventoryList
@@ -157,6 +188,32 @@ export default function MutfagimScreen() {
           </View>
         </View>
       )}
+
+      {/* DEBUG — kaldırılacak: Aşama 1 (gözlem) ham metni modalı. */}
+      <Modal
+        visible={isObservationModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsObservationModalVisible(false)}>
+        <SafeAreaView className="flex-1 bg-white">
+          <View className="flex-row items-center justify-between px-5 pt-4 pb-2">
+            <Text className="text-lg text-stone-900" style={{ fontFamily: 'Fraunces_600SemiBold' }}>
+              [DEBUG] Aşama 1 — Ham Gözlem Metni
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setIsObservationModalVisible(false)}
+              className="active:scale-95">
+              <Ionicons name="close" size={24} color="#1c1917" />
+            </Pressable>
+          </View>
+          <ScrollView className="flex-1 px-5 py-2">
+            <Text className="text-sm text-stone-700" style={{ fontFamily: 'Outfit_400Regular' }}>
+              {observationText}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

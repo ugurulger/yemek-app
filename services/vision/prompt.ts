@@ -6,27 +6,46 @@ const VALID_UNITS: InventoryUnit[] = ['adet', 'g', 'kg', 'ml', 'l', 'demet'];
 const VALID_CONFIDENCES: InventoryConfidence[] = ['high', 'low'];
 
 /**
- * SKILL.md → "Fotoğraf/Video → envanter" bölümündeki JSON şemasıyla birebir
- * aynı olmalı. Tüm sağlayıcılar (Claude, Gemini, ...) bu metni kullanır.
+ * İki aşamalı vision akışının PAYLAŞILAN promptları — Claude
+ * (`claude-provider.ts`) ve Gemini (`gemini-provider.ts`) ikisi de bu
+ * metinleri kullanır (MVP-3'te Claude, MVP-4'te Gemini için benimsendi).
+ * Kök neden: tek-aşamalı sıkı JSON şeması modelin gözlem detayını
+ * kısıtlıyordu (bkz. SKILL.md § "Sağlayıcı karşılaştırma notları").
+ *
+ * Aşama 1 — gözlem: görselleri ŞEMA DAYATMADAN, serbest metinle betimlet.
+ * Aşama 2 — yapılandırma: o metni ucuz/basit bir çağrıyla JSON şemasına
+ * dönüştür. Aşama 2'nin çıktısı `parseInventoryItems` ile ayrıştırılır
+ * (opsiyonel "brand" alanı dahil, bkz. `toInventoryItem`).
  */
-export const BASE_SYSTEM_PROMPT =
-  'Fiş fotoğrafı veya buzdolabı görüntülerinden ürünleri çıkar. SADECE JSON dön: ' +
-  '[{ "name": string, "qty": number, "unit": "adet|g|kg|ml|l|demet", "emoji": string, "confidence": "high|low" }]. ' +
-  '"name" alanı Türkçe ve genel ürün adı olmalı (örn. "süt", "peynir", "domates", "yumurta") — ' +
-  'marka adı, ambalaj üzerindeki yabancı dil metni veya çeşit detayı KULLANMA. ' +
-  'Aynı genel üründen birden fazla adet/paket varsa TEK satırda topla, miktarı (qty) buna göre ver. ' +
-  'Markdown backtick yok, açıklama yok.';
+export const OBSERVATION_SYSTEM_PROMPT =
+  'Buzdolabı/mutfak fotoğraflarını veya video karelerini dikkatlice incele ve ' +
+  'gördüğün TÜM ürünleri düz metin halinde, madde madde anlat. Her ürün için ' +
+  'mümkünse şunları belirt: marka/çeşit, hangi raf veya çekmecede olduğu, tahmini ' +
+  'miktar/adet, ve emin olamadığın noktaları. Küçük, kısmen görünen veya arka ' +
+  'plandaki ürünleri de atlama — ambalaj üzerindeki yazıları okuyabiliyorsan oku. ' +
+  'JSON DEĞİL, sadece düz metin (madde madde liste) olarak yaz.';
 
-export const MULTI_FRAME_SYSTEM_PROMPT_SUFFIX =
+export const OBSERVATION_MULTI_FRAME_SUFFIX =
   ' Gönderilen görüntüler aynı buzdolabının/mutfağın farklı anlarına ait kareler. ' +
-  'Aynı ürünü birden fazla karede görüyorsan TEKİLLEŞTİR — tek bir kayıt olarak dön, ' +
-  'miktarı en güvenilir kareye göre belirle.';
+  'Aynı ürünü birden fazla karede görüyorsan TEKRAR YAZMA — hangi karede/konumda ' +
+  'gördüğünü belirterek tek maddede anlat.';
 
-export function buildSystemPrompt(imageCount: number): string {
+export function buildObservationPrompt(imageCount: number): string {
   return imageCount > 1
-    ? `${BASE_SYSTEM_PROMPT}${MULTI_FRAME_SYSTEM_PROMPT_SUFFIX}`
-    : BASE_SYSTEM_PROMPT;
+    ? `${OBSERVATION_SYSTEM_PROMPT}${OBSERVATION_MULTI_FRAME_SUFFIX}`
+    : OBSERVATION_SYSTEM_PROMPT;
 }
+
+export const STRUCTURING_SYSTEM_PROMPT =
+  'Sana bir buzdolabı/mutfak envanterinin serbest metin açıklaması verilecek. Bunu ' +
+  'aşağıdaki JSON şemasına dönüştür, metinde geçen HİÇBİR ürünü atlama: ' +
+  '[{ "name": string, "qty": number, "unit": "adet|g|kg|ml|l|demet", "emoji": string, ' +
+  '"brand": string | null, "confidence": "high|low" }]. "name" Türkçe ve genel ürün ' +
+  'adı olmalı (örn. "süt", "peynir", "domates") — marka adını "name" içine değil ' +
+  '"brand" alanına koy; marka belirtilmemişse "brand": null kullan. Metinde aynı genel ' +
+  'üründen birden fazla adet/paket geçiyorsa TEK satırda topla. Metinde belirsiz/emin ' +
+  'olunamayan olarak geçen ürünler için "confidence": "low", diğerleri için "high" ' +
+  'kullan. SADECE JSON dön, markdown backtick yok, açıklama yok.';
 
 function generateId(): string {
   // React Native'de crypto.randomUUID her zaman mevcut olmayabilir.
@@ -65,6 +84,7 @@ function toInventoryItem(raw: unknown): InventoryItem | null {
   const unit = obj.unit;
   const emoji = obj.emoji;
   const confidence = obj.confidence;
+  const brand = obj.brand;
 
   if (typeof name !== 'string' || name.trim().length === 0) {
     return null;
@@ -83,6 +103,7 @@ function toInventoryItem(raw: unknown): InventoryItem | null {
     unit,
     emoji: typeof emoji === 'string' && emoji.length > 0 ? emoji : '🍽️',
     confidence: isValidConfidence(confidence) ? confidence : 'high',
+    ...(typeof brand === 'string' && brand.trim().length > 0 ? { brand: brand.trim() } : {}),
   };
 }
 

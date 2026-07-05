@@ -9,4 +9,6 @@ export interface InventoryItem {
   unit: InventoryUnit;
   emoji: string;
   confidence?: InventoryConfidence;
+  /** Marka/çeşit bilgisi (opsiyonel) — "name" jenerik kalsın diye ayrı tutulur. */
+  brand?: string;
 }
