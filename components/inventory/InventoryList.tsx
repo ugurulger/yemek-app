@@ -8,6 +8,7 @@ interface InventoryListProps {
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   onDelete: (id: string) => void;
+  onConfirm?: (id: string) => void;
 }
 
 export default function InventoryList({
@@ -15,6 +16,7 @@ export default function InventoryList({
   onIncrement,
   onDecrement,
   onDelete,
+  onConfirm,
 }: InventoryListProps) {
   if (items.length === 0) {
     return null;
@@ -30,6 +32,7 @@ export default function InventoryList({
           onIncrement={onIncrement}
           onDecrement={onDecrement}
           onDelete={onDelete}
+          onConfirm={onConfirm}
         />
       )}
       ItemSeparatorComponent={() => <View className="h-2" />}

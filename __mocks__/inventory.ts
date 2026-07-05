@@ -7,7 +7,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 6,
     unit: 'adet',
     emoji: '🍅',
-    confidence: 'high',
+    confidence: 95,
   },
   {
     id: '2',
@@ -15,7 +15,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 1,
     unit: 'l',
     emoji: '🥛',
-    confidence: 'high',
+    confidence: 95,
   },
   {
     id: '3',
@@ -23,7 +23,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 10,
     unit: 'adet',
     emoji: '🥚',
-    confidence: 'high',
+    confidence: 95,
   },
   {
     id: '4',
@@ -31,7 +31,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 4,
     unit: 'adet',
     emoji: '🧅',
-    confidence: 'low',
+    confidence: 45,
   },
   {
     id: '5',
@@ -39,7 +39,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 750,
     unit: 'g',
     emoji: '🍗',
-    confidence: 'high',
+    confidence: 95,
   },
   {
     id: '6',
@@ -47,7 +47,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 500,
     unit: 'g',
     emoji: '🧀',
-    confidence: 'low',
+    confidence: 45,
   },
   {
     id: '7',
@@ -55,7 +55,7 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 1,
     unit: 'demet',
     emoji: '🌿',
-    confidence: 'high',
+    confidence: 95,
   },
   {
     id: '8',
@@ -63,6 +63,6 @@ export const mockInventoryItems: InventoryItem[] = [
     qty: 500,
     unit: 'ml',
     emoji: '🫒',
-    confidence: 'high',
+    confidence: 95,
   },
 ];

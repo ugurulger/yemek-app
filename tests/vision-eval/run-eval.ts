@@ -40,6 +40,9 @@ const VIDEO_EXTENSIONS = ['.mp4', '.mov'];
 // (DEFAULT_MAX_FRAMES) ile aynı değerler — production davranışını yansıtsın diye.
 const MAX_IMAGE_EDGE = 2576;
 const MAX_VIDEO_FRAMES = 12;
+// app/(tabs)/index.tsx — CONFIDENCE_THRESHOLD ile aynı değer (bu masaüstü
+// script'i RN kodunu import edemediği için burada ayrıca tanımlanıyor).
+const CONFIDENCE_THRESHOLD = 50;
 
 // Fiyatlar $/1M token, model bazında (Claude iki aşamalı akışta iki farklı
 // model kullanıyor — bkz. services/vision/claude-provider.ts). Anthropic
@@ -177,6 +180,38 @@ interface Comparison {
   falsePositiveNames: string[];
 }
 
+interface ItemMatchDetail {
+  truthName: string;
+  found: boolean;
+  confidence: number | null;
+  note: string;
+}
+
+// Ground-truth ürün bazlı satır oluşturur — "Bulundu mu" aynı fuzzy
+// namesMatch mantığıyla belirlenir (bkz. yukarıdaki namesMatch yorumu).
+function buildItemMatchDetails(
+  predicted: InventoryItem[],
+  truth: GroundTruthItem[]
+): ItemMatchDetail[] {
+  const truthNames = [...new Set(truth.map((t) => normalizeName(t.name)))];
+
+  return truthNames.map((truthName) => {
+    const match = predicted.find((p) => namesMatch(truthName, normalizeName(p.name)));
+
+    if (!match) {
+      return { truthName, found: false, confidence: null, note: 'Modelde bulunamadı' };
+    }
+
+    const confidence = typeof match.confidence === 'number' ? match.confidence : null;
+    const note =
+      confidence != null && confidence < CONFIDENCE_THRESHOLD
+        ? `Bulundu ama düşük güven skoru (<${CONFIDENCE_THRESHOLD})`
+        : '-';
+
+    return { truthName, found: true, confidence, note };
+  });
+}
+
 function compareToGroundTruth(predicted: InventoryItem[], truth: GroundTruthItem[]): Comparison {
   const truthNames = [...new Set(truth.map((t) => normalizeName(t.name)))];
   const predictedNames = [...new Set(predicted.map((p) => normalizeName(p.name)))];
@@ -209,6 +244,7 @@ interface ProviderResult {
   falsePositives: number;
   missedNames: string[];
   falsePositiveNames: string[];
+  itemMatchDetails: ItemMatchDetail[];
   usageEvents: UsageEvent[];
   totalCostUsd: number | null;
   error?: string;
@@ -228,6 +264,7 @@ async function runProviderOnFixture(
     });
     const elapsedMs = performance.now() - start;
     const comparison = compareToGroundTruth(items, fixture.groundTruth);
+    const itemMatchDetails = buildItemMatchDetails(items, fixture.groundTruth);
 
     const costs = usageEvents.map(costForUsage);
     const totalCostUsd = costs.every((c): c is number => c != null)
@@ -244,6 +281,7 @@ async function runProviderOnFixture(
       falsePositives: comparison.falsePositives,
       missedNames: comparison.missedNames,
       falsePositiveNames: comparison.falsePositiveNames,
+      itemMatchDetails,
       usageEvents,
       totalCostUsd,
     };
@@ -259,6 +297,12 @@ async function runProviderOnFixture(
       falsePositives: 0,
       missedNames: fixture.groundTruth.map((t) => normalizeName(t.name)),
       falsePositiveNames: [],
+      itemMatchDetails: fixture.groundTruth.map((t) => ({
+        truthName: normalizeName(t.name),
+        found: false,
+        confidence: null,
+        note: 'Sağlayıcı hatası nedeniyle değerlendirilemedi',
+      })),
       usageEvents,
       totalCostUsd: null,
       error: error instanceof Error ? error.message : String(error),
@@ -316,6 +360,20 @@ function writeReport(results: ProviderResult[]): string {
         `| ${r.provider} | %${(r.accuracy * 100).toFixed(0)} (${r.matchedCount}/${r.totalTruth}) | ` +
         `${r.falsePositives} | ${r.elapsedMs.toFixed(0)}ms | ${formatCost(r.totalCostUsd)} | ` +
         `${r.missedNames.join(', ') || '-'} | ${r.falsePositiveNames.join(', ') || '-'} | ${r.error ?? '-'} |\n`;
+    }
+
+    // Genel %doğruluk özetinin yanına: her ground-truth ürünü için ayrı satır
+    // (bulundu mu, sağlayıcının verdiği match_confidence, not) — ürün bazlı
+    // güvenilirlik ayrımı yapılabilsin diye.
+    for (const r of results.filter((res) => res.fixture === fixtureName)) {
+      md += `\n**${r.provider} — ürün bazlı sonuç:**\n\n`;
+      md += `| Ürün | Bulundu mu | Model Confidence | Not |\n`;
+      md += `|---|---|---|---|\n`;
+      for (const detail of r.itemMatchDetails) {
+        const foundLabel = detail.found ? '✅' : '❌';
+        const confidenceLabel = detail.confidence != null ? `%${detail.confidence}` : '-';
+        md += `| ${detail.truthName} | ${foundLabel} | ${confidenceLabel} | ${detail.note} |\n`;
+      }
     }
 
     // Sağlayıcı çok aşamalı ise (Claude: gözlem + yapılandırma) aşama bazında

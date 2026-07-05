@@ -10,6 +10,7 @@ interface InventoryState {
   incrementQty: (id: string) => void;
   decrementQty: (id: string) => void;
   removeItem: (id: string) => void;
+  confirmItem: (id: string) => void;
 }
 
 function normalizeName(name: string): string {
@@ -59,6 +60,12 @@ export const useInventoryStore = create<InventoryState>()(
       removeItem: (id) =>
         set((state) => ({
           items: state.items.filter((item) => item.id !== id),
+        })),
+      confirmItem: (id) =>
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? { ...item, confidence: 100 } : item
+          ),
         })),
     }),
     {
