@@ -60,7 +60,6 @@ export default function InventoryRow({
             className="mt-0.5 text-sm text-stone-500"
           >
             {formattedQty} {item.unit}
-            {item.location ? ` · ${item.location}` : ''}
           </Text>
         </View>
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
@@ -20,10 +20,11 @@ import type { InventoryCategory, InventoryItem } from '@/types/inventory';
 // az ürün "kesin" sayılıyor.
 const CONFIDENCE_THRESHOLD = 90;
 
-// MVP-10 (Bölüm B — UI redesign): ham 7 kategori (services/vision/prompt.ts
-// — VIDEO_TABLE_PROMPT) görüntülemede 5 üst gruba birleştirilir — sadece
-// GÖRÜNTÜLEME gruplaması, yeni bir API çağrısı/şema değişikliği gerekmez,
-// ham `item.category` aynen saklanır.
+// MVP-10 (Bölüm B — UI redesign): ham 7 kategori (types/inventory.ts —
+// INVENTORY_CATEGORIES, video akışının responseSchema'sı dayatır)
+// görüntülemede 5 üst gruba birleştirilir — sadece GÖRÜNTÜLEME gruplaması,
+// yeni bir API çağrısı/şema değişikliği gerekmez, ham `item.category` aynen
+// saklanır.
 type CategoryGroup = 'Süt & Peynir' | 'Et & Şarküteri' | 'Meyve & Sebze' | 'İçecek & Sos' | 'Diğer';
 
 const CATEGORY_GROUPS: Record<InventoryCategory, CategoryGroup> = {
@@ -62,6 +63,41 @@ const GROUP_STRIPE_COLORS: Record<CategoryGroup, string> = {
   'İçecek & Sos': '#fcd34d', // amber-300
   Diğer: '#d6d3d1', // stone-300
 };
+
+// asset.mimeType yoksa uzantıdan tahmin için — özellikle iOS galerisinden
+// gelen .MOV dosyaları sabit 'video/mp4' ile yanlış etiketleniyordu.
+const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  m4v: 'video/x-m4v',
+  webm: 'video/webm',
+  avi: 'video/x-msvideo',
+};
+
+function resolveVideoMimeType(asset: ImagePicker.ImagePickerAsset): string {
+  if (asset.mimeType) {
+    return asset.mimeType;
+  }
+  const extension = asset.uri.split('.').pop()?.toLowerCase();
+  return (extension && VIDEO_MIME_BY_EXTENSION[extension]) || 'video/mp4';
+}
+
+// Video analizi = TAM TARAMA: mevcut envanter yeni listeyle DEĞİŞTİRİLİR
+// (bkz. store/inventoryStore.ts — replaceItems). Değiştirmeden önce, henüz
+// API'ye gitmeden (40+ saniyelik analizi boşa harcamamak için) onay istenir.
+function confirmInventoryReplace(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Envanter yenilenecek',
+      'Mevcut envanter yeni taramayla değiştirilecek, onaylıyor musun?',
+      [
+        { text: 'Vazgeç', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Değiştir', style: 'destructive', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) }
+    );
+  });
+}
 
 function groupItemsByCategoryGroup(
   items: InventoryItem[]
@@ -120,7 +156,6 @@ function ProductCard({
         )}
         <Text className="mt-0.5 text-sm text-stone-500" style={{ fontFamily: 'Outfit_400Regular' }}>
           {formattedQty} {item.unit}
-          {item.location ? ` · ${item.location}` : ''}
         </Text>
       </View>
       <View className="flex-row items-center">
@@ -161,6 +196,7 @@ function ProductCard({
 export default function MutfagimScreen() {
   const items = useInventoryStore((state) => state.items);
   const addItems = useInventoryStore((state) => state.addItems);
+  const replaceItems = useInventoryStore((state) => state.replaceItems);
   const incrementQty = useInventoryStore((state) => state.incrementQty);
   const decrementQty = useInventoryStore((state) => state.decrementQty);
   const removeItem = useInventoryStore((state) => state.removeItem);
@@ -193,6 +229,15 @@ export default function MutfagimScreen() {
     }
 
     const asset = result.assets[0];
+    const isFullScan = asset.type === 'video';
+
+    // TAM TARAMA onayı: video analizi mevcut envanteri değiştirecekse (liste
+    // doluysa) analize başlamadan önce kullanıcıya sor — reddederse API
+    // çağrısı hiç yapılmaz.
+    if (isFullScan && items.length > 0 && !(await confirmInventoryReplace())) {
+      return;
+    }
+
     setIsAnalyzing(true);
     // MVP-9 (performans): video seçiminden envanterin ekrana gelmesine kadar
     // geçen süreyi aşamalara ayırıp loglamak için — bkz. SKILL.md "Performans
@@ -219,7 +264,7 @@ export default function MutfagimScreen() {
           `[perf] video seçiminden isteğe (dosya hazırlama): ${(performance.now() - tPickStart).toFixed(0)}ms`
         );
         extractedItems = await videoProvider.extractInventoryFromVideo(
-          { file: videoFile, mimeType: 'video/mp4' },
+          { file: videoFile, mimeType: resolveVideoMimeType(asset) },
           { onObservation: setObservationText }
         );
       } else if (asset.type === 'video') {
@@ -238,9 +283,15 @@ export default function MutfagimScreen() {
       }
 
       const tBeforeAddItems = performance.now();
-      addItems(extractedItems);
+      // Video = TAM TARAMA → değiştir; fiş/fotoğraf = EKLEME → birleştir
+      // (bkz. store/inventoryStore.ts — replaceItems/addItems modları).
+      if (isFullScan) {
+        replaceItems(extractedItems);
+      } else {
+        addItems(extractedItems);
+      }
       console.log(
-        `[perf] state güncelleme (addItems): ${(performance.now() - tBeforeAddItems).toFixed(0)}ms`
+        `[perf] state güncelleme (${isFullScan ? 'replaceItems' : 'addItems'}): ${(performance.now() - tBeforeAddItems).toFixed(0)}ms`
       );
       console.log(
         `[perf] TOPLAM (seçimden envanterin state'e yazılmasına): ${(performance.now() - tPickStart).toFixed(0)}ms`

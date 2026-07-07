@@ -1,8 +1,20 @@
+/**
+ * @deprecated — MVP-12'de video → envanter akışı native structured output'a
+ * (responseSchema, bkz. `gemini-provider.ts` — `VIDEO_INVENTORY_RESPONSE_SCHEMA`
+ * ve `prompt.ts` — `parseVideoInventoryItems`) geçildi; bu markdown tablo
+ * parser'ı artık canlı akışta KULLANILMIYOR. Kırılganlığı (sadece ilk tablo
+ * bloğunu okuma, 7'den az hücreli satırları sessizce atlama, dar birim
+ * regex'i) aynı videodan farklı sonuçlar alınmasının kök nedenlerindendi.
+ * Referans olarak git geçmişinde dursun diye tutuluyor — bir sonraki
+ * temizlikte kaldırılacak. Beslediği `VIDEO_TABLE_PROMPT` da kaldırıldı;
+ * ürettiği location/detail/note alanları `InventoryItem`'dan silindiği için
+ * bu alanlar artık burada da üretilmiyor (dosya derlenebilir kalsın diye).
+ */
 import type { InventoryCategory, InventoryItem, InventoryUnit } from '@/types/inventory';
 
 import { InventoryVisionError } from './types';
 
-// VIDEO_TABLE_PROMPT'un (bkz. ./prompt.ts) modele dayattığı sabit liste —
+// Eski VIDEO_TABLE_PROMPT'un modele dayattığı sabit liste —
 // bu listede olmayan bir değer dönerse "Diğer"e eşlenir.
 const VALID_CATEGORIES: InventoryCategory[] = [
   'İçecek',
@@ -122,7 +134,7 @@ export function parseInventoryTable(responseText: string): InventoryItem[] {
       continue;
     }
 
-    const [location, name, brandRaw, detailRaw, categoryRaw, confidenceRaw, note] = cells;
+    const [location, name, brandRaw, detailRaw, categoryRaw, confidenceRaw] = cells;
     if (name.length === 0 || isPlaceholderRow(location, name)) {
       continue;
     }
@@ -138,10 +150,7 @@ export function parseInventoryTable(responseText: string): InventoryItem[] {
       emoji: '🍽️',
       confidence: parseConfidence(confidenceRaw),
       category: parseCategory(categoryRaw),
-      ...(location.length > 0 ? { location } : {}),
       ...(brand.length > 0 && brand !== '-' ? { brand } : {}),
-      ...(detailRaw.length > 0 ? { detail: detailRaw } : {}),
-      ...(note.length > 0 ? { note } : {}),
     });
   }
 

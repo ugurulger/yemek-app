@@ -1,12 +1,14 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
+
+import { INVENTORY_CATEGORIES, INVENTORY_UNITS } from '@/types/inventory';
 
 import {
   buildObservationPrompt,
   parseInventoryItems,
+  parseVideoInventoryItems,
   TABULATION_TURN_PROMPT,
-  VIDEO_TABLE_PROMPT,
+  VIDEO_INVENTORY_PROMPT,
 } from './prompt';
-import { parseInventoryTable } from './markdown-table';
 import {
   InventoryVisionError,
   type ExtractInventoryOptions,
@@ -20,11 +22,48 @@ import {
 // EXPO_PUBLIC_GEMINI_MODEL=gemini-2.5-pro ile değiştirilebilir.
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
-// MVP-7: video → tablo akışı (bkz. `extractInventoryFromVideoNative`) için
+// MVP-7: video → envanter akışı (bkz. `extractInventoryFromVideoNative`) için
 // varsayılan model — video anlama görevinde flash'tan daha güçlü. AYNI
 // `EXPO_PUBLIC_GEMINI_MODEL` env değişkeniyle override edilir (iki aşamalı
 // görüntü akışıyla PAYLAŞILIR — ayarlanırsa ikisini de etkiler).
 const DEFAULT_VIDEO_TABLE_MODEL = 'gemini-2.5-pro';
+
+// Video → envanter akışının deterministikliği için: gemini-2.5-pro'nun
+// varsayılanı 1.0 ve aynı videodan farklı sonuçlar üretilmesinin kök
+// nedenlerinden biriydi (temperature ayarlanmamıştı). Envanter çıkarımı
+// yaratıcılık değil, tespit görevi — düşük değer tutarlılığı artırır.
+const VIDEO_INVENTORY_TEMPERATURE = 0.2;
+
+// Video → envanter akışının native structured output şeması (eski markdown
+// tablo çıktısının yerine, bkz. SKILL.md — responseSchema kararı). Şema
+// yapıyı API tarafında garanti eder: serbest markdown + kırılgan parser
+// kombinasyonunun sessizce satır düşürme riski ortadan kalkar. Eski akıştaki
+// location/detail/note alanları bilinçli olarak YOK (çıktı tokeni tasarrufu).
+// İsimlendirme/confidence KURALLARI prompt'ta (bkz. `VIDEO_INVENTORY_PROMPT`).
+// MVP-13 (kalibrasyon düzeltmesi): "reasoning" alanı sadece modelin kendi
+// kalibrasyonu İÇİN var — UI'da GÖSTERİLMEZ, InventoryItem'a EKLENMEZ,
+// parse sırasında okunup atılır. Yapılandırılmış çıktıda Gemini alanları
+// `propertyOrdering`'in verdiği sırada üretir; "reasoning"i "confidence"tan
+// ÖNCE koymak modeli önce net bir gerekçe yazmaya, skoru ancak ondan sonra
+// vermeye zorluyor (chain-of-thought benzeri bir etki) — sıra tersine
+// çevrilirse bu kalibrasyon faydası kaybolur, DEĞİŞTİRMEYİN.
+const VIDEO_INVENTORY_RESPONSE_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      name: { type: Type.STRING },
+      brand: { type: Type.STRING, nullable: true },
+      qty: { type: Type.NUMBER },
+      unit: { type: Type.STRING, enum: [...INVENTORY_UNITS] },
+      category: { type: Type.STRING, enum: [...INVENTORY_CATEGORIES] },
+      reasoning: { type: Type.STRING },
+      confidence: { type: Type.INTEGER },
+    },
+    required: ['name', 'brand', 'qty', 'unit', 'category', 'reasoning', 'confidence'],
+    propertyOrdering: ['name', 'brand', 'qty', 'unit', 'category', 'reasoning', 'confidence'],
+  },
+};
 
 // DENEYSEL — native video girişi, ESKİ iki aşamalı JSON akışı için (bkz.
 // SKILL.md "Debug/deneysel notlar"). MVP-7'den itibaren video girdisi
@@ -84,6 +123,15 @@ interface GeminiCallResult {
   outputTokens: number;
 }
 
+// `generateContent`'in `config` alanına aynen geçirilen üretim ayarları —
+// iki aşamalı akış sadece `responseMimeType` kullanır, video → envanter akışı
+// buna `responseSchema` + `temperature` ekler (bkz. `extractInventoryFromVideoNative`).
+type GeminiGenerationConfig = {
+  responseMimeType?: string;
+  responseSchema?: typeof VIDEO_INVENTORY_RESPONSE_SCHEMA;
+  temperature?: number;
+};
+
 async function callGemini(
   model: string,
   // undefined: talimat zaten bir `text` parçası olarak `contents` içinde
@@ -91,7 +139,7 @@ async function callGemini(
   // systemInstruction eklenmez, kullanıcının orijinal tek-mesajlık yapısı korunur.
   systemPrompt: string | undefined,
   contents: GeminiTurn[],
-  jsonMode: boolean
+  generationConfig: GeminiGenerationConfig
 ): Promise<GeminiCallResult> {
   const ai = getClient();
 
@@ -104,7 +152,7 @@ async function callGemini(
       contents,
       config: {
         ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
-        ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+        ...generationConfig,
       },
     });
     responseText = response.text;
@@ -201,7 +249,7 @@ async function runInventoryConversation(
 ): Promise<string> {
   let observation: GeminiCallResult;
   try {
-    observation = await callGemini(model, systemPrompt, [{ role: 'user', parts: firstTurnParts }], false);
+    observation = await callGemini(model, systemPrompt, [{ role: 'user', parts: firstTurnParts }], {});
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
     throw new InventoryVisionError(`Gemini gözlem aşaması başarısız oldu: ${message}`, { cause: error });
@@ -227,7 +275,7 @@ async function runInventoryConversation(
         { role: 'model', parts: [{ text: observation.text }] },
         { role: 'user', parts: [{ text: TABULATION_TURN_PROMPT }] },
       ],
-      true
+      { responseMimeType: 'application/json' }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
@@ -295,11 +343,13 @@ async function extractInventory(
 }
 
 // MVP-7: video girdisi için gözlem+yapılandırma AYRI aşamalar değil — TEK
-// çağrıda, kullanıcının kendi AI Studio testinde birebir çalıştırdığı
-// `VIDEO_TABLE_PROMPT`'la native video girişinden doğrudan markdown tablo
-// istenir (bkz. SKILL.md "Video → envanter (native, MVP-7)"). systemInstruction
-// KULLANILMAZ — talimat zaten tek `user` mesajının içinde, kullanıcının
-// orijinal yapısı korunur. Yanıt JSON değil, `parseInventoryTable` ile ayrıştırılır.
+// çağrı. Çıktı, MVP-7/8'deki serbest markdown tablo yerine artık native
+// structured output (`responseSchema` + `responseMimeType: "application/json"`,
+// bkz. `VIDEO_INVENTORY_RESPONSE_SCHEMA`) — markdown parser'ın satırları
+// sessizce düşürmesi ve ayarlanmamış temperature (varsayılan 1.0) aynı
+// videodan farklı sonuçlar üretiyordu (bkz. SKILL.md — responseSchema kararı).
+// systemInstruction KULLANILMAZ — talimat tek `user` mesajının içinde.
+// Yanıt `parseVideoInventoryItems` ile doğrulanır.
 //
 // MVP-9 (performans, bkz. SKILL.md "Performans notları"):
 // - Video `VideoFileSource` (Blob + `.base64()`) olarak alınır — `.size`
@@ -349,7 +399,7 @@ async function extractInventoryFromVideoNative(
     logStage('video hazırlama (Files API yüklemesi dahilse dahil)', performance.now() - tPrepStart);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
-    throw new InventoryVisionError(`Gemini video tablo çağrısı başarısız oldu: ${message}`, {
+    throw new InventoryVisionError(`Gemini video envanter çağrısı başarısız oldu: ${message}`, {
       cause: error,
     });
   }
@@ -360,19 +410,23 @@ async function extractInventoryFromVideoNative(
     result = await callGemini(
       model,
       undefined,
-      [{ role: 'user', parts: [videoPart, { text: VIDEO_TABLE_PROMPT }] }],
-      false
+      [{ role: 'user', parts: [videoPart, { text: VIDEO_INVENTORY_PROMPT }] }],
+      {
+        temperature: VIDEO_INVENTORY_TEMPERATURE,
+        responseMimeType: 'application/json',
+        responseSchema: VIDEO_INVENTORY_RESPONSE_SCHEMA,
+      }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
-    throw new InventoryVisionError(`Gemini video tablo çağrısı başarısız oldu: ${message}`, {
+    throw new InventoryVisionError(`Gemini video envanter çağrısı başarısız oldu: ${message}`, {
       cause: error,
     });
   }
   logStage('Gemini isteği', performance.now() - tRequestStart);
 
   options?.onUsage?.({
-    stage: 'video-table',
+    stage: 'video-inventory',
     model,
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,
@@ -380,8 +434,8 @@ async function extractInventoryFromVideoNative(
   options?.onObservation?.(result.text);
 
   const tParseStart = performance.now();
-  const items = parseInventoryTable(result.text);
-  logStage('markdown parse', performance.now() - tParseStart);
+  const items = parseVideoInventoryItems(result.text);
+  logStage('JSON doğrulama', performance.now() - tParseStart);
   logStage('TOPLAM (video hazırlama + Gemini isteği + parse)', performance.now() - tTotalStart);
 
   return items;

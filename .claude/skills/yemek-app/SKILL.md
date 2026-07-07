@@ -15,6 +15,9 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 - **Navigasyon:** expo-router, alt tab bar ile 4 sekme
 - **Backend:** Supabase (auth, Postgres, storage)
 - **AI:** Claude API (`claude-sonnet-4-6`) — tarif üretimi, tarif chat'i
+- **AI:** Gemini görsel üretimi (`gemini-3.1-flash-lite-image`) — tarif
+  kartı/detay görselleri, bkz. `services/images/` ("Tarif görselleri"
+  bölümü). Vision (envanter çıkarımı) hattından TAMAMEN bağımsızdır.
 - **AI:** Claude API + Gemini API (vision sağlayıcı karşılaştırması,
   `VISION_PROVIDER` ile seçilir) — envanter çıkarımı için, bkz. `services/vision/`.
   Varsayılan `gemini` (MVP-4 kararı, kullanıcının kalite tercihi — bkz.
@@ -184,22 +187,23 @@ alındığını doğruladı — bkz. altta MVP-3/MVP-4 notları).
      durumsuz olduğu için ikinci tur ucuz — sadece metin girdisi).
    İkisinde de `"name"` jenerik Türkçe; marka ayrı `"brand"` alanına
    konur (bkz. `types/inventory.ts` — `InventoryItem.brand`, opsiyonel).
-   `"location"` ürünün hangi raf/çekmecede/bölümde olduğunu tutar (örn.
-   "buzdolabı kapısı", "sebze çekmecesi") — kullanıcının kendi Gemini
-   testinde bölüm bazlı gruplama işine yaradığı gözlemlendiği için
-   eklendi, opsiyonel (`InventoryItem.location`). `"match_confidence"`
+   Prompt'lardaki `"location"` alanı (MVP-5'te bölüm bazlı gruplama için
+   eklenmişti) MVP-12'den itibaren `InventoryItem`'dan KALDIRILDI —
+   prompt'lar hâlâ isteyebilir ama `parseInventoryItems` bu alanı yok
+   sayar (iki aşamalı akışın davranışını değiştirmemek için prompt'lara
+   dokunulmadı, sadece alan saklanmıyor). `"match_confidence"`
    0-100 arası tam sayı (MVP-5'te ikili `"high"|"low"`'dan bu şemaya
    geçildi — bkz. altta "Confidence şemasının yüzdeselleştirilmesi").
 
 Aşama 2'nin çıktısı her iki sağlayıcıda da aynı `parseInventoryItems` ile
-ayrıştırılır (opsiyonel `brand`/`location` alanları ve 0-100 aralık
+ayrıştırılır (opsiyonel `brand` alanı ve 0-100 aralık
 kontrolünden geçen `match_confidence` dahil) — ikisi de aynı
 `InventoryItem[]` şeklini üretir. Bu şema `"category"` ÜRETMEZ (iki aşamalı
 JSON akışının şeması kategori sormuyor) — `app/(tabs)/index.tsx` bu akıştan
 gelen ürünleri kategorisiz kabul edip "Diğer" bölümü altında gösterir (bkz.
 altta "Envanter ekranı: kategori + eşik davranışı (MVP-8)"). `category`
-sadece video → tablo akışının (MVP-7) ayrıştırıcısı (`parseInventoryTable`)
-doldurur. `EXPO_PUBLIC_VISION_PROVIDER` (`claude` | `gemini`) ile kod
+sadece video → envanter akışının (MVP-12, responseSchema) doğrulayıcısı
+(`parseVideoInventoryItems`, `services/vision/prompt.ts`) doldurur. `EXPO_PUBLIC_VISION_PROVIDER` (`claude` | `gemini`) ile kod
 değiştirmeden sağlayıcı geçişi yapılır. Yanıt parse edilemezse kullanıcıya
 "tekrar dene" durumu göster, asla boş envanter yazma. Claude sistem
 talimatını `cache_control: {"type": "ephemeral"}` ile önbellekler; Gemini
@@ -239,68 +243,139 @@ istemedi, eşik yükseltilerek daha az ürün "kesin" sayılıyor. Davranış:
 > için bkz. "Tasarım sistemi" — "Kategori grupları", "Kart ikonu yerine
 > renkli şerit", "Emin olunamayan ürünler bildirimi" maddeleri.
 
-### Video → envanter (native, MVP-7)
+### Video → envanter (native, MVP-7; MVP-12'de structured output)
 
-Kullanıcı kendi AI Studio testinde videoyu native olarak (kare çıkarma
-YOK) Gemini'ye verip TEK çağrıda markdown TABLO isteyerek çok iyi sonuç
-aldı. Karar: video girdisi için TÜM işi (gözlem + yapılandırma AYRI
-aşamalar değil) tek bir Gemini çağrısına devret, kullanıcının tablosunu
-birebir kullan — üstüne gruplama/şema mühendisliği dayatma. Bu mimari
+MVP-7 kararı: video girdisi için TÜM işi (gözlem + yapılandırma AYRI
+aşamalar değil) tek bir Gemini çağrısına devret. Bu mimari
 SADECE Gemini'de var (`extractInventoryFromVideo`, `VisionProvider`
 arayüzünde opsiyonel — bkz. `services/vision/types.ts`); Claude bu metodu
 tanımlamıyor, video seçildiğinde `app/(tabs)/index.tsx` bu metodun
 varlığını kontrol eder, yoksa yukarıdaki eski kare-tabanlı akışa döner.
 
-- **Prompt** (`VIDEO_TABLE_PROMPT`, `services/vision/prompt.ts`): videoyu
-  kare kare incele, markdown tablo döndür — sabit sütunlar (MVP-8'de 5'ten
-  7'ye çıkarıldı, bkz. altta): `Bölüm / Konum | Ürün Adı (Genel) | Marka |
-  Miktar / Detay | Kategori | Doğruluk İhtimali | Notlar / Gerekçe`.
-  "Ürün Adı (Genel)" jenerik Türkçe ad olmalı (örn. "Mayonez", "Peynir",
-  "Yumurta") — marka adı bu sütuna DEĞİL, ayrı "Marka" sütununa yazılır
-  (marka görünmüyorsa "-"). "Kategori" sütunu için modele SABİT bir liste
-  verilir, sadece bu listeden seçmesi istenir: İçecek, Süt Ürünleri,
-  Peynir, Şarküteri, Meyve & Sebze, Sos & Baharat, Diğer. Tablonun en
-  altına sabit bir "Buzdolabı Dışı (Eklenecek)" placeholder satırı
-  eklenmesini ister (gelecekteki manuel eklemeler için yer tutucu —
-  inventory'e ürün olarak EKLENMEZ, bkz. altta). MVP-8 öncesi kullanıcının
-  orijinal İngilizce promptu birebir korunuyordu ("marka dahil özel isim
-  kullan" talimatıyla); kategori/marka ayrımı ihtiyacı nedeniyle bu artık
-  kullanıcının orijinal metninden SAPIYOR (bkz. `prompt.ts` içindeki
-  "MVP-8" yorumu).
+**MVP-12 — markdown tablodan native structured output'a geçiş:** Kullanıcı
+aynı videodan her analizde FARKLI sonuçlar alındığını bildirdi. Salt-okunur
+inceleme raporunun bulduğu kök nedenler: (1) `temperature` hiç
+ayarlanmamıştı (`gemini-2.5-pro` varsayılanı 1.0 — tespit görevi için çok
+yüksek), (2) serbest markdown çıktı + kırılgan `parseInventoryTable`
+kombinasyonu satırları SESSİZCE düşürüyordu (sadece ilk `|`'lu blok
+okunuyor, `**%90**` gibi formatlar confidence regex'ine takılıyor, dar
+birim regex'i, 7'den az hücreli satırlar atlanıyor), (3) store'daki
+birikimli `addItems` her analizde miktarları katlıyordu (bkz. altta "Store
+modları"). Çözüm: MVP-7/8'in markdown tablo akışı, Gemini'nin native
+structured output'una (`responseSchema`) taşındı — şema yapıyı API
+tarafında garanti ettiği için parser kırılganlığı sınıfça ortadan kalktı.
+
+- **Prompt** (`VIDEO_INVENTORY_PROMPT`, `services/vision/prompt.ts`):
+  ÇOK kısa — buzdolabı videosunu sistematik analiz et (her raf/kapı
+  gözü/çekmece), TÜM ürünleri çıkar; `name` SPESİFİK Türkçe ürün adı,
+  sıfat tamlaması tercih edilir ("Küflü Peynir", "Cherry Domates",
+  "Kırmızı Biber"; tekli ürünler sade: "Süt", "Marul") ve marka adı
+  `name`'e DEĞİL `brand`'e yazılır; kategori SADECE şemadaki sabit
+  listeden; `confidence` görsel netlik/etiket okunabilirliğine göre.
+  Eski `VIDEO_TABLE_PROMPT`'un markdown tablo, sütun, placeholder satırı,
+  konum ve gerekçe talimatlarının TAMAMI kaldırıldı — yapıyı şema garanti
+  ediyor, prompt sadece görevi ve isimlendirme kurallarını anlatıyor
+  (çıktı tokeni tasarrufu da cabası).
 - **Çağrı** (`extractInventoryFromVideoNative`, `gemini-provider.ts`):
-  TEK istek, `systemInstruction` KULLANILMAZ (talimat zaten tek `user`
-  mesajının `text` parçası, kullanıcının orijinal yapısı korunur),
-  `responseMimeType` ayarlanmaz (çıktı düz markdown, JSON değil). Model:
-  `gemini-2.5-pro` (video anlama için `flash`'tan güçlü — iki aşamalı
-  akışla AYNI `EXPO_PUBLIC_GEMINI_MODEL` değişkeniyle override edilir,
-  ayarlanırsa ikisini de etkiler). Video ~18MB'ı geçerse otomatik olarak
-  Gemini Files API'sine yüklenir (`uploadVideoToFilesApi`, `ai.files.upload`
-  + `ai.files.get` ile `PROCESSING` → `ACTIVE` beklenir) ve `fileData`
-  parçası olarak gönderilir — küçük videolar hâlâ `inlineData` ile
-  doğrudan gönderilir. `onUsage` tek bir `stage: "video-table"` event'iyle
-  çağrılır (aşama ayrımı yok).
-- **Ayrıştırma** (`parseInventoryTable`, `services/vision/markdown-table.ts`):
-  yanıtta ilk `|` karakterinden başlayan satırları tablo kabul eder
-  (öncesi/sonrası düz metinse atılır), başlık + `---` ayırıcı satırlarını
-  atlar, her veri satırını 7 hücreye böler (MVP-8'de 5'ten 7'ye çıktı):
-  `location, name, brand, detailRaw, categoryRaw, confidenceRaw, note`.
-  "Buzdolabı Dışı" placeholder satırı (location/name içinde "Buzdolabı
-  Dışı" veya "Yeni ürünleri" geçiyorsa) inventory'e EKLENMEZ. "Marka"
-  hücresi "-" veya boşsa `InventoryItem.brand` set edilmez (undefined
-  kalır), aksi halde trim'lenmiş hali `brand`'e yazılır. "Kategori"
-  hücresi `parseCategory` ile `InventoryCategory` sabit listesine
-  eşlenir — listede olmayan/tanınmayan bir değer "Diğer"e düşer (silinmez,
-  sadece o bölüme gruplanır). "Miktar / Detay" hücresinden regex ile
-  baştaki sayı + birim kelimesi (`adet|paket|kutu|kavanoz|dilim|kg|g|ml|l|demet`)
-  çıkarılır — `InventoryUnit` olmayanlar (paket/kutu/kavanoz/dilim)
-  `adet`'e eşlenir, bulunamazsa `qty=1`/`unit="adet"` varsayılır; ham
-  metin her durumda `InventoryItem.detail`'de saklanır (opsiyonel alan,
-  bkz. `types/inventory.ts`). "Doğruluk İhtimali" hücresinden `%`
-  öncesi sayı `match_confidence`'a çekilir, bulunamazsa 50 varsayılır ve
-  `console.warn` basılır. "Notlar / Gerekçe" hücresi `InventoryItem.note`
-  alanına (opsiyonel) aynen konur. Hiç geçerli satır bulunamazsa
-  `parseInventoryItems` ile aynı davranış: `InventoryVisionError`
-  fırlatılır ("tekrar dene").
+  TEK istek, `systemInstruction` KULLANILMAZ (talimat tek `user` mesajının
+  `text` parçası). `config`: `temperature: 0.2`
+  (`VIDEO_INVENTORY_TEMPERATURE`), `responseMimeType: "application/json"`,
+  `responseSchema: VIDEO_INVENTORY_RESPONSE_SCHEMA` — şu yapının array'i:
+  `{ name: string, brand: string|null, qty: number, unit: enum(12 birim,
+  bkz. types/inventory.ts INVENTORY_UNITS), category: enum(7 kategori,
+  INVENTORY_CATEGORIES), reasoning: string, confidence: integer 0-100 }`.
+  `reasoning` MVP-13'te eklendi (bkz. altta "Confidence kalibrasyon
+  düzeltmesi") — SADECE modelin kendi kalibrasyonu için, `InventoryItem`'a
+  YAZILMAZ. `propertyOrdering` `reasoning`i `confidence`'tan HEMEN ÖNCEye
+  koyar (`gemini-provider.ts`) — Gemini yapılandırılmış çıktıda alanları bu
+  sırada üretir, yani model skoru vermeden önce gerekçesini yazmak zorunda
+  kalır (chain-of-thought benzeri etki) — bu sıra DEĞİŞTİRİLMEMELİ. KALDIRILAN alanlar
+  (MVP-12): `location`, `detail`, `note` — artık üretilmiyor ve
+  `InventoryItem`'dan da silindi. Birim enum'u genişletildi: eski akışta
+  "adet"e eşlenen paket/kutu/kavanoz/dilim + şişe/poşet artık birinci
+  sınıf birim (`detail`'e gerek kalmadı). Model: `gemini-2.5-pro` (aynı
+  `EXPO_PUBLIC_GEMINI_MODEL` ile override). Video ~18MB'ı geçerse otomatik
+  Gemini Files API'sine yüklenir (`uploadVideoToFilesApi`) — bu kısım
+  DEĞİŞMEDİ. `onUsage` tek bir `stage: "video-inventory"` event'iyle
+  çağrılır (eski adı "video-table" idi).
+- **Doğrulama** (`parseVideoInventoryItems`, `services/vision/prompt.ts`):
+  markdown parser yerine basit bir JSON doğrulayıcı — alan tipleri, enum
+  ve 0-100 aralık kontrolü. Geçersiz öğeleri düşürmek yerine mümkünse
+  DÜZELTİR: tanınmayan kategori → "Diğer", aralık dışı confidence →
+  0-100'e kırpılır, geçersiz qty/unit → `1 adet`; sadece isimsiz öğe
+  düşürülür. Hiç geçerli öğe yoksa `InventoryVisionError` ("tekrar dene").
+- **mimeType (MVP-12):** `app/(tabs)/index.tsx` artık sabit `'video/mp4'`
+  GÖNDERMİYOR — `asset.mimeType` varsa o, yoksa uzantıdan tahmin
+  (`resolveVideoMimeType`; .MOV → `video/quicktime`), bilinmiyorsa
+  `video/mp4` fallback.
+- **Eski markdown tablo akışı (geçmiş not):**
+  `services/vision/markdown-table.ts` artık canlı akışta KULLANILMIYOR —
+  başında `@deprecated` notuyla duruyor (git geçmişi/referans için), bir
+  sonraki temizlikte kaldırılacak. `VIDEO_TABLE_PROMPT` silindi. MVP-7/8
+  dönemine ait tablo sütunları, placeholder satırı ve `parseInventoryTable`
+  detayları için o dosyaya ve git geçmişine bakın.
+
+#### Store modları: tam tarama vs ekleme (MVP-12)
+
+`store/inventoryStore.ts` iki mod sunar; hangisinin kullanılacağına
+`app/(tabs)/index.tsx` analiz akışında karar verir:
+
+- **Video analizi = TAM TARAMA (`replaceItems`):** analiz başarıyla
+  tamamlanınca mevcut envanter yeni listeyle DEĞİŞTİRİLİR — miktar toplama
+  yok. Kök neden: video buzdolabının o anki TAM halini gösterir; eski
+  birikimli `addItems` davranışı aynı videonun ikinci analizinde miktarları
+  katlıyordu (2 süt → 4 süt). Kullanıcının elle eklediği/düzenlediği
+  kayıtlar da yenilenir — BİLİNÇLİ olarak basit tutuldu, karmaşık
+  birleştirme mantığı KURULMADI. Değiştirmeden önce `Alert` ile onay
+  istenir ("Mevcut envanter yeni taramayla değiştirilecek, onaylıyor
+  musun?") — onay, 40+ saniyelik analiz boşa gitmesin diye API çağrısından
+  ÖNCE sorulur; envanter zaten boşsa sorulmaz.
+- **Fiş/fotoğraf akışı = EKLEME (`addItems`):** mevcut davranış korundu —
+  aynı ad+birim varsa miktarlar toplanır, yoksa yeni kayıt eklenir.
+
+> **MVP-12 varyans testi (2026-07-07, `IMG_8425.MOV` fixture, gerçek API,
+> 3 ardışık koşu):** 22 / 19 / 23 ürün; süreler 44.2 / 43.2 / 45.8s;
+> tokenlar 7.006 girdi + 1.162–1.460 çıktı (eski markdown akışının
+> ölçülen 7.389–7.659 girdisinden hafif düşük — konum/gerekçe sütunlarının
+> kaldırılması çıktıyı da kısalttı). Üç koşuda da yanıt şemaya %100 uydu,
+> doğrulayıcı HİÇBİR öğeyi düşürmedi/düzeltmedi (0-2ms). Çekirdek ~17 ürün
+> (süt, yumurta, jambonlar, peynirler, domates, avokado, mayonez...) üç
+> koşuda da mevcut; kalan fark iki kaynaktan: (1) İSİMLENDİRME varyansı —
+> aynı ürün "Dilim/Dilimli/Dilimlenmiş Peynir", "Sirke" vs "Balzamik
+> Sirke", "Süt" vs "Yarım Yağlı Süt" olarak dönebiliyor, (2) düşük
+> confidence'lı (%50-80) kenar ürünler (humus, kıyma, su, hellim, margarin,
+> pancar) koşudan koşuya girip çıkıyor. Bu kalan varyans temperature
+> 0.2'yle bile süren doğal model varyansı — ama artık YAPISAL kayıp
+> (parser'ın sessizce satır düşürmesi) yok ve `CONFIDENCE_THRESHOLD=90`
+> zaten bu oynak kenar ürünleri ana liste yerine "kontrol bekliyor"
+> modalına yönlendiriyor. İsimlendirme tutarlılığı için ileride prompt'a
+> az sayıda örnekli sabitleme (few-shot) denenebilir — ayrı görev.
+
+> **MVP-13 (2026-07-07) — confidence kalibrasyon düzeltmesi:** MVP-12
+> sonrası kullanıcı, daha önce %100 alan net etiketli ürünlerin (örn.
+> Milner peynir, Dulano Coppa, Jumbo jambon) responseSchema'ya geçtikten
+> sonra %90-95'te "tavan yaptığını" ve %90 eşiğinin altına düşüp yanlışlıkla
+> "kontrol bekliyor" modalına gittiğini bildirdi. Çözüm: şemaya SADECE
+> modelin kendi kalibrasyonu için bir `reasoning` alanı eklendi (bkz.
+> yukarıda "Çağrı" maddesi — `propertyOrdering` ile `confidence`'tan HEMEN
+> ÖNCE üretilir, UI'da gösterilmez/`InventoryItem`'a yazılmaz,
+> `parseVideoInventoryItems` okuyup `console.debug` ile atar) ve prompt'a
+> somut bir kalibrasyon rehberi eklendi (`VIDEO_INVENTORY_PROMPT`):
+> 95-100 = etiket/ambalaj net okunuyor VEYA ürün şekli tartışmasız; 80-94 =
+> tür belli ama detay/marka net değil; 50-79 = form tahmin edilebilir ama
+> emin değil; <50 = sadece tahmin. **Sonuç (tek koşu, `IMG_8425.MOV`):**
+> net markalı ürünler artık tavana ulaşıyor (Milner peynir %90→%100, Dulano
+> Coppa %95→%100, Jumbo jambon %95→%100, Mozzarella %70-80→%95); 90 eşiğinin
+> altında kalan ürün oranı 22 üründe 12 (%55) → 23 üründe 6'ya (%26) düştü.
+> Kalan 6 düşük-skorlu ürünün (salata sosu, balzamik sirke, tereyağı, salam,
+> gazlı içecek, siyah biber) `reasoning` metinleri gerçek görsel belirsizlik
+> gösteriyor (örn. tereyağı için *"tipik bir tereyağı VEYA margarin
+> ambalajı"*) — yapay bir kalibrasyon sorunu değil, model dürüstçe emin
+> olmadığını söylüyor. **Karar (kullanıcı onayladı):** `CONFIDENCE_THRESHOLD`
+> 90'da KALDI, eşik değiştirilmedi — kalan belirsiz ürünlerin modalde onay
+> istemesi doğru davranış kabul edildi. Token maliyeti arttı (~1.2-1.5K →
+> 2.190 çıktı token, `reasoning` cümleleri yüzünden) ama tek seferlik video
+> analizi için kabul edilebilir görüldü.
 
 > **MVP-2 prompt değişikliği neden yapıldı** (her iki sağlayıcının
 > yapılandırma promptu için hâlâ geçerli): İlk testte modeller ürünleri
@@ -381,9 +456,125 @@ varlığını kontrol eder, yoksa yukarıdaki eski kare-tabanlı akışa döner.
 > eklendi (opsiyonel — iki aşamalı JSON akışı bu alanı üretmiyor).
 
 ### Envanter → tarif önerisi
-Girdi: envanter listesi. Çıktı: SADECE JSON, 4-6 tarif:
-`[{ "name", "emoji", "kcal", "servings", "time_min", "macros": {"protein","karb","yag"}, "match_pct", "ingredients": [], "steps": [] }]`
-`match_pct` = envanterde bulunan malzeme oranı.
+
+**Bu akış SADECE Claude API kullanır** (`claude-sonnet-4-6`, `lib/claude/`) —
+vision tarafının Claude/Gemini karşılaştırma mimarisiyle (bkz. yukarıda
+"Mimari" ve "Sağlayıcı karşılaştırma notları") HİÇ ilgisi yok, ortak bir
+sağlayıcı seçim mekanizması (`VISION_PROVIDER` benzeri) YOK — iki özellik
+birbirinden bağımsız, sabit birer sağlayıcıya bağlı (tarif üretimi hep
+Claude, envanter çıkarımı hep Gemini/Claude karşılaştırması).
+
+Girdi: envanter listesi (`{name, qty, unit}`'e sadeleştirilmiş). Çıktı:
+**TAM 9 tarif, kademeli 3 katman** (MVP-11): 3 tarif `match_pct = 100`
+(SADECE envanter + temel kiler malzemeleri: tuz, karabiber, su, sıvı yağ),
+3 tarif `match_pct 75-99` (1-2 eksik malzeme), 3 tarif `match_pct 50-74`
+(birkaç eksik malzeme). Birleşik `Recipe` şeması (`types/recipe.ts`):
+```
+{ name, emoji, kcal, servings, time_min,
+  difficulty: "Kolay" | "Orta" | "Zor",
+  macros: {protein, karb, yag}, match_pct,
+  ingredients: [{ name, in_inventory: boolean }],
+  missing_count, steps: string[], chef_tip, image_prompt_en? }
+```
+`match_pct` = kiler malzemeleri (tuz, karabiber, su, sıvı yağ) hariç
+tutularak hesaplanan, envanterde bulunan malzeme oranı. `difficulty`
+gerçekçi olmalı (çoğu ev yemeği Kolay/Orta, Zor nadiren). `chef_tip` =
+tarife özel kısa bir şef önerisi.
+
+**`ingredients` şeması (MVP-11'de `string[]`'ten değişti):** her malzeme
+`{ name, in_inventory }` objesidir — `in_inventory` işaretlemesini MODEL
+yapar (sistem talimatı: "envanter listesine göre işaretle; temel kiler
+malzemelerini in_inventory: true say"). `missing_count` = `in_inventory:
+false` malzeme sayısı; client tarafında `toRecipe` bu sayıyı işaretlerden
+YENİDEN HESAPLAR (model sayıyla işaretler çelişirse işaretler kazanır —
+rozet ile detay listesi aynı kaynaktan beslensin diye). `image_prompt_en`
+görsel üretimi içindir (bkz. "Tarif görselleri"): tool şemasında zorunlu
+(Claude tarif üretirken doldurur, ekstra LLM çağrısı YOK) ama TS tipinde
+opsiyonel (eski cache'lerle uyum).
+
+**UI (app/(tabs)/recipes.tsx, MVP-11):** liste iki bölüm halinde —
+"Hemen Yapabilirsin" (`match_pct = 100`, üstte, emerald-900 chip başlık)
+ve "Küçük Bir Alışverişle" (kalan 6 tarif, stone-100 chip başlık; MVP-10
+grup başlığı chip stiliyle tutarlı). `match_pct < 100` kartlarda amber-500
+"N eksik" rozeti (`missing_count`) gösterilir. Tarif detayında
+`in_inventory: false` malzemelerin yanında amber "eksik" mikro-rozeti +
+sepet ikonu vardır; `in_inventory: true` olanlar sade kalır (tik ikonu
+YOK — gürültü olur, bilinçli karar).
+
+**Tarif önbelleği (MVP-11):** `store/recipeStore.ts` zustand `persist` ile
+AsyncStorage'a yazılır (`yemek-app-recipes`) ve tariflerin hangi envanter
+için üretildiği `inventoryFingerprint` (sadeleştirilmiş + sıralanmış
+`{name, qty, unit}` listesinin JSON'u) olarak saklanır. Envanter
+DEĞİŞMEDİYSE (parmak izi aynıysa) 9 tarif yeniden ÜRETİLMEZ — ekrandaki
+üret/yenile aksiyonları API'ye gitmeden mevcut listeyi kullanır.
+
+### Tarif görselleri (AI görsel üretimi, MVP-11)
+
+`services/images/recipe-image.ts` — **`services/vision/`'dan TAMAMEN
+bağımsız** bir modül: envanter çıkarım hattıyla ortak kod/sağlayıcı seçim
+mekanizması YOKTUR, yalnızca aynı `EXPO_PUBLIC_GOOGLE_API_KEY` anahtarını
+kullanır. Vision'a dokunmadan değiştirilebilir.
+
+- **Model:** `gemini-3.1-flash-lite-image` (Nano Banana 2 Lite) —
+  metin/vision modelleri görsel ÜRETEMEZ, görsel üretim ayrı bir model
+  ailesidir; Lite, güncel görsel üretim modellerinin en hızlısı/ucuzu
+  (ölçüldü: ~3s, ~$0.034/görsel civarı). `EXPO_PUBLIC_GEMINI_IMAGE_MODEL`
+  ile değiştirilebilir. Çağrı: `generateContent` + `config.imageConfig.
+  aspectRatio: "4:3"`, yanıt `inlineData` (base64 JPEG) olarak gelir.
+- **Prompt şablonu** (kullanıcının test edip beğendiği format, İngilizce):
+  `"Appetizing {dish description}. {plating cümlesi}. Clean food
+  photography, bright studio lighting, white background, simple, high
+  contrast, mobile app banner, 4:3 aspect ratio."` — dish description
+  Claude'un tarifle birlikte doldurduğu `image_prompt_en`'den gelir
+  (AYRI bir LLM çağrısı YAPILMAZ); alan yoksa (eski cache) tarif adı +
+  malzeme özetinden basit birleştirme kullanılır.
+- **Lazy + sıralı kuyruk (ZORUNLU maliyet kuralı):** liste render olunca
+  9 görsel birden İSTENMEZ. Kartlar mount oldukça `enqueueRecipeImage`
+  ile modül seviyesindeki kuyruğa girer; kuyruk istekleri SIRAYLA (aynı
+  anda tek API çağrısı) işler, görsel hazır olana kadar kartta mevcut
+  emoji gösterilir (`useRecipeImage` hook'u, null → emoji).
+- **Cache (ZORUNLU):** üretilen orijinal + thumbnail, FileSystem cache'ine
+  (`Paths.cache/recipe-images/`) TARİF ADI anahtarıyla yazılır
+  (slug + hash). Aynı tarif adı için görsel bir daha ÜRETİLMEZ — envanter
+  değişse bile ad aynıysa cache'ten gelir. Cache kontrolü senkron
+  (`File.exists`), karar için API'ye gidilmez.
+- **Thumbnail:** listede `expo-image-manipulator` ile 320px'e küçültülmüş
+  kopya, detay ekranında (`RecipeHeroImage`) orijinal gösterilir. Thumbnail
+  üretimi NON-FATAL: başarısız olursa kartta da orijinal kullanılır.
+- **Dosya yazımı `write(base64, {encoding:'base64'})` KULLANMAZ** — bu
+  seçeneğin native desteği expo-file-system 19.0.16'da eklendi ve Expo
+  Go'nun gömülü native modülü node_modules'taki JS sürümünden BAĞIMSIZ
+  (daha eski) olabilir; ilk sürümde görsellerin telefonda hiç görünmemesinin
+  kök nedeni buydu (MVP-9'daki "masaüstünde çalıştı, cihazda çöktü"
+  dersinin üçüncü örneği — hata, hook'taki sessiz catch yüzünden görünmezdi).
+  Bunun yerine base64 JS'te çözülüp `Uint8Array` overload'ıyla yazılır
+  (yeni FS API'sinin ilk gününden beri var, sürüm farkından etkilenmez).
+- **Placeholder/layout:** görsel alanı ve placeholder BİREBİR aynı boyutta —
+  kartta 80px kare (`rounded-xl`), detayda tam genişlik 4:3 (`rounded-2xl`);
+  placeholder emerald-50 zemin + ortada büyük emoji
+  (`RecipeImagePlaceholder`), üretim sürerken hafif opacity pulse'ı oynar
+  (spinner YOK). Görsel gelince kart boyutu zıplamaz.
+- Üretim başarısız olursa placeholder'da kalınır ve tam hata mesajı
+  `[recipe-image]` etiketiyle console'a yazılır (kuyruk her aşamayı loglar:
+  kuyruğa ekleme, üretim başlangıcı, API süresi/boyutu, dosya yazımları,
+  cache HIT "API çağrısı yok"); kart yeniden mount olduğunda tekrar denenir.
+
+**Native structured output (Claude tool-use ile), markdown/JSON.parse YOK:**
+Gemini'nin `responseMimeType`/`responseSchema`'sının Claude'daki karşılığı
+zorunlu tool-use'dur — `lib/claude/generateRecipes.ts` istekte tek bir
+`submit_recipes` aracı tanımlar (`input_schema`: yukarıdaki şemanın array
+hali) ve `tool_choice: {type: "tool", name: "submit_recipes"}` ile modeli
+bu aracı çağırmaya zorlar (bkz. `lib/claude/client.ts` —
+`callClaudeForToolInput`). Yanıt `tool_use` bloğunun `input` alanından
+doğrudan bir JS objesi olarak gelir — eski markdown-fence temizleme ve
+JSON.parse yeniden deneme mantığı tamamen kaldırıldı, sadece minimal bir
+alan/tip kontrolü (`toRecipe`) kaldı. Karar nedeni: tutarlılık (şema
+zorunlu tool ile garanti edilir) ve markdown-parse riskinin ortadan
+kalkması — Gemini'nin native JSON şema kısıtlı üretimiyle aynı prensip,
+Claude'un API yüzeyine uyarlanmış hali.
+
+Sistem talimatı `cache_control: {"type": "ephemeral"}` ile önbelleklenir
+(`system` bir blok dizisi olarak gönderilir, bkz. `ClaudeSystemBlock`).
 
 ### Tarif chat'i
 Her istek şunları içerir: tarifin tamamı + o tarife ait geçmiş mesajlar

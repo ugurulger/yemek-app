@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useRecipeStore } from '@/store/recipeStore';
 
+import RecipeHeroImage from '@/components/recipes/RecipeHeroImage';
+
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const recipe = useRecipeStore((state) => state.getRecipeById(id));
@@ -68,7 +70,7 @@ export default function RecipeDetailScreen() {
         </View>
 
         <View className="mt-2 items-center">
-          <Text style={{ fontSize: 64 }}>{recipe.emoji}</Text>
+          <RecipeHeroImage recipe={recipe} />
           <Text
             className="mt-3 text-center text-3xl text-emerald-900"
             style={{ fontFamily: 'Fraunces_700Bold' }}>
@@ -99,6 +101,14 @@ export default function RecipeDetailScreen() {
               className="ml-1.5 text-xs text-stone-700"
               style={{ fontFamily: 'Outfit_500Medium' }}>
               {recipe.time_min} dk
+            </Text>
+          </View>
+          <View className="flex-row items-center rounded-full bg-white px-3 py-1.5 shadow-sm ring-1 ring-stone-100">
+            <Ionicons name="speedometer-outline" size={14} color="#064e3b" />
+            <Text
+              className="ml-1.5 text-xs text-stone-700"
+              style={{ fontFamily: 'Outfit_500Medium' }}>
+              Zorluk: {recipe.difficulty}
             </Text>
           </View>
           <View className="flex-row items-center rounded-full bg-amber-500 px-3 py-1.5">
@@ -145,14 +155,24 @@ export default function RecipeDetailScreen() {
           <View className="mt-3">
             {recipe.ingredients.map((ingredient, index) => (
               <View
-                key={`${ingredient}-${index}`}
+                key={`${ingredient.name}-${index}`}
                 className="flex-row items-start py-1.5">
                 <View className="mt-2 mr-3 h-1.5 w-1.5 rounded-full bg-emerald-900" />
                 <Text
                   className="flex-1 text-sm text-stone-700"
                   style={{ fontFamily: 'Outfit_400Regular' }}>
-                  {ingredient}
+                  {ingredient.name}
                 </Text>
+                {!ingredient.in_inventory && (
+                  <View className="ml-2 flex-row items-center rounded-full bg-amber-50 px-2 py-0.5 ring-1 ring-amber-200">
+                    <Ionicons name="basket-outline" size={12} color="#f59e0b" />
+                    <Text
+                      className="ml-1 text-xs text-amber-900"
+                      style={{ fontFamily: 'Outfit_500Medium' }}>
+                      eksik
+                    </Text>
+                  </View>
+                )}
               </View>
             ))}
           </View>
@@ -182,6 +202,22 @@ export default function RecipeDetailScreen() {
               </View>
             ))}
           </View>
+        </View>
+
+        <View className="mt-4 rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
+          <View className="flex-row items-center">
+            <Ionicons name="bulb-outline" size={18} color="#b45309" />
+            <Text
+              className="ml-2 text-lg text-amber-900"
+              style={{ fontFamily: 'Fraunces_600SemiBold' }}>
+              Şef Tüyosu
+            </Text>
+          </View>
+          <Text
+            className="mt-2 text-sm text-amber-900"
+            style={{ fontFamily: 'Outfit_400Regular' }}>
+            {recipe.chef_tip}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

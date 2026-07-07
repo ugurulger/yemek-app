@@ -7,22 +7,31 @@ import { Ionicons } from '@expo/vector-icons';
 import RecipeList from '@/components/recipes/RecipeList';
 import { generateRecipes, RecipeGenerationError } from '@/lib/claude/generateRecipes';
 import { useInventoryStore } from '@/store/inventoryStore';
-import { useRecipeStore } from '@/store/recipeStore';
+import { inventoryFingerprint, useRecipeStore } from '@/store/recipeStore';
 
 export default function TariflerScreen() {
   const inventoryItems = useInventoryStore((state) => state.items);
   const recipes = useRecipeStore((state) => state.recipes);
   const setRecipes = useRecipeStore((state) => state.setRecipes);
+  const generatedForFingerprint = useRecipeStore((state) => state.generatedForFingerprint);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleGenerateRecipes() {
+    // Önbellek kuralı: envanter değişmediyse tarifler yeniden üretilmez,
+    // AsyncStorage'dan hidrate edilen mevcut liste kullanılmaya devam eder.
+    const fingerprint = inventoryFingerprint(inventoryItems);
+    if (recipes.length > 0 && generatedForFingerprint === fingerprint) {
+      setErrorMessage(null);
+      return;
+    }
+
     setErrorMessage(null);
     setIsGenerating(true);
     try {
       const generated = await generateRecipes(inventoryItems);
-      setRecipes(generated);
+      setRecipes(generated, fingerprint);
     } catch (error) {
       const message =
         error instanceof RecipeGenerationError || error instanceof Error

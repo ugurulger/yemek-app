@@ -1,7 +1,16 @@
-import type { InventoryItem, InventoryUnit } from '@/types/inventory';
+import {
+  INVENTORY_CATEGORIES,
+  INVENTORY_UNITS,
+  type InventoryCategory,
+  type InventoryItem,
+  type InventoryUnit,
+} from '@/types/inventory';
 
 import { InventoryVisionError } from './types';
 
+// İki aşamalı JSON akışının prompt'ları hâlâ bu alt kümeyi dayatıyor —
+// genişletilmiş INVENTORY_UNITS (paket/kutu/... dahil) şimdilik sadece
+// video → envanter responseSchema akışında kullanılıyor.
 const VALID_UNITS: InventoryUnit[] = ['adet', 'g', 'kg', 'ml', 'l', 'demet'];
 
 /**
@@ -69,39 +78,21 @@ export const TABULATION_TURN_PROMPT =
   '"unit": "adet|g|kg|ml|l|demet", "brand": string | null, "match_confidence": number }]. ' +
   'SADECE JSON dön, markdown backtick yok, açıklama yok.';
 
-// MVP-7: Video girdisi için — kullanıcının kendi AI Studio testinde birebir
-// çalıştırdığı, native video girişi + TEK çağrıda markdown TABLO isteyen
-// prompt (bkz. SKILL.md "Video → envanter (native, MVP-7)"). Gözlem +
-// yapılandırma AYRI aşamalar değil, tek istek. Yanıt `parseInventoryTable`
-// (`./markdown-table.ts`) ile ayrıştırılır, JSON DEĞİL düz markdown döner.
-// MVP-8: kullanıcının orijinal metni "Ürün Adı" + "Marka" sütunlarına
-// ayrıştırıldı ve sabit listeli "Kategori" sütunu eklendi (bkz. SKILL.md
-// "Video → envanter (native, MVP-7)" — kategori/marka ayrımı notu) — bu artık
-// kullanıcının orijinal promptundan sapıyor, UI'daki kategori gruplama ve
-// marka rozeti ihtiyacı nedeniyle.
-export const VIDEO_TABLE_PROMPT = `You are an expert visual data extraction assistant. Your task is to analyze the provided video frame-by-frame and generate a highly structured, accurate inventory of the items inside the refrigerator. Analyze every shelf, door bin, and drawer systematically.
-Please strictly follow these formatting and extraction guidelines:
-1. STRUCTURE: Output the result as a Markdown table with the following exact columns:
-| Bölüm / Konum | Ürün Adı (Genel) | Marka | Miktar / Detay | Kategori | Doğruluk İhtimali | Notlar / Gerekçe |
-2. LANGUAGE: The output inside the table must be in Turkish.
-3. PRODUCT NAME vs BRAND:
-   - "Ürün Adı (Genel)" must always be a generic Turkish product name (e.g., "Mayonez", "Peynir", "Yumurta") — NEVER put a brand name in this column.
-   - "Marka" must contain ONLY the brand/variant name if it is visible on the packaging (e.g., "Arla", "Milner", "Dulano", "Remia"). If no brand is visible or identifiable, write "-".
-4. CATEGORY (Kategori):
-   - Assign each item to EXACTLY ONE of the following fixed categories, using this exact Turkish text and nothing else: İçecek, Süt Ürünleri, Peynir, Şarküteri, Meyve & Sebze, Sos & Baharat, Diğer.
-5. ACCURACY ESTIMATION (Doğruluk İhtimali):
-   - Assign a percentage (e.g., 100%, 90%, 75%) indicating how certain you are about the product's identity based on visual clarity, brand visibility, and label readability.
-   - In the "Notlar / Gerekçe" column, briefly explain in Turkish why you gave that percentage (e.g., "Marka ve logo net okunuyor", "Şişe formu belirgin ama etiket arkada kalmış").
-6. REFRIGERATOR EXTERIOR PLACEHOLDER:
-   - At the very bottom of the table, add a final row dedicated to future additions with the following values:
-     - Bölüm / Konum: "Buzdolabı Dışı (Eklenecek)"
-     - Ürün Adı (Genel): "*Yeni ürünleri gönderdiğinde buraya ekleyeceğiz...*"
-     - Marka: Leave empty or "-"
-     - Miktar / Detay: Leave empty or "-"
-     - Kategori: Leave empty or "-"
-     - Doğruluk İhtimali: Leave empty or "-"
-     - Notlar / Gerekçe: Leave empty or "-"
-7. TONALITY & STYLE: Do not include conversational filler text before or after the table. Output only the final markdown table.`;
+// Video girdisi için — TEK çağrı, native structured output (responseSchema,
+// bkz. `gemini-provider.ts` — `VIDEO_INVENTORY_RESPONSE_SCHEMA`). Eski
+// `VIDEO_TABLE_PROMPT` (markdown tablo + placeholder satırı + konum/gerekçe
+// sütunları) kaldırıldı: serbest markdown + kırılgan parser kombinasyonu
+// satırları sessizce düşürüyordu ve gemini-2.5-pro'nun varsayılan
+// temperature'ıyla (1.0) birlikte aynı videodan farklı sonuçlar üretiyordu.
+// Yapı/format talimatlarının tamamı gereksiz — şema yapıyı zaten garanti
+// ediyor; prompt sadece GÖREVİ ve isimlendirme/confidence kurallarını anlatır.
+export const VIDEO_INVENTORY_PROMPT = `Buzdolabı videosunu sistematik olarak analiz et: her rafı, kapı gözünü ve çekmeceyi tek tek incele, gördüğün TÜM ürünleri çıkar — küçük, kısmen görünen veya arka plandaki ürünleri de atlama.
+
+Kurallar:
+- "name" SPESİFİK Türkçe ürün adı olmalı; sıfat tamlaması tercih edilir: "Küflü Peynir", "Cherry Domates", "Kırmızı Biber". Tekli ürünler sade kalır: "Süt", "Marul", "Maydanoz". Marka adını "name" alanına YAZMA — ambalajda görünüyorsa "brand" alanına koy, görünmüyorsa null bırak.
+- "category" için SADECE şemadaki sabit listeden bir değer seç.
+- "reasoning": bu ürünü neden bu isimle ve bu netlikte tanımladığının TEK CÜMLELİK özeti (örn. "Etiketteki Milner yazısı net okunuyor"). Bunu "confidence"tan ÖNCE yaz.
+- "confidence" (0-100) kalibrasyonu: 95-100 = etiket/ambalaj yazısı net okunuyor VEYA ürünün şekli tartışmasız (yumurta, marul gibi); 80-94 = ürün türü netçe belli ama detay (çeşit/marka) tam seçilemiyor; 50-79 = form tahmin edilebilir ama emin değilsin; 50'nin altı = sadece tahmin.`;
 
 function generateId(): string {
   // React Native'de crypto.randomUUID her zaman mevcut olmayabilir.
@@ -141,7 +132,8 @@ function toInventoryItem(raw: unknown): InventoryItem | null {
   const emoji = obj.emoji;
   const matchConfidence = obj.match_confidence;
   const brand = obj.brand;
-  const location = obj.location;
+  // NOT: iki aşamalı akışın prompt'ları hâlâ "location" isteyebilir, ama
+  // alan InventoryItem'dan kaldırıldı (responseSchema geçişi) — yok sayılır.
 
   if (typeof name !== 'string' || name.trim().length === 0) {
     return null;
@@ -161,9 +153,6 @@ function toInventoryItem(raw: unknown): InventoryItem | null {
     emoji: typeof emoji === 'string' && emoji.length > 0 ? emoji : '🍽️',
     confidence: isValidConfidence(matchConfidence) ? matchConfidence : 100,
     ...(typeof brand === 'string' && brand.trim().length > 0 ? { brand: brand.trim() } : {}),
-    ...(typeof location === 'string' && location.trim().length > 0
-      ? { location: location.trim() }
-      : {}),
   };
 }
 
@@ -189,6 +178,90 @@ export function parseInventoryItems(responseText: string): InventoryItem[] {
 
   const items = parsed
     .map(toInventoryItem)
+    .filter((item): item is InventoryItem => item !== null);
+
+  if (items.length === 0) {
+    throw new InventoryVisionError('Yanıt ayrıştırılamadı, tekrar deneyin');
+  }
+
+  return items;
+}
+
+function toVideoInventoryItem(raw: unknown): InventoryItem | null {
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+
+  const obj = raw as Record<string, unknown>;
+  const { name, brand, qty, unit, category, confidence, reasoning } = obj;
+
+  // İsimsiz öğe düzeltilemez — düşürülür (şema zorunlu kıldığı için beklenmez).
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    return null;
+  }
+
+  // MVP-13: "reasoning" SADECE modelin kendi kalibrasyonu için var (confidence
+  // alanından ÖNCE yazdırılıyor, bkz. gemini-provider.ts —
+  // VIDEO_INVENTORY_RESPONSE_SCHEMA notu) — InventoryItem'a EKLENMEZ, UI'da
+  // GÖSTERİLMEZ, burada okunup atılır. Sadece debug logunda görünür.
+  if (typeof reasoning === 'string' && reasoning.trim().length > 0) {
+    console.debug(`[vision] "${name}" (%${confidence}) gerekçe: ${reasoning.trim()}`);
+  }
+
+  return {
+    id: generateId(),
+    name: name.trim(),
+    // Geçersiz değerleri düşürmek yerine mümkün olduğunca düzelt: şema bu
+    // alanları zaten garanti ediyor, buradaki toleranslar sadece emniyet kemeri.
+    qty: typeof qty === 'number' && Number.isFinite(qty) && qty > 0 ? qty : 1,
+    unit: isValidVideoUnit(unit) ? unit : 'adet',
+    emoji: '🍽️',
+    confidence:
+      typeof confidence === 'number' && Number.isFinite(confidence)
+        ? Math.min(100, Math.max(0, Math.round(confidence)))
+        : 50,
+    category: isValidCategory(category) ? category : 'Diğer',
+    ...(typeof brand === 'string' && brand.trim().length > 0 && brand.trim() !== '-'
+      ? { brand: brand.trim() }
+      : {}),
+  };
+}
+
+function isValidVideoUnit(value: unknown): value is InventoryUnit {
+  return typeof value === 'string' && (INVENTORY_UNITS as readonly string[]).includes(value);
+}
+
+function isValidCategory(value: unknown): value is InventoryCategory {
+  return typeof value === 'string' && (INVENTORY_CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
+ * Video → envanter akışının responseSchema'lı JSON yanıtını (bkz.
+ * `gemini-provider.ts` — `VIDEO_INVENTORY_RESPONSE_SCHEMA`) doğrular ve
+ * `InventoryItem[]`'e çevirir. Eski markdown-tablo parser'ının
+ * (`markdown-table.ts`, @deprecated) yerini alır. Şema yapıyı garanti
+ * ettiğinden doğrulama minimaldir; yine de geçersiz bir değer gelirse öğeyi
+ * düşürmek yerine düzeltir: tanınmayan kategori → "Diğer", aralık dışı
+ * confidence → 0-100'e kırpılır, geçersiz qty/unit → 1 "adet". Hiç geçerli
+ * öğe yoksa `InventoryVisionError` fırlatılır — çağıran taraf asla boş
+ * envanter yazmamalı, kullanıcıya "tekrar dene" göstermeli.
+ */
+export function parseVideoInventoryItems(responseText: string): InventoryItem[] {
+  const cleaned = stripMarkdownFence(responseText);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (cause) {
+    throw new InventoryVisionError('Yanıt ayrıştırılamadı, tekrar deneyin', { cause });
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new InventoryVisionError('Yanıt ayrıştırılamadı, tekrar deneyin');
+  }
+
+  const items = parsed
+    .map(toVideoInventoryItem)
     .filter((item): item is InventoryItem => item !== null);
 
   if (items.length === 0) {

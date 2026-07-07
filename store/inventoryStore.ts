@@ -6,7 +6,21 @@ import type { InventoryItem } from '@/types/inventory';
 
 interface InventoryState {
   items: InventoryItem[];
+  /**
+   * EKLEME modu — fiş/fotoğraf akışı için: yeni ürünler mevcut envanterle
+   * birleştirilir (aynı ad+birim varsa miktarlar toplanır).
+   */
   addItems: (newItems: InventoryItem[]) => void;
+  /**
+   * TAM TARAMA modu — video analizi için: mevcut envanter yeni listeyle
+   * DEĞİŞTİRİLİR (miktar toplama yok). Video zaten buzdolabının o anki tam
+   * halini gösterdiğinden birikimli ekleme miktarları katlıyordu (aynı video
+   * ikinci kez analiz edilince 2 süt → 4 süt). Kullanıcının elle
+   * eklediği/düzenlediği kayıtlar da yenilenir — bilinçli olarak basit
+   * tutuldu, birleştirme mantığı YOK. Çağıran taraf değiştirmeden önce
+   * kullanıcıdan onay alır (bkz. app/(tabs)/index.tsx — Alert).
+   */
+  replaceItems: (newItems: InventoryItem[]) => void;
   incrementQty: (id: string) => void;
   decrementQty: (id: string) => void;
   removeItem: (id: string) => void;
@@ -45,6 +59,7 @@ export const useInventoryStore = create<InventoryState>()(
 
           return { items };
         }),
+      replaceItems: (newItems) => set({ items: newItems }),
       incrementQty: (id) =>
         set((state) => ({
           items: state.items.map((item) =>
