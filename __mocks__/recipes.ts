@@ -1,6 +1,11 @@
 import type { Recipe } from '@/types/recipe';
 
-// Kademeli 9 tarif yapısını yansıtır: 3x match_pct=100, 3x 75-99, 3x 50-74.
+/**
+ * Kademeli tarif listesini yansıtan mock veri — v3 şemasıyla (tasarım
+ * entegrasyonu): her malzeme { name, qty, unit, kcal, category,
+ * in_inventory } taşır (qty/kcal VARSAYILAN porsiyon içindir, bkz.
+ * types/recipe.ts) ve her tarif tek `nutrition_tag` taşır.
+ */
 export const mockRecipes: Recipe[] = [
   {
     id: '1',
@@ -13,11 +18,11 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 14, karb: 10, yag: 20 },
     match_pct: 100,
     ingredients: [
-      { name: 'Yumurta', in_inventory: true },
-      { name: 'Domates', in_inventory: true },
-      { name: 'Yeşil biber', in_inventory: true },
-      { name: 'Zeytinyağı', in_inventory: true },
-      { name: 'Tuz', in_inventory: true },
+      { name: 'Yumurta', qty: 4, unit: 'adet', kcal: 310, category: 'Diğer', in_inventory: true },
+      { name: 'Domates', qty: 3, unit: 'adet', kcal: 65, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Yeşil biber', qty: 2, unit: 'adet', kcal: 15, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Zeytinyağı', qty: 2, unit: 'yk', kcal: 160, category: 'Baharat & Sos', in_inventory: true },
+      { name: 'Tuz', qty: 1, unit: 'çk', kcal: 0, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 0,
     steps: [
@@ -27,6 +32,7 @@ export const mockRecipes: Recipe[] = [
       'Tuzunu ekleyip sıcak servis edin.',
     ],
     chef_tip: 'Domatesin suyunu iyice çektirirseniz menemen sulanmaz.',
+    nutrition_tag: 'Protein',
   },
   {
     id: '2',
@@ -39,9 +45,9 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 13, karb: 2, yag: 17 },
     match_pct: 100,
     ingredients: [
-      { name: 'Yumurta', in_inventory: true },
-      { name: 'Tereyağı', in_inventory: true },
-      { name: 'Tuz, karabiber', in_inventory: true },
+      { name: 'Yumurta', qty: 2, unit: 'adet', kcal: 155, category: 'Diğer', in_inventory: true },
+      { name: 'Tereyağı', qty: 1, unit: 'yk', kcal: 100, category: 'Süt & Peynir', in_inventory: true },
+      { name: 'Tuz, karabiber', qty: 1, unit: 'çk', kcal: 0, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 0,
     steps: [
@@ -50,6 +56,7 @@ export const mockRecipes: Recipe[] = [
       'Tuz ve karabiber serpip servis edin.',
     ],
     chef_tip: 'Kısık ateş, beyazı sertleşmeden sarısının kıvamlı kalmasını sağlar.',
+    nutrition_tag: 'Protein',
   },
   {
     id: '3',
@@ -62,10 +69,10 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 2, karb: 8, yag: 9 },
     match_pct: 100,
     ingredients: [
-      { name: 'Domates', in_inventory: true },
-      { name: 'Yeşil biber', in_inventory: true },
-      { name: 'Zeytinyağı', in_inventory: true },
-      { name: 'Tuz', in_inventory: true },
+      { name: 'Domates', qty: 4, unit: 'adet', kcal: 90, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Yeşil biber', qty: 2, unit: 'adet', kcal: 15, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Zeytinyağı', qty: 2, unit: 'yk', kcal: 160, category: 'Baharat & Sos', in_inventory: true },
+      { name: 'Tuz', qty: 1, unit: 'çk', kcal: 0, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 0,
     steps: [
@@ -73,6 +80,7 @@ export const mockRecipes: Recipe[] = [
       'Zeytinyağı ve tuzla harmanlayıp servis edin.',
     ],
     chef_tip: 'Domatesleri buzdolabından çıkarıp oda sıcaklığında kullanırsanız aroması artar.',
+    nutrition_tag: 'Hafif',
   },
   {
     id: '4',
@@ -85,11 +93,11 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 12, karb: 30, yag: 6 },
     match_pct: 80,
     ingredients: [
-      { name: 'Kırmızı mercimek', in_inventory: true },
-      { name: 'Soğan', in_inventory: true },
-      { name: 'Havuç', in_inventory: false },
-      { name: 'Tereyağı', in_inventory: true },
-      { name: 'Tuz, kırmızı biber', in_inventory: true },
+      { name: 'Kırmızı mercimek', qty: 1.5, unit: 'su bardağı', kcal: 510, category: 'Bakliyat & Makarna', in_inventory: true },
+      { name: 'Soğan', qty: 1, unit: 'adet', kcal: 45, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Havuç', qty: 1, unit: 'adet', kcal: 30, category: 'Meyve & Sebze', in_inventory: false },
+      { name: 'Tereyağı', qty: 2, unit: 'yk', kcal: 205, category: 'Süt & Peynir', in_inventory: true },
+      { name: 'Tuz, kırmızı biber', qty: 1, unit: 'çk', kcal: 0, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 1,
     steps: [
@@ -100,6 +108,7 @@ export const mockRecipes: Recipe[] = [
       'Tuzunu ayarlayıp sıcak servis edin.',
     ],
     chef_tip: 'Blenderdan geçirmeden önce birkaç kaşık ayırırsanız çorbaya doku katabilirsiniz.',
+    nutrition_tag: 'Lifli',
   },
   {
     id: '5',
@@ -112,11 +121,11 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 32, karb: 12, yag: 16 },
     match_pct: 80,
     ingredients: [
-      { name: 'Tavuk göğsü', in_inventory: true },
-      { name: 'Soğan', in_inventory: true },
-      { name: 'Yeşil biber', in_inventory: true },
-      { name: 'Mantar', in_inventory: false },
-      { name: 'Zeytinyağı', in_inventory: true },
+      { name: 'Tavuk göğsü', qty: 500, unit: 'g', kcal: 550, category: 'Et & Şarküteri', in_inventory: true },
+      { name: 'Soğan', qty: 1, unit: 'adet', kcal: 45, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Yeşil biber', qty: 2, unit: 'adet', kcal: 15, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Mantar', qty: 250, unit: 'g', kcal: 55, category: 'Meyve & Sebze', in_inventory: false },
+      { name: 'Zeytinyağı', qty: 3, unit: 'yk', kcal: 240, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 1,
     steps: [
@@ -127,6 +136,7 @@ export const mockRecipes: Recipe[] = [
       'Baharatlarını ekleyip sıcak servis edin.',
     ],
     chef_tip: 'Tavukları yüksek ateşte kısa süre pişirmek etin kurumasını önler.',
+    nutrition_tag: 'Protein',
   },
   {
     id: '6',
@@ -139,11 +149,11 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 22, karb: 18, yag: 26 },
     match_pct: 75,
     ingredients: [
-      { name: 'Patlıcan', in_inventory: false },
-      { name: 'Kıyma', in_inventory: true },
-      { name: 'Soğan', in_inventory: true },
-      { name: 'Domates', in_inventory: true },
-      { name: 'Sivri biber', in_inventory: true },
+      { name: 'Patlıcan', qty: 4, unit: 'adet', kcal: 100, category: 'Meyve & Sebze', in_inventory: false },
+      { name: 'Kıyma', qty: 300, unit: 'g', kcal: 750, category: 'Et & Şarküteri', in_inventory: true },
+      { name: 'Soğan', qty: 2, unit: 'adet', kcal: 90, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Domates', qty: 2, unit: 'adet', kcal: 45, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Sivri biber', qty: 4, unit: 'adet', kcal: 25, category: 'Meyve & Sebze', in_inventory: true },
     ],
     missing_count: 1,
     steps: [
@@ -154,6 +164,7 @@ export const mockRecipes: Recipe[] = [
       'Üzerine domates dilimleri koyup fırında pişirin.',
     ],
     chef_tip: 'Patlıcanları kızartmadan önce tuzlu suda bekletirseniz daha az yağ çeker.',
+    nutrition_tag: 'Dengeli',
   },
   {
     id: '7',
@@ -166,11 +177,11 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 10, karb: 28, yag: 5 },
     match_pct: 60,
     ingredients: [
-      { name: 'Kırmızı mercimek', in_inventory: true },
-      { name: 'Pirinç', in_inventory: false },
-      { name: 'Bulgur', in_inventory: false },
-      { name: 'Soğan', in_inventory: true },
-      { name: 'Salça', in_inventory: true },
+      { name: 'Kırmızı mercimek', qty: 1, unit: 'su bardağı', kcal: 340, category: 'Bakliyat & Makarna', in_inventory: true },
+      { name: 'Pirinç', qty: 2, unit: 'yk', kcal: 70, category: 'Bakliyat & Makarna', in_inventory: false },
+      { name: 'Bulgur', qty: 2, unit: 'yk', kcal: 70, category: 'Bakliyat & Makarna', in_inventory: false },
+      { name: 'Soğan', qty: 1, unit: 'adet', kcal: 45, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Salça', qty: 1, unit: 'yk', kcal: 15, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 2,
     steps: [
@@ -181,6 +192,7 @@ export const mockRecipes: Recipe[] = [
       'Nane ve pul biberli tereyağı ile servis edin.',
     ],
     chef_tip: 'Salçayı yağda biraz kavurmak çorbaya daha derin bir tat katar.',
+    nutrition_tag: 'Lifli',
   },
   {
     id: '8',
@@ -193,11 +205,11 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 30, karb: 20, yag: 18 },
     match_pct: 60,
     ingredients: [
-      { name: 'Tavuk but', in_inventory: true },
-      { name: 'Patates', in_inventory: false },
-      { name: 'Havuç', in_inventory: false },
-      { name: 'Kabak', in_inventory: true },
-      { name: 'Zeytinyağı', in_inventory: true },
+      { name: 'Tavuk but', qty: 800, unit: 'g', kcal: 1250, category: 'Et & Şarküteri', in_inventory: true },
+      { name: 'Patates', qty: 4, unit: 'adet', kcal: 640, category: 'Meyve & Sebze', in_inventory: false },
+      { name: 'Havuç', qty: 2, unit: 'adet', kcal: 60, category: 'Meyve & Sebze', in_inventory: false },
+      { name: 'Kabak', qty: 2, unit: 'adet', kcal: 65, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Zeytinyağı', qty: 4, unit: 'yk', kcal: 320, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 2,
     steps: [
@@ -208,6 +220,7 @@ export const mockRecipes: Recipe[] = [
       'Sıcak olarak servis edin.',
     ],
     chef_tip: 'Sebzeleri eşit büyüklükte doğrarsanız aynı sürede pişerler.',
+    nutrition_tag: 'Dengeli',
   },
   {
     id: '9',
@@ -220,12 +233,12 @@ export const mockRecipes: Recipe[] = [
     macros: { protein: 13, karb: 62, yag: 14 },
     match_pct: 50,
     ingredients: [
-      { name: 'Makarna', in_inventory: false },
-      { name: 'Domates', in_inventory: true },
-      { name: 'Kabak', in_inventory: true },
-      { name: 'Parmesan', in_inventory: false },
-      { name: 'Sarımsak', in_inventory: false },
-      { name: 'Zeytinyağı', in_inventory: true },
+      { name: 'Makarna', qty: 250, unit: 'g', kcal: 360, category: 'Bakliyat & Makarna', in_inventory: false },
+      { name: 'Domates', qty: 3, unit: 'adet', kcal: 65, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Kabak', qty: 1, unit: 'adet', kcal: 33, category: 'Meyve & Sebze', in_inventory: true },
+      { name: 'Parmesan', qty: 50, unit: 'g', kcal: 195, category: 'Süt & Peynir', in_inventory: false },
+      { name: 'Sarımsak', qty: 2, unit: 'diş', kcal: 10, category: 'Meyve & Sebze', in_inventory: false },
+      { name: 'Zeytinyağı', qty: 2, unit: 'yk', kcal: 160, category: 'Baharat & Sos', in_inventory: true },
     ],
     missing_count: 3,
     steps: [
@@ -235,5 +248,6 @@ export const mockRecipes: Recipe[] = [
       'Üzerine rendelenmiş peynir serpip servis edin.',
     ],
     chef_tip: 'Makarna suyundan bir kepçe ayırıp sosa eklerseniz sos makarnaya daha iyi tutunur.',
+    nutrition_tag: 'Enerji',
   },
 ];

@@ -2,7 +2,8 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { Recipe } from '@/types/recipe';
-import RecipeCard from './RecipeCard';
+import RecipeCard, { CARD_IMAGE_HEIGHT } from './RecipeCard';
+import { chunkPairs, RecipeSectionHeader } from './RecipeList';
 import RecipeSkeletonCard from './RecipeSkeletonCard';
 
 export interface RecipeCardSlot {
@@ -27,12 +28,32 @@ interface RecipeLayerSectionsProps {
   onPressRecipe: (id: string) => void;
 }
 
+/** Yüklenemeyen slot için grid hücresiyle aynı boyutta hata kartı. */
+function SlotErrorCard({ slot }: { slot: RecipeCardSlot }) {
+  return (
+    <View
+      className="w-full items-center justify-center rounded-[20px] bg-white px-3"
+      style={{ height: CARD_IMAGE_HEIGHT }}>
+      <Text
+        className="text-center font-sans text-xs text-red-500"
+        numberOfLines={2}>
+        {slot.name ? `"${slot.name}" yüklenemedi` : 'Tarif yüklenemedi'}
+      </Text>
+      <Pressable accessibilityRole="button" onPress={slot.onRetry} className="mt-2 active:scale-95">
+        <Text className="font-sans-medium text-xs text-forest">Tekrar dene</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 /**
  * Tarif listesini tarif bazlı yükleme durumuna göre KADEMELİ/CANLI gösterir
  * (bkz. SKILL.md "MVP-15"): her tarifin detayı döner dönmez o kart tek
  * başına iskeletten dolu karta döner — bölümün TAMAMI birden görünmez. Bir
  * bölümde hiç slot yoksa (henüz o katmana ait tarif belirlenmediyse) başlık
- * da gizli kalır.
+ * da gizli kalır. Statik `RecipeList` ile aynı 2 SÜTUNLU grid düzenini
+ * (gap 14 — birebir referans) ve bölüm başlıklarını kullanır; sayaç pili
+ * yalnızca "Hemen Yapabilirsin" (prominent) bölümünde gösterilir.
  */
 export default function RecipeLayerSections({ sections, onPressRecipe }: RecipeLayerSectionsProps) {
   const visibleSections = sections.filter((section) => section.slots.length > 0);
@@ -40,50 +61,33 @@ export default function RecipeLayerSections({ sections, onPressRecipe }: RecipeL
   return (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingBottom: 16 }}
-      showsVerticalScrollIndicator={false}
-    >
-      {visibleSections.map((section) => (
+      contentContainerStyle={{ paddingBottom: 120 }}
+      showsVerticalScrollIndicator={false}>
+      {visibleSections.map((section, sectionIndex) => (
         <View key={section.key}>
-          <View className="flex-row bg-stone-50 pb-2 pt-3">
-            <View
-              className={`rounded-full px-3 py-1 ${
-                section.prominent ? 'bg-emerald-900' : 'bg-stone-100'
-              }`}
-            >
-              <Text
-                className={`text-sm ${section.prominent ? 'text-white' : 'text-stone-700'}`}
-                style={{ fontFamily: 'Outfit_600SemiBold' }}
-              >
-                {section.title}
-              </Text>
-            </View>
+          <RecipeSectionHeader
+            title={section.title}
+            count={section.prominent ? section.slots.length : undefined}
+            first={sectionIndex === 0}
+          />
+          <View className="gap-[14px]">
+            {chunkPairs(section.slots).map(([left, right], rowIndex) => (
+              <View key={`${section.key}-${rowIndex}`} className="flex-row gap-[14px]">
+                {[left, right].map((slot, cellIndex) => (
+                  <View key={slot ? slot.key : `empty-${cellIndex}`} className="flex-1">
+                    {slot &&
+                      (slot.status === 'done' && slot.recipe ? (
+                        <RecipeCard recipe={slot.recipe} onPress={onPressRecipe} />
+                      ) : slot.status === 'error' ? (
+                        <SlotErrorCard slot={slot} />
+                      ) : (
+                        <RecipeSkeletonCard name={slot.name ?? undefined} />
+                      ))}
+                  </View>
+                ))}
+              </View>
+            ))}
           </View>
-
-          {section.slots.map((slot) => (
-            <View key={slot.key} className="mb-2">
-              {slot.status === 'done' && slot.recipe ? (
-                <RecipeCard recipe={slot.recipe} onPress={onPressRecipe} />
-              ) : slot.status === 'error' ? (
-                <View className="flex-row items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-100">
-                  <Text
-                    className="flex-1 text-sm text-red-500"
-                    style={{ fontFamily: 'Outfit_400Regular' }}
-                    numberOfLines={1}
-                  >
-                    {slot.name ? `"${slot.name}" yüklenemedi` : 'Tarif yüklenemedi'}
-                  </Text>
-                  <Pressable accessibilityRole="button" onPress={slot.onRetry} className="ml-2 active:scale-95">
-                    <Text className="text-sm text-emerald-900" style={{ fontFamily: 'Outfit_500Medium' }}>
-                      Tekrar dene
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <RecipeSkeletonCard name={slot.name ?? undefined} />
-              )}
-            </View>
-          ))}
         </View>
       ))}
     </ScrollView>

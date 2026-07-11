@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import PreferencesScreen from '@/components/recipes/PreferencesScreen';
 import RecipeList from '@/components/recipes/RecipeList';
 import RecipeLayerSections, {
   type RecipeCardSlot,
@@ -17,11 +18,22 @@ import {
   RecipeGenerationError,
   type RecipeLayerId,
 } from '@/lib/claude/generateRecipes';
+import { cardShadow, colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { usePantryStore } from '@/store/pantryStore';
 import { inventoryFingerprint, useRecipeStore } from '@/store/recipeStore';
 import type { Recipe } from '@/types/recipe';
 
 const PLANNED_RECIPE_COUNT = 6;
+
+/** Yenile butonu gölgesi — birebir referans: 0 4px 12px -5px rgba(31,74,61,.3). */
+const REFRESH_SHADOW = {
+  shadowColor: '#1F4A3D',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.3,
+  shadowRadius: 6,
+  elevation: 3,
+} as const;
 
 interface RecipeSlotState {
   name: string;
@@ -47,19 +59,26 @@ function shoppingSortKey(slot: RecipeSlotState): number {
 
 export default function TariflerScreen() {
   const inventoryItems = useInventoryStore((state) => state.items);
+  const pantryItems = usePantryStore((state) => state.items);
   const recipes = useRecipeStore((state) => state.recipes);
   const setRecipes = useRecipeStore((state) => state.setRecipes);
+  const preferences = useRecipeStore((state) => state.preferences);
   const generatedForFingerprint = useRecipeStore((state) => state.generatedForFingerprint);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  /** Listeden yenile butonu ile tercih ekranına dönüş (görsel 05/06 → 07 akışı). */
+  const [showPreferences, setShowPreferences] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [slots, setSlots] = useState<RecipeSlotState[]>([]);
 
+  const activePantryNames = pantryItems.filter((item) => item.active).map((item) => item.name);
+
   async function handleGenerateRecipes() {
-    // Önbellek kuralı: envanter değişmediyse tarifler yeniden üretilmez,
-    // AsyncStorage'dan hidrate edilen mevcut (iki aşamalı üretimin birleşmiş)
-    // liste kullanılmaya devam eder.
-    const fingerprint = inventoryFingerprint(inventoryItems);
+    // Önbellek kuralı: envanter + tercihler + aktif kiler değişmediyse
+    // tarifler yeniden üretilmez, AsyncStorage'dan hidrate edilen mevcut
+    // (iki aşamalı üretimin birleşmiş) liste kullanılmaya devam eder.
+    const fingerprint = inventoryFingerprint(inventoryItems, preferences, activePantryNames);
+    setShowPreferences(false);
     if (recipes.length > 0 && generatedForFingerprint === fingerprint) {
       setErrorMessage(null);
       return;
@@ -70,7 +89,11 @@ export default function TariflerScreen() {
     setIsGenerating(true);
     try {
       const merged = await generateRecipesTwoPhase(inventoryItems, {
-        // Aşama 1 (isim/plan) döner dönmez 9 slot oluşturulur — her biri
+        // Tercihler + aktif kiler üretim promptuna girer (servis kontratı —
+        // bkz. services/contracts.ts, GenerateRecipesOptions).
+        preferences,
+        activePantryNames,
+        // Aşama 1 (isim/plan) döner dönmez 6 slot oluşturulur — her biri
         // isim + tahmini katmanla birlikte "detay yükleniyor" durumunda başlar.
         onPlanReady: (plans) => {
           setSlots(
@@ -128,7 +151,7 @@ export default function TariflerScreen() {
         .map((s) => s.recipe as Recipe);
       const merged = mergeRecipeLayers([doneRecipes]);
       if (merged.length > 0) {
-        setRecipes(merged, inventoryFingerprint(inventoryItems));
+        setRecipes(merged, inventoryFingerprint(inventoryItems, preferences, activePantryNames));
       }
     } catch {
       setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'error' } : s)));
@@ -136,7 +159,10 @@ export default function TariflerScreen() {
   }
 
   const hasInventory = inventoryItems.length > 0;
-  const hasRecipes = recipes.length > 0;
+  const fingerprint = inventoryFingerprint(inventoryItems, preferences, activePantryNames);
+  // Cache eşleşiyorsa doğrudan liste; eşleşmiyorsa (veya liste boşsa) önce
+  // tercih ekranı gösterilir (spec §4 akışı).
+  const cacheValid = recipes.length > 0 && generatedForFingerprint === fingerprint;
   // Aşama 1 henüz dönmedi: slot yok, sadece isimsiz genel iskeletler gösterilir.
   const isPlanning = isGenerating && slots.length === 0;
 
@@ -170,98 +196,94 @@ export default function TariflerScreen() {
     },
   ];
 
-  return (
-    <SafeAreaView className="flex-1 bg-stone-50" edges={['top']}>
-      <View className="flex-row items-center justify-between px-5 pt-4 pb-2">
-        <Text className="text-3xl text-emerald-900" style={{ fontFamily: 'Fraunces_700Bold' }}>
-          Tarifler
-        </Text>
-        {hasInventory && hasRecipes && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Tarifleri yeniden oluştur"
-            onPress={handleGenerateRecipes}
-            disabled={isGenerating}
-            className="h-11 w-11 items-center justify-center rounded-full bg-emerald-900 active:scale-95">
-            {isGenerating ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Ionicons name="refresh" size={20} color="white" />
-            )}
-          </Pressable>
-        )}
-      </View>
+  // Tercih ekranı: üretim yokken cache geçersizse veya kullanıcı yenile ile
+  // dönmek istediyse (envanter varken).
+  const showPreferencesScreen = hasInventory && !isGenerating && (showPreferences || !cacheValid);
 
+  return (
+    <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
       {errorMessage && (
-        <View className="mx-5 mb-2 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-100">
-          <Text className="text-sm text-red-500" style={{ fontFamily: 'Outfit_500Medium' }}>
-            {errorMessage}
-          </Text>
+        <View className="mx-5 mb-2 mt-2 rounded-2xl bg-white px-4 py-3" style={cardShadow}>
+          <Text className="font-sans-medium text-sm text-red-500">{errorMessage}</Text>
           <Pressable
             accessibilityRole="button"
             onPress={handleGenerateRecipes}
             className="mt-2 self-start active:scale-95">
-            <Text className="text-sm text-emerald-900" style={{ fontFamily: 'Outfit_500Medium' }}>
-              Tekrar dene
-            </Text>
+            <Text className="font-sans-medium text-sm text-forest">Tekrar dene</Text>
           </Pressable>
         </View>
       )}
 
-      {isPlanning ? (
-        <View className="flex-1 px-5">
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-            {Array.from({ length: PLANNED_RECIPE_COUNT }).map((_, index) => (
-              <View key={index} className="mb-2">
-                <RecipeSkeletonCard />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      ) : isGenerating ? (
-        <View className="flex-1 px-5">
-          <RecipeLayerSections sections={sections} onPressRecipe={(id) => router.push(`/recipe/${id}`)} />
-        </View>
-      ) : hasRecipes ? (
-        <View className="flex-1 px-5">
-          <RecipeList
-            recipes={recipes}
-            onPressRecipe={(id) => router.push(`/recipe/${id}`)}
-          />
-        </View>
-      ) : (
+      {!hasInventory ? (
         <View className="flex-1 items-center justify-center px-8">
-          <View className="w-full items-center rounded-2xl bg-white p-8 shadow-sm ring-1 ring-stone-100">
+          <View className="w-full items-center rounded-2xl bg-white p-8" style={cardShadow}>
             <Text className="text-5xl">🍲</Text>
-            <Text
-              className="mt-4 text-center text-lg text-stone-900"
-              style={{ fontFamily: 'Fraunces_600SemiBold' }}>
+            <Text className="mt-4 text-center font-serif text-[21px] text-ink">
               Bugün ne pişsin?
             </Text>
-            <Text
-              className="mt-2 text-center text-sm text-stone-500"
-              style={{ fontFamily: 'Outfit_400Regular' }}>
-              {hasInventory
-                ? 'Envanterine göre tarif önerileri oluşturalım.'
-                : 'Mutfağım sayfasından malzeme ekledikçe burada tarif önerileri belirecek.'}
+            <Text className="mt-2 text-center font-sans text-sm text-muted">
+              Mutfağım sayfasından malzeme ekledikçe burada tarif önerileri belirecek.
             </Text>
-            {hasInventory && (
+          </View>
+        </View>
+      ) : showPreferencesScreen ? (
+        <PreferencesScreen onNext={handleGenerateRecipes} />
+      ) : (
+        <>
+          {/* Liste başlığı — birebir referans: eyebrow 400 13px muted ls .3;
+              h1 Newsreader 500 34px forest (margin 2px üst); yenile 46×46
+              beyaz daire, gölge 0 4px 12px -5px rgba(31,74,61,.3), ikon 19. */}
+          <View className="flex-row items-start justify-between px-5 pt-2">
+            <View>
+              <Text className="font-sans text-[13px] text-muted" style={{ letterSpacing: 0.3 }}>
+                Malzemelerine göre
+              </Text>
+              <Text className="mt-0.5 font-serif text-[34px] leading-[40px] text-forest">
+                Tarifler
+              </Text>
+            </View>
+            {!isGenerating && (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Tarif oluştur"
-                onPress={handleGenerateRecipes}
-                disabled={isGenerating}
-                className="mt-5 flex-row items-center rounded-2xl bg-emerald-900 px-5 py-3 active:scale-95">
-                <Ionicons name="sparkles-outline" size={18} color="white" />
-                <Text
-                  className="ml-2 text-sm text-white"
-                  style={{ fontFamily: 'Outfit_500Medium' }}>
-                  Tarif oluştur
-                </Text>
+                accessibilityLabel="Tercihlere dönüp tarifleri yeniden oluştur"
+                onPress={() => setShowPreferences(true)}
+                className="h-[46px] w-[46px] items-center justify-center rounded-full bg-white active:scale-95"
+                style={REFRESH_SHADOW}>
+                <Ionicons name="refresh" size={19} color={colors.forest} />
               </Pressable>
             )}
           </View>
-        </View>
+
+          {isPlanning ? (
+            <View className="flex-1 px-5">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 120, paddingTop: 8, gap: 14 }}>
+                {Array.from({ length: PLANNED_RECIPE_COUNT / 2 }).map((_, rowIndex) => (
+                  <View key={rowIndex} className="flex-row gap-[14px]">
+                    <View className="flex-1">
+                      <RecipeSkeletonCard />
+                    </View>
+                    <View className="flex-1">
+                      <RecipeSkeletonCard />
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ) : isGenerating ? (
+            <View className="flex-1 px-5">
+              <RecipeLayerSections
+                sections={sections}
+                onPressRecipe={(id) => router.push(`/recipe/${id}`)}
+              />
+            </View>
+          ) : (
+            <View className="flex-1 px-5">
+              <RecipeList recipes={recipes} onPressRecipe={(id) => router.push(`/recipe/${id}`)} />
+            </View>
+          )}
+        </>
       )}
     </SafeAreaView>
   );

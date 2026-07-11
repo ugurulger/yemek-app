@@ -1,7 +1,17 @@
 import { callClaudeForToolInput } from './client';
 
+import { EMPTY_PREFERENCES, PREFERENCE_SECTIONS } from '@/types/preferences';
+import { INGREDIENT_CATEGORIES, NUTRITION_TAGS } from '@/types/recipe';
+
 import type { InventoryItem } from '@/types/inventory';
-import type { Recipe, RecipeDifficulty, RecipeIngredient } from '@/types/recipe';
+import type { RecipePreferences } from '@/types/preferences';
+import type {
+  IngredientCategory,
+  NutritionTag,
+  Recipe,
+  RecipeDifficulty,
+  RecipeIngredient,
+} from '@/types/recipe';
 
 const MODEL = 'claude-sonnet-4-6';
 const NAMES_MAX_TOKENS = 1536;
@@ -16,9 +26,10 @@ const LAYER_ENUM: RecipeLayerId[] = ['ready', 'closeMatch', 'fewMissing'];
 
 /**
  * Evde her zaman var kabul edilen kiler malzemeleri (bkz. SKILL.md "MVP-16",
- * kullanıcı kararı: geniş kiler). Bu listedekiler tariflerde her zaman
- * `in_inventory: true` sayılır, eksik olarak gösterilmez. Promptlara tek
- * kaynaktan interpolate edilir.
+ * kullanıcı kararı: geniş kiler). Bu fazdan itibaren bu sabit yalnızca
+ * VARSAYILAN/SEED listedir (store/pantryStore.ts bunu tohum olarak kullanır);
+ * promptlara artık kullanıcının AKTİF kiler listesi (`activePantryNames`)
+ * interpolate edilir — bkz. `RecipePromptContext`.
  */
 export const PANTRY_STAPLES = [
   'tuz',
@@ -43,7 +54,41 @@ export const PANTRY_STAPLES = [
   'bulgur',
 ] as const;
 
-const PANTRY_TEXT = PANTRY_STAPLES.join(', ');
+/**
+ * Prompt üretiminde kullanılan kullanıcı bağlamı: tarif tercihleri
+ * (types/preferences.ts) + kullanıcının AKTİF bıraktığı kiler malzemeleri
+ * (store/pantryStore.ts'ten gelir; statik `PANTRY_STAPLES` yalnızca
+ * varsayılan/seed'dir, promptlara bu AKTİF liste girer).
+ */
+export interface RecipePromptContext {
+  preferences: RecipePreferences;
+  activePantryNames: string[];
+}
+
+/** Bağlam verilmeden çağrılan (eski imzalı) kullanımlar için varsayılan. */
+export const DEFAULT_PROMPT_CONTEXT: RecipePromptContext = {
+  preferences: EMPTY_PREFERENCES,
+  activePantryNames: [...PANTRY_STAPLES],
+};
+
+function normalizePantryNames(activePantryNames: string[]): string[] {
+  return activePantryNames.map((name) => name.trim()).filter((name) => name.length > 0);
+}
+
+/**
+ * Boş olmayan tercih kategorilerini Türkçe tek bir yönlendirme cümlesine
+ * çevirir (boşsa boş string). Hem plan hem detay promptuna girer; 6 detay
+ * çağrısında da AYNI metin olduğu için prefix cache'i bozmaz.
+ */
+function buildPreferenceText(preferences: RecipePreferences): string {
+  const parts = PREFERENCE_SECTIONS.filter(
+    (section) => (preferences[section.id] ?? []).length > 0
+  ).map((section) => `${section.title}: ${preferences[section.id].join(', ')}`);
+  if (parts.length === 0) {
+    return '';
+  }
+  return `Kullanıcı tercihi — ${parts.join('; ')} — tarifleri bu tercihlere göre şekillendir. `;
+}
 
 /**
  * Katman bazlı detay çağrısı varyantları (bkz. SKILL.md "MVP-16"): "ready"
@@ -99,17 +144,40 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
 
-function isIngredientArray(value: unknown): value is RecipeIngredient[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (entry) =>
-        typeof entry === 'object' &&
-        entry !== null &&
-        typeof (entry as RecipeIngredient).name === 'string' &&
-        typeof (entry as RecipeIngredient).in_inventory === 'boolean'
-    )
-  );
+/**
+ * Tek bir ham malzeme girdisini yeni `RecipeIngredient` şemasına
+ * ({name, qty, unit, kcal, category, in_inventory}) doğrular/normalize eder.
+ * name/in_inventory zorunludur (yoksa girdi elenir — null); sayısal/enum
+ * alanlar ise düzeltilir: geçersiz qty → 1, geçersiz unit → "adet",
+ * geçersiz kcal → 0, tanınmayan category → "Diğer" (vision doğrulayıcılarıyla
+ * aynı "düşürme yerine düzelt" ilkesi).
+ */
+function toRecipeIngredient(raw: unknown): RecipeIngredient | null {
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.name !== 'string' || obj.name.trim().length === 0) {
+    return null;
+  }
+  if (typeof obj.in_inventory !== 'boolean') {
+    return null;
+  }
+  return {
+    name: obj.name,
+    qty: typeof obj.qty === 'number' && Number.isFinite(obj.qty) && obj.qty > 0 ? obj.qty : 1,
+    unit: typeof obj.unit === 'string' && obj.unit.trim().length > 0 ? obj.unit : 'adet',
+    kcal:
+      typeof obj.kcal === 'number' && Number.isFinite(obj.kcal) && obj.kcal >= 0 ? obj.kcal : 0,
+    category: INGREDIENT_CATEGORIES.includes(obj.category as IngredientCategory)
+      ? (obj.category as IngredientCategory)
+      : 'Diğer',
+    in_inventory: obj.in_inventory,
+  };
+}
+
+function toNutritionTag(value: unknown): NutritionTag {
+  return NUTRITION_TAGS.includes(value as NutritionTag) ? (value as NutritionTag) : 'Dengeli';
 }
 
 function toDifficulty(value: unknown): RecipeDifficulty {
@@ -147,11 +215,18 @@ export interface RecipePlan {
   estimatedMissing: string[];
 }
 
-const PLAN_SYSTEM_PROMPT =
-  `Verilen envanter listesine göre TAM ${RECIPE_COUNT} adet tarif İSMİ ve kısa bir plan öner ` +
-  '(henüz tam tarif detayı değil — malzeme listesi, adımlar, kalori vb. İSTEME, sadece isim + tahmini bilgi). ' +
-  `Kiler malzemeleri her zaman evde var kabul edilir ve eksik SAYILMAZ: ${PANTRY_TEXT}. ` +
-  'Kurallar: ' +
+function buildPlanSystemPrompt(context: RecipePromptContext): string {
+  const pantryNames = normalizePantryNames(context.activePantryNames);
+  const pantrySentence =
+    pantryNames.length === 0
+      ? 'Kiler listesi BOŞ: hiçbir malzeme otomatik olarak evde var sayılmaz, yalnızca envanter listesine güven. '
+      : `Kiler malzemeleri her zaman evde var kabul edilir ve eksik SAYILMAZ: ${pantryNames.join(', ')}. `;
+  return (
+    `Verilen envanter listesine göre TAM ${RECIPE_COUNT} adet tarif İSMİ ve kısa bir plan öner ` +
+    '(henüz tam tarif detayı değil — malzeme listesi, adımlar, kalori vb. İSTEME, sadece isim + tahmini bilgi). ' +
+    pantrySentence +
+    buildPreferenceText(context.preferences) +
+    'Kurallar: ' +
   `- Dağılım ZORUNLU: TAM 2 tarif "ready" (SADECE envanter + kiler malzemeleriyle, HİÇ eksiksiz yapılabilir), ` +
   'TAM 2 tarif "closeMatch" (1-2 malzeme eksik), TAM 2 tarif "fewMissing" (3-4 malzeme eksik — daha yaratıcı/iddialı ' +
   'tarifler için market payı). estimated_layer alanına bu hedefi yaz. ' +
@@ -164,8 +239,10 @@ const PLAN_SYSTEM_PROMPT =
   '- Tarif isimleri doğru olsun: bilinen bir yemeğin adını (örn. Menemen, Karnıyarık) yalnızca o yemeğin ' +
   'tanımlayıcı malzemeleri envanterde gerçekten varsa kullan (Menemen için domates ve biber şart). ' +
   'Tanımlayıcı malzeme eksikse farklı ve doğru bir isim ver. ' +
-  '- estimated_missing: bu tarif için envanterde/kilerde muhtemelen olmayan malzemelerin kaba bir listesi ' +
-  '("ready" tariflerde BOŞ olmalı).';
+    '- estimated_missing: bu tarif için envanterde/kilerde muhtemelen olmayan malzemelerin kaba bir listesi ' +
+    '("ready" tariflerde BOŞ olmalı).'
+  );
+}
 
 const RECIPE_PLAN_SCHEMA = {
   type: 'object',
@@ -213,8 +290,12 @@ function toRecipePlan(raw: unknown): RecipePlan | null {
  * (2 ready + 2 closeMatch + 2 fewMissing). Çıktı kısa olduğu için hızlıdır;
  * 6 tarif BİRLİKTE planlandığından (MVP-14'teki 3 bağımsız katman çağrısının
  * aksine) model çeşitliliği garanti edebilir — bkz. SKILL.md "MVP-15"/"MVP-16".
+ * `context` tercihleri ve AKTİF kiler listesini prompta taşır.
  */
-export async function generateRecipeNames(inventory: InventoryItem[]): Promise<RecipePlan[]> {
+export async function generateRecipeNames(
+  inventory: InventoryItem[],
+  context: RecipePromptContext = DEFAULT_PROMPT_CONTEXT
+): Promise<RecipePlan[]> {
   if (inventory.length === 0) {
     throw new RecipeGenerationError('Tarif önermek için envanterde ürün olmalı');
   }
@@ -226,7 +307,7 @@ export async function generateRecipeNames(inventory: InventoryItem[]): Promise<R
     toolInput = await callClaudeForToolInput({
       model: MODEL,
       max_tokens: NAMES_MAX_TOKENS,
-      system: [{ type: 'text', text: PLAN_SYSTEM_PROMPT }],
+      system: [{ type: 'text', text: buildPlanSystemPrompt(context) }],
       messages: [{ role: 'user', content: `Envanter: ${JSON.stringify(simplifiedInventory)}` }],
       tools: [
         {
@@ -263,28 +344,47 @@ export async function generateRecipeNames(inventory: InventoryItem[]): Promise<R
 // ---------------------------------------------------------------------------
 
 /**
- * Aşama 2 çağrılarının ORTAK sistem talimatı — altı çağrıda da BİREBİR aynı
- * İLK blok olmalı ki `cache_control: ephemeral` önbelleği tutsun (katman
- * bazlı varyant kısıtı cache'siz İKİNCİ blok olarak eklenir — prefix cache
- * bozulmaz, bkz. SKILL.md "MVP-16"). Tarifin ADI Aşama 1'de zaten
- * belirlendiği için bu şema `name` İSTEMEZ; match_pct ve missing_count da
- * İSTEMEZ — ikisi de `ingredients[].in_inventory`'den KODDA deterministik
- * hesaplanır (bkz. `assignRecipeLayer`, `toRecipeDetail`).
+ * Aşama 2 çağrılarının ORTAK sistem talimatını üretir — altı çağrıda da
+ * BİREBİR aynı İLK blok olmalı ki `cache_control: ephemeral` önbelleği tutsun
+ * (katman bazlı varyant kısıtı cache'siz İKİNCİ blok olarak eklenir — prefix
+ * cache bozulmaz, bkz. SKILL.md "MVP-16"). Tercih metni ve AKTİF kiler
+ * listesi bu ORTAK bloğun İÇİNE interpolate edilir: aynı üretim akışındaki 6
+ * çağrıda `context` aynı olduğu için metin birebir aynı kalır, cache bozulmaz.
+ * Tarifin ADI Aşama 1'de zaten belirlendiği için şema `name` İSTEMEZ;
+ * match_pct ve missing_count da İSTEMEZ — ikisi de
+ * `ingredients[].in_inventory`'den KODDA deterministik hesaplanır (bkz.
+ * `assignRecipeLayer`, `toRecipeDetail`).
  */
-const COMMON_DETAIL_SYSTEM_PROMPT =
-  'Sana verilen tarif adına ve envanter listesine göre TEK bir tarifin tam detayını üret. ' +
-  'Kurallar: ' +
-  '- Tarifi verilen isme sadık kal: adın ima ettiği tanımlayıcı malzemeleri (örn. Menemen için domates ve ' +
-  'biber) mutlaka dahil et, adla tutarsız bir tarif üretme. ' +
-  '- ingredients: bu tarif için GERÇEKTEN gereken tüm malzemeleri listele; her malzeme için in_inventory ' +
-  'işaretlemesini sana verilen envanter listesine göre yap. Kiler malzemeleri her zaman evde var kabul edilir ' +
-  `ve DAİMA in_inventory: true sayılır: ${PANTRY_TEXT}. ` +
-  '- Süre ve kalori bilgisi gerçekçi olsun, abartılı/tutarsız değerler verme. ' +
-  '- Zorluk derecesini gerçekçi ver: çoğu ev yemeği "Kolay" veya "Orta" olmalı, "Zor" nadiren kullanılsın. ' +
-  '- chef_tip: tarife özel, kısa ve pratik bir şef önerisi/tüyosu ver (örn. bir malzeme ikamesi, pişirme ipucu). ' +
-  '- image_prompt_en: İNGİLİZCE, iki kısımdan oluşan kısa bir görsel tanımı: yemeğin tanımı + tek cümlelik ' +
-  'tabaklama betimlemesi (örn. "Turkish menemen, scrambled eggs cooked with tomatoes and green peppers. ' +
-  'Served bubbling in a small black skillet with a sprig of parsley on top."). Türkçe yazma; marka adı kullanma.';
+function buildCommonDetailSystemPrompt(context: RecipePromptContext): string {
+  const pantryNames = normalizePantryNames(context.activePantryNames);
+  const pantrySentence =
+    pantryNames.length === 0
+      ? 'Kiler listesi BOŞ: hiçbir malzeme otomatik olarak evde var sayılmaz, in_inventory işaretini ' +
+        'yalnızca envanter listesine göre yap. '
+      : 'Kiler malzemeleri her zaman evde var kabul edilir ve DAİMA in_inventory: true sayılır: ' +
+        `${pantryNames.join(', ')}. `;
+  return (
+    'Sana verilen tarif adına ve envanter listesine göre TEK bir tarifin tam detayını üret. ' +
+    buildPreferenceText(context.preferences) +
+    'Kurallar: ' +
+    '- Tarifi verilen isme sadık kal: adın ima ettiği tanımlayıcı malzemeleri (örn. Menemen için domates ve ' +
+    'biber) mutlaka dahil et, adla tutarsız bir tarif üretme. ' +
+    '- ingredients: bu tarif için GERÇEKTEN gereken tüm malzemeleri listele. Her malzeme için: qty + unit = ' +
+    'tarifin VARSAYILAN kişi sayısı (servings) için miktar (unit serbest Türkçe birimdir: "g", "su bardağı", ' +
+    '"yk", "adet" gibi); kcal = o malzemenin varsayılan porsiyondaki TOPLAM kalorisi; category = sabit ' +
+    'listeden en uygun market kategorisi; in_inventory işaretlemesini sana verilen envanter listesine göre yap. ' +
+    pantrySentence +
+    '- Kalori tutarlılığı: tarifin kcal alanı KİŞİ BAŞI kaloridir; malzemelerin kcal değerlerinin TOPLAMI ' +
+    'yaklaşık olarak kcal × servings civarında olmalı (birebir eşitlik şart değil, belirgin tutarsızlık olmasın). ' +
+    '- Süre ve kalori bilgisi gerçekçi olsun, abartılı/tutarsız değerler verme. ' +
+    '- Zorluk derecesini gerçekçi ver: çoğu ev yemeği "Kolay" veya "Orta" olmalı, "Zor" nadiren kullanılsın. ' +
+    '- nutrition_tag: tarifin beslenme profilini en iyi anlatan TEK etiketi sabit listeden seç. ' +
+    '- chef_tip: tarife özel, kısa ve pratik bir şef önerisi/tüyosu ver (örn. bir malzeme ikamesi, pişirme ipucu). ' +
+    '- image_prompt_en: İNGİLİZCE, iki kısımdan oluşan kısa bir görsel tanımı: yemeğin tanımı + tek cümlelik ' +
+    'tabaklama betimlemesi (örn. "Turkish menemen, scrambled eggs cooked with tomatoes and green peppers. ' +
+    'Served bubbling in a small black skillet with a sprig of parsley on top."). Türkçe yazma; marka adı kullanma.'
+  );
+}
 
 const RECIPE_DETAIL_SCHEMA = {
   type: 'object',
@@ -309,13 +409,35 @@ const RECIPE_DETAIL_SCHEMA = {
         type: 'object',
         properties: {
           name: { type: 'string' },
+          qty: {
+            type: 'number',
+            description: 'Tarifin varsayılan kişi sayısı (servings) için miktar',
+          },
+          unit: {
+            type: 'string',
+            description: 'Serbest Türkçe birim: "g", "su bardağı", "yk", "adet", "kutu"...',
+          },
+          kcal: {
+            type: 'number',
+            description: 'Bu malzemenin varsayılan porsiyondaki TOPLAM kalorisi',
+          },
+          category: {
+            type: 'string',
+            enum: [...INGREDIENT_CATEGORIES],
+            description: 'Market sepeti gruplaması için sabit listeden kategori',
+          },
           in_inventory: { type: 'boolean' },
         },
-        required: ['name', 'in_inventory'],
+        required: ['name', 'qty', 'unit', 'kcal', 'category', 'in_inventory'],
       },
     },
     steps: { type: 'array', items: { type: 'string' } },
     chef_tip: { type: 'string' },
+    nutrition_tag: {
+      type: 'string',
+      enum: [...NUTRITION_TAGS],
+      description: 'Tarifin beslenme profilini en iyi anlatan tek etiket',
+    },
     image_prompt_en: {
       type: 'string',
       description:
@@ -332,6 +454,7 @@ const RECIPE_DETAIL_SCHEMA = {
     'ingredients',
     'steps',
     'chef_tip',
+    'nutrition_tag',
     'image_prompt_en',
   ],
 };
@@ -355,7 +478,7 @@ function toRecipeDetail(name: string, raw: unknown): Recipe | null {
     typeof obj.servings !== 'number' ||
     typeof obj.time_min !== 'number' ||
     typeof obj.chef_tip !== 'string' ||
-    !isIngredientArray(obj.ingredients) ||
+    !Array.isArray(obj.ingredients) ||
     !isStringArray(obj.steps) ||
     typeof macros !== 'object' ||
     macros === null ||
@@ -366,7 +489,16 @@ function toRecipeDetail(name: string, raw: unknown): Recipe | null {
     return null;
   }
 
-  const ingredients = obj.ingredients;
+  // Geçersiz malzeme girdileri (isimsiz / in_inventory'siz) elenir; kalan
+  // alanlar toRecipeIngredient içinde düzeltilir. Hiç geçerli malzeme yoksa
+  // tarif reddedilir.
+  const ingredients = obj.ingredients
+    .map(toRecipeIngredient)
+    .filter((entry): entry is RecipeIngredient => entry !== null);
+  if (ingredients.length === 0) {
+    return null;
+  }
+
   const missingCount = ingredients.filter((entry) => !entry.in_inventory).length;
   // match_pct KODDA hesaplanır — modele SORULMAZ (bkz. SKILL.md "MVP-15");
   // MVP-16'dan beri katmanlama/sıralama missing_count ile yapılır, match_pct
@@ -390,6 +522,7 @@ function toRecipeDetail(name: string, raw: unknown): Recipe | null {
     missing_count: missingCount,
     steps: obj.steps,
     chef_tip: obj.chef_tip,
+    nutrition_tag: toNutritionTag(obj.nutrition_tag),
     image_prompt_en:
       typeof obj.image_prompt_en === 'string' && obj.image_prompt_en.trim().length > 0
         ? obj.image_prompt_en
@@ -406,17 +539,19 @@ export interface RecipeDetail {
 async function callRecipeDetail(
   name: string,
   layerTarget: RecipeLayerId,
-  userContent: string
+  userContent: string,
+  commonSystemPrompt: string
 ): Promise<Recipe> {
   let toolInput: Record<string, unknown>;
   try {
     toolInput = await callClaudeForToolInput({
       model: MODEL,
       max_tokens: DETAIL_MAX_TOKENS,
-      // İlk blok 6 çağrıda birebir aynı (prefix cache tutar); katman kısıtı
-      // cache'siz ikinci blok — bkz. COMMON_DETAIL_SYSTEM_PROMPT yorumu.
+      // İlk blok 6 çağrıda birebir aynı (prefix cache tutar; tercih + aktif
+      // kiler metni de bu bloğun içinde ve 6 çağrıda aynı); katman kısıtı
+      // cache'siz ikinci blok — bkz. buildCommonDetailSystemPrompt yorumu.
       system: [
-        { type: 'text', text: COMMON_DETAIL_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: commonSystemPrompt, cache_control: { type: 'ephemeral' } },
         { type: 'text', text: LAYER_VARIANTS[layerTarget].constraint },
       ],
       temperature: LAYER_VARIANTS[layerTarget].temperature,
@@ -455,12 +590,16 @@ async function callRecipeDetail(
 export async function generateRecipeDetail(
   name: string,
   inventory: InventoryItem[],
-  layerTarget: RecipeLayerId = 'closeMatch'
+  layerTarget: RecipeLayerId = 'closeMatch',
+  context: RecipePromptContext = DEFAULT_PROMPT_CONTEXT
 ): Promise<RecipeDetail> {
   const simplifiedInventory = simplifyInventory(inventory);
   const baseContent = `Tarif adı: "${name}"\nEnvanter: ${JSON.stringify(simplifiedInventory)}`;
+  // Aynı üretim akışındaki 6 paralel çağrıda (ve ready-retry'da) BİREBİR aynı
+  // metin — prefix cache bunun üzerinden tutar.
+  const commonSystemPrompt = buildCommonDetailSystemPrompt(context);
 
-  let recipe = await callRecipeDetail(name, layerTarget, baseContent);
+  let recipe = await callRecipeDetail(name, layerTarget, baseContent, commonSystemPrompt);
 
   if (layerTarget === 'ready' && recipe.missing_count > 0) {
     const missingNames = recipe.ingredients
@@ -474,7 +613,8 @@ export async function generateRecipeDetail(
         layerTarget,
         `${baseContent}\n\nÖnceki denemede şu malzemeler envanterde/kilerde yoktu: ${missingNames}. ` +
           'Tarifi bu malzemeler OLMADAN yeniden kur veya envanterdeki karşılıklarıyla değiştir — ' +
-          'HER malzeme in_inventory: true olmalı.'
+          'HER malzeme in_inventory: true olmalı.',
+        commonSystemPrompt
       );
     } catch {
       // Düzeltme çağrısı başarısız olursa ilk sonuç kullanılır — eksik
@@ -515,6 +655,18 @@ export interface RecipeDetailResult {
   error?: RecipeGenerationError;
 }
 
+export interface GenerateRecipesTwoPhaseOptions {
+  /** Tarif tercihleri — boş kategoriler yok sayılır (bkz. types/preferences.ts). */
+  preferences: RecipePreferences;
+  /**
+   * Kullanıcının AKTİF kiler malzemeleri (store/pantryStore.ts) — promptlarda
+   * statik `PANTRY_STAPLES` yerine bu liste kullanılır.
+   */
+  activePantryNames: string[];
+  onPlanReady?: (plans: RecipePlan[]) => void;
+  onDetailSettled?: (result: RecipeDetailResult) => void;
+}
+
 /**
  * İki aşamalı tarif üretimi (bkz. SKILL.md "MVP-15"/"MVP-16"): önce TEK
  * çağrıda 6 tarif ismi/planı (2 ready + 2 closeMatch + 2 fewMissing;
@@ -525,29 +677,37 @@ export interface RecipeDetailResult {
  * `onPlanReady` isimler gelir gelmez, `onDetailSettled` her detay
  * TAMAMLANDIĞI ANDA (diğerlerini beklemeden) çağrılır — bu, çağıran tarafın
  * kartları tek tek doldurabilmesinin (kademeli/canlı gösterim) temeli.
+ * `options.preferences` + `options.activePantryNames` her iki aşamanın
+ * promptuna girer (bkz. `RecipePromptContext`, services/contracts.ts).
  */
 export async function generateRecipesTwoPhase(
   inventory: InventoryItem[],
-  callbacks?: {
-    onPlanReady?: (plans: RecipePlan[]) => void;
-    onDetailSettled?: (result: RecipeDetailResult) => void;
-  }
+  options: GenerateRecipesTwoPhaseOptions
 ): Promise<Recipe[]> {
   const tStart = performance.now();
+  const context: RecipePromptContext = {
+    preferences: options.preferences,
+    activePantryNames: options.activePantryNames,
+  };
 
-  const plans = await generateRecipeNames(inventory);
+  const plans = await generateRecipeNames(inventory, context);
   console.log(
     `[PERF][recipe] aşama-1 (isim/plan): ${(performance.now() - tStart).toFixed(0)}ms, ${plans.length} tarif planlandı`
   );
-  callbacks?.onPlanReady?.(plans);
+  options.onPlanReady?.(plans);
 
   const tDetailStart = performance.now();
   const settled = await Promise.allSettled(
     plans.map(async (plan, planIndex): Promise<RecipeDetailResult> => {
       try {
-        const { recipe, layer } = await generateRecipeDetail(plan.name, inventory, plan.estimatedLayer);
+        const { recipe, layer } = await generateRecipeDetail(
+          plan.name,
+          inventory,
+          plan.estimatedLayer,
+          context
+        );
         const result: RecipeDetailResult = { planIndex, name: plan.name, status: 'done', recipe, layer };
-        callbacks?.onDetailSettled?.(result);
+        options.onDetailSettled?.(result);
         return result;
       } catch (error) {
         const err =
@@ -555,7 +715,7 @@ export async function generateRecipesTwoPhase(
             ? error
             : new RecipeGenerationError('Bilinmeyen bir hata oluştu', { cause: error });
         const result: RecipeDetailResult = { planIndex, name: plan.name, status: 'error', error: err };
-        callbacks?.onDetailSettled?.(result);
+        options.onDetailSettled?.(result);
         return result;
       }
     })

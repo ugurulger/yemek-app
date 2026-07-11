@@ -1,41 +1,58 @@
 import React from 'react';
-import { Image, View } from 'react-native';
+import { Image } from 'react-native';
 
-import RecipeImagePlaceholder from '@/components/recipes/RecipeImagePlaceholder';
+import { PhotoPlaceholder } from '@/components/ui';
+import { photoTones } from '@/lib/theme';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import type { Recipe } from '@/types/recipe';
 
-interface RecipeHeroImageProps {
-  recipe: Recipe;
+/** Referans SCREEN 3: hero SABİT 270px yüksekliktir (4:3 oran DEĞİL). */
+const HERO_HEIGHT = 270;
+
+/**
+ * Placeholder ton çifti — referanstaki `photo:[t1,t2]` çiftleri (lib/theme.ts
+ * `photoTones`) tarif adına göre deterministik seçilir ki aynı tarif hep
+ * aynı tonda görünsün.
+ */
+function tonesForRecipe(name: string): readonly [string, string] {
+  let hash = 0;
+  for (const char of name) {
+    hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0;
+  }
+  return photoTones[hash % photoTones.length];
 }
 
 /**
- * Tarif detayının üst görseli: AI görseli hazırsa ORİJİNAL boyutlu kopyayı
- * tam genişlikte 4:3 banner olarak gösterir; üretilene kadar AYNI oranda
- * emoji'li placeholder (yüklenirken hafif pulse) gösterilir — layout kaymaz.
+ * Tarif detayının üst görseli (referans SCREEN 3): AI görseli hazırsa tam
+ * genişlik, 270px sabit yükseklikte FULL-BLEED banner (köşe yuvarlatma YOK —
+ * altındaki krem panel üstüne biner); üretilene kadar AYNI boyutta diagonal
+ * PhotoPlaceholder ("{ad} fotoğrafı" etiketiyle) gösterilir — layout kaymaz.
  * Ayrı bileşen olmasının nedeni hook kuralları — detay ekranı tarif
  * bulunamadığında erken return yapıyor, hook koşulsuz çağrılamıyor.
  */
-export default function RecipeHeroImage({ recipe }: RecipeHeroImageProps) {
-  const { uri: imageUri, isGenerating } = useRecipeImage(recipe, 'original');
+export default function RecipeHeroImage({ recipe }: { recipe: Recipe }) {
+  const { uri: imageUri } = useRecipeImage(recipe, 'original');
 
+  if (imageUri) {
+    return (
+      <Image
+        source={{ uri: imageUri }}
+        className="w-full bg-sand"
+        style={{ height: HERO_HEIGHT }}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+      />
+    );
+  }
+
+  const [tone1, tone2] = tonesForRecipe(recipe.name);
   return (
-    <View className="w-full overflow-hidden rounded-2xl shadow-sm ring-1 ring-stone-100">
-      {imageUri ? (
-        <Image
-          source={{ uri: imageUri }}
-          className="aspect-[4/3] w-full bg-stone-100"
-          resizeMode="cover"
-          accessibilityIgnoresInvertColors
-        />
-      ) : (
-        <RecipeImagePlaceholder
-          emoji={recipe.emoji}
-          boxClassName="aspect-[4/3] w-full rounded-2xl"
-          emojiSize={64}
-          pulsing={isGenerating}
-        />
-      )}
-    </View>
+    <PhotoPlaceholder
+      tone1={tone1}
+      tone2={tone2}
+      label={`${recipe.name.toLocaleLowerCase('tr-TR')} fotoğrafı`}
+      className="w-full"
+      style={{ height: HERO_HEIGHT }}
+    />
   );
 }

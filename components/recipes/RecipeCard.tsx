@@ -1,8 +1,15 @@
-import React from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import RecipeImagePlaceholder from '@/components/recipes/RecipeImagePlaceholder';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
+
+import { MissingBadge, PhotoPlaceholder } from '@/components/ui';
+import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
+import { computeMissing } from '@/lib/recipes/recipe-math';
+import { colors, photoTones } from '@/lib/theme';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
+import { useCartStore } from '@/store/cartStore';
+import { useInventoryStore } from '@/store/inventoryStore';
+import { usePantryStore } from '@/store/pantryStore';
+import { useRecipeStore } from '@/store/recipeStore';
 import type { Recipe } from '@/types/recipe';
 
 interface RecipeCardProps {
@@ -10,100 +17,184 @@ interface RecipeCardProps {
   onPress: (id: string) => void;
 }
 
+/** Foto konteyneri SABİT yüksekliği — birebir referans: `height:132px`. */
+export const CARD_IMAGE_HEIGHT = 132;
+
+/** Foto konteyneri gölgesi — birebir referans: 0 4px 14px -6px rgba(31,74,61,.28). */
+const CARD_PHOTO_SHADOW = {
+  shadowColor: '#1F4A3D',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.28,
+  shadowRadius: 7,
+  elevation: 4,
+} as const;
+
+/**
+ * Placeholder ton çifti — `lib/theme.ts` `photoTones` (referanstaki tarif
+ * `photo:[t1,t2]` paleti). Tarif ADINA göre deterministik seçilir ki aynı
+ * tarif hep aynı tonda görünsün (referans `mapRecipe` → `photoStyleOf(r.photo)`).
+ */
+function tonesForRecipe(name: string): readonly [string, string] {
+  let hash = 0;
+  for (const char of name) {
+    hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0;
+  }
+  return photoTones[hash % photoTones.length];
+}
+
+/**
+ * Dikey tarif kartı — birebir referans (Mutfagim.dc.html SCREEN 2, tarif
+ * grid'i): 132px sabit foto bloğu (radius 20, gölge), sağ üstte TEK SATIR
+ * beyaz "{kcal} kcal/kişi" pili, alt kenarda koyu bilgi şeridi
+ * ("{time} dk · {diff} · {tag}"), altında tarif adı (500 14.5px).
+ * Eksikli tariflerde sol üstte DOKUNULABİLİR amber "N eksik" rozeti
+ * (`MissingBadge variant='card'`) — basınca eksikler seçili kişi sayısına
+ * ölçeklenip sepete yazılır; tarif zaten sepetteyse rozet forest dolgulu
+ * "Sepette" durumuna geçer ve tekrar basınca sepetten çıkar (toggle).
+ * Eksik sayısı CANLI hesaplanır (`computeMissing`) — üretim anındaki
+ * `missing_count` bayat olabilir. Kart mount olduğunda referanstaki popIn
+ * animasyonunu oynar (opacity 0→1 + translateY 6→0, 300ms ease, bir kez).
+ */
 export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
   // Lazy: görsel hazır değilse uri null döner (placeholder gösterilir) ve
   // üretim arka plandaki sıralı kuyruğa eklenir — bkz. services/images/
-  const { uri: imageUri, isGenerating } = useRecipeImage(recipe, 'thumbnail');
+  const { uri: imageUri } = useRecipeImage(recipe, 'thumbnail');
 
+  const inventoryItems = useInventoryStore((state) => state.items);
+  const pantryItems = usePantryStore((state) => state.items);
+  const selectedServings = useRecipeStore((state) => state.selectedServings);
+  const inCart = useCartStore((state) =>
+    state.entries.some((entry) => entry.recipeName === recipe.name)
+  );
+  const syncRecipeMissing = useCartStore((state) => state.syncRecipeMissing);
+  const removeRecipe = useCartStore((state) => state.removeRecipe);
+
+  const liveMissingCount = computeMissing(recipe, inventoryItems, pantryItems).length;
+  const [tone1, tone2] = tonesForRecipe(recipe.name);
+
+  // popIn (referans: animation:popIn .3s ease both) — mount'ta bir kez.
+  const pop = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(pop, {
+      toValue: 1,
+      duration: 300,
+      easing: Easing.ease,
+      useNativeDriver: true,
+    }).start();
+  }, [pop]);
+
+  function handleBadgePress() {
+    if (inCart) {
+      removeRecipe(recipe.name);
+      return;
+    }
+    const targetServings = selectedServings[recipe.id] ?? recipe.servings;
+    syncRecipeMissing(
+      recipe.name,
+      buildCartMissingInput(recipe, targetServings, inventoryItems, pantryItems)
+    );
+  }
+
+  // NOT: eksik/sepet rozeti kart Pressable'ının İÇİNE konulmaz — iç içe iki
+  // "button" web'de geçersiz HTML olur (SSR parser'ı yapıyı bozar) ve native
+  // tarafta da iç içe dokunma alanı karışıklığı yaratır. Rozet, kartın
+  // ÜZERİNE absolute konumlanan bir KARDEŞ Pressable'dır.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${recipe.name} tarifini aç`}
-      onPress={() => onPress(recipe.id)}
-      className="flex-row items-center rounded-2xl bg-white p-3 ring-1 ring-stone-100 shadow-sm active:scale-95"
-    >
-      {/* Görsel alanı ve placeholder birebir aynı boyutta (80px kare) —
-          görsel geldiğinde kart boyutu zıplamaz. */}
-      <View className="mr-3">
-        {imageUri ? (
-          <Image
-            source={{ uri: imageUri }}
-            className="h-20 w-20 rounded-xl bg-stone-100"
-            resizeMode="cover"
-            accessibilityIgnoresInvertColors
-          />
-        ) : (
-          <RecipeImagePlaceholder
-            emoji={recipe.emoji}
-            boxClassName="h-20 w-20 rounded-xl"
-            emojiSize={34}
-            pulsing={isGenerating}
-          />
-        )}
-      </View>
+    <Animated.View
+      className="w-full"
+      style={{
+        opacity: pop,
+        transform: [{ translateY: pop.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) }],
+      }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${recipe.name} tarifini aç`}
+        onPress={() => onPress(recipe.id)}
+        className="active:scale-95">
+        <View
+          className="w-full overflow-hidden rounded-[20px] bg-white"
+          style={[CARD_PHOTO_SHADOW, { height: CARD_IMAGE_HEIGHT }]}>
+          {imageUri ? (
+            <Image
+              source={{ uri: imageUri }}
+              className="h-full w-full"
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            />
+          ) : (
+            <PhotoPlaceholder
+              tone1={tone1}
+              tone2={tone2}
+              label={`${recipe.name.toLocaleLowerCase('tr-TR')} fotoğrafı`}
+              className="h-full w-full"
+            />
+          )}
 
-      <View className="flex-1">
-        <Text
-          style={{ fontFamily: 'Fraunces_600SemiBold' }}
-          className="text-base text-stone-900"
-          numberOfLines={1}
-        >
-          {recipe.name}
-        </Text>
-
-        <View className="mt-2 flex-row items-center flex-wrap">
-          <View className="mr-2 mb-1 flex-row items-center rounded-full bg-stone-100 px-2 py-0.5">
-            <Text
-              style={{ fontFamily: 'Outfit_500Medium' }}
-              className="text-xs text-stone-600"
-            >
-              {recipe.kcal} kcal
+          {/* Sağ üst: TEK SATIR beyaz kcal pili — 600 9.5px #3A463F,
+              bg rgba(255,255,255,.92), padding 3×8, radius 20. */}
+          <View
+            className="absolute right-2 top-2 rounded-[20px] px-2 py-[3px]"
+            style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}>
+            <Text className="font-sans-semibold text-[9.5px] text-body">
+              {recipe.kcal} kcal/kişi
             </Text>
           </View>
 
-          <View className="mr-2 mb-1 flex-row items-center rounded-full bg-stone-100 px-2 py-0.5">
-            <Ionicons name="people-outline" size={12} color="#57534e" />
-            <Text
-              style={{ fontFamily: 'Outfit_500Medium' }}
-              className="ml-1 text-xs text-stone-600"
-            >
-              {recipe.servings} kişilik
-            </Text>
-          </View>
-
-          <View className="mr-2 mb-1 flex-row items-center rounded-full bg-stone-100 px-2 py-0.5">
-            <Ionicons name="time-outline" size={12} color="#57534e" />
-            <Text
-              style={{ fontFamily: 'Outfit_500Medium' }}
-              className="ml-1 text-xs text-stone-600"
-            >
+          {/* Alt kenar: koyu bilgi şeridi — padding 7×9, 600 8.5px beyaz,
+              ayraç noktaları rgba(255,255,255,.55), gap 4. (Referanstaki
+              gradient yerine düz photoStripBg — kabul edilen yaklaşım.) */}
+          <View
+            className="absolute inset-x-0 bottom-0 flex-row items-center gap-1 px-[9px] py-[7px]"
+            style={{ backgroundColor: colors.photoStripBg }}>
+            <Text className="font-sans-semibold text-[8.5px] text-white" numberOfLines={1}>
               {recipe.time_min} dk
             </Text>
-          </View>
-
-          <View className="mr-2 mb-1 flex-row items-center rounded-full bg-stone-100 px-2 py-0.5">
-            <Ionicons name="speedometer-outline" size={12} color="#57534e" />
+            <Text className="font-sans-semibold text-[8.5px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              ·
+            </Text>
+            <Text className="font-sans-semibold text-[8.5px] text-white" numberOfLines={1}>
+              {recipe.difficulty}
+            </Text>
+            <Text className="font-sans-semibold text-[8.5px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              ·
+            </Text>
             <Text
-              style={{ fontFamily: 'Outfit_500Medium' }}
-              className="ml-1 text-xs text-stone-600"
-            >
-              Zorluk: {recipe.difficulty}
+              className="flex-shrink font-sans-semibold text-[8.5px] text-white"
+              numberOfLines={1}>
+              {recipe.nutrition_tag}
             </Text>
           </View>
-
-          {recipe.missing_count > 0 && (
-            <View className="mb-1 flex-row items-center rounded-full bg-amber-500 px-2 py-0.5">
-              <Ionicons name="basket-outline" size={12} color="white" />
-              <Text
-                style={{ fontFamily: 'Outfit_500Medium' }}
-                className="ml-1 text-xs text-white"
-              >
-                {recipe.missing_count} eksik
-              </Text>
-            </View>
-          )}
         </View>
-      </View>
-    </Pressable>
+
+        {/* Kart altı (görsel dışı): tarif adı — 500 14.5px #23302B, margin 8px üst 2px yan. */}
+        <Text className="mx-0.5 mt-2 font-sans-medium text-[14.5px] text-ink" numberOfLines={1}>
+          {recipe.name}
+        </Text>
+      </Pressable>
+
+      {/* Sol üst: dokunulabilir eksik/sepet rozeti (alışveriş bölümü kartları). */}
+      {(liveMissingCount > 0 || inCart) && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            inCart
+              ? `${recipe.name} eksiklerini sepetten çıkar`
+              : `${recipe.name} için ${liveMissingCount} eksik malzemeyi sepete ekle`
+          }
+          onPress={handleBadgePress}
+          hitSlop={6}
+          className="absolute left-2 top-2 active:scale-90">
+          {inCart ? (
+            // "Sepette" durumu — kart-rozet tipografisi (600 10px, 4×9,
+            // radius 20) forest dolguyla.
+            <View className="rounded-[20px] bg-forest px-[9px] py-1">
+              <Text className="font-sans-semibold text-[10px] text-white">Sepette</Text>
+            </View>
+          ) : (
+            <MissingBadge count={liveMissingCount} variant="card" />
+          )}
+        </Pressable>
+      )}
+    </Animated.View>
   );
 }

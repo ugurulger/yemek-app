@@ -41,6 +41,14 @@
           "photosPermission": "Uygulamanın buzdolabı fotoğraflarını seçebilmesi için galeriye erişim izni gerekiyor.",
           "cameraPermission": "Fotoğraf çekebilmek için kameraya erişim izni gerekiyor."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Buzdolabını videoyla tarayabilmek için kameraya erişim izni gerekiyor.",
+          "microphonePermission": "Video kaydı sırasında mikrofona erişim izni gerekiyor.",
+          "recordAudioAndroid": true
+        }
       ]
     ],
     "experiments": {

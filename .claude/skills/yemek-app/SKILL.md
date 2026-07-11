@@ -5,14 +5,123 @@ description: Yemek uygulaması (4 sayfalı, AI destekli envanter + tarif uygulam
 
 # Yemek App — Proje Skill'i
 
-Bu skill, 4 sayfalı AI destekli yemek uygulamasının geliştirme kurallarını içerir.
+Bu skill, AI destekli yemek uygulamasının geliştirme kurallarını içerir.
 Bu projede kod yazmadan önce bu dosyayı oku ve buradaki kararlara uy.
 Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
+
+> ## ⚠️ MVP-23 (2026-07-12) — REFERANS ZIP TAM İMPLEMENTASYONU:
+> ## 5 SEKME + DEFTERLER + PLAN + İÇE AKTARMA AKIŞI
+>
+> Kullanıcı talimatıyla (`CLAUDE_CODE_PROMPT_v2.md` + `design/reference/
+> "Mobil yemek uygulaması UI tasarımı.zip"` içindeki `Mutfagim.dc.html` —
+> davranışın TEK kaynağı) fark analizi yapılıp yalnızca eksik/farklı
+> kısımlar eklendi. MVP-22'nin "3 sekme" ve "Kayıtlı kapsam dışı"
+> kararları GEÇERSİZ:
+>
+> - **Navigasyon 5 sekme:** Mutfağım `/` · Tarifler `/recipes` · Kayıtlı
+>   `/saved` · Plan `/plan` · Market `/market`.
+> - **Kayıtlı = Defterlerim** (`app/(tabs)/saved.tsx`, `components/
+>   cookbooks/`): kolaj kapaklı defter kartları, gerçek arama + sıralama,
+>   defter detayı 4'lü grid (canlı `computeMissing` rozetli), yeşil FAB →
+>   içe aktarma. `store/cookbookStore.ts` (kalıcı): cookbooks +
+>   savedRecipeIds + **importedRecipes** — deftere eklenen üretilmiş tarif
+>   buraya KOPYALANIR ki envanter değişip liste yeniden üretilince
+>   kaybolmasın; `lib/recipes/find-recipe.ts` (`useRecipeById`/
+>   `useResolveRecipes`) iki kaynağı birleştirir, detay ekranı artık bunu
+>   kullanır.
+> - **Plan** (`app/(tabs)/plan.tsx`, `store/planStore.ts`): Pzt–Paz
+>   ajanda; `PlanEntry` ad/kcal/emoji DENORMALİZE taşır (tarif objesi
+>   çözülemese de kart çizilir).
+> - **Tarif detayı:** bilgi pilleri → minimal tek satır (`520 kcal · 45 dk
+>   · Orta`); 4 yuvarlak ikon buton (Defterler=CookbookPickerSheet ·
+>   Plan=PlanDayPickerSheet · Market=eksikleri sepete+toast · Paylaş=toast);
+>   Şefe Sor'da geçmiş boşken 3 örnek soru chip'i (gerçek askChef çağrısı).
+> - **"+" içe aktarma** (`components/import/`): Tarif Ekle sheet (3
+>   seçenek) → Sosyal (IG/TikTok/FB → aynı eğitim) → 3 adımlı IG eğitim
+>   carousel'i → "Instagram açılıyor…" (1.9s) → IG feed taklidi → import;
+>   Web tarayıcı taklidi → import; Fotoğraftan → `/capture/camera?mode=
+>   recipe` (kayıt sonrası "yakında" toast'u, envanter köprüsünü TETİKLEMEZ).
+>   Örnek tarifler `lib/recipes/sample-imports.ts` (somon-bowl/menemen,
+>   mock DEĞİL — akışın gerçek içeriği); import → Kategorisiz + kayıtlı +
+>   detay açılır.
+> - **Ortak altyapı:** `components/ui/BottomSheet.tsx` (referans sheet
+>   iskeleti), global toast (`store/toastStore.ts` + `components/ui/
+>   Toast.tsx`, host `app/_layout.tsx`'te; Animated.View NativeWind
+>   className ALMAZ — stiller StyleSheet ile, canlı testte öğrenildi).
+> - **Sekme reset:** Kayıtlı ekranı `useFocusEffect` cleanup'ında açık
+>   defteri/akışı/aramayı sıfırlar (genel state kuralı).
+> - Doğrulama: `npx tsc --noEmit` temiz, 12 birim test geçti, tüm akışlar
+>   Expo web önizlemesinde gerçek etkileşimle uçtan uca doğrulandı.
+
+> ## ⚠️ MVP-22 (2026-07-11) — TASARIM ENTEGRASYONU: BU DOSYANIN BAZI
+> ## BÖLÜMLERİNİ GEÇERSİZ KILAN BÜYÜK SÜRÜM
+>
+> Kullanıcı onayıyla `design/CLAUDE_CODE_PROMPT.md` (bağlayıcı görsel spec)
+> + `design/01…11-*.png` mockup'ları projeye entegre edildi (orkestrasyon:
+> `design/YEMEK_APP_ORKESTRASYON_PROMPT.md`; Faz 1 kontratlar → Faz 2 altı
+> paralel sub-agent → Faz 3 entegrasyon → Faz 4 doğrulama). Çelişkide görünüm
+> konularında SPEC, mimari konularda orkestrasyon dosyası kazanır. Değişenler:
+>
+> - **Tasarım sistemi DEĞİŞTİ:** tipografi Fraunces/Outfit → **Newsreader
+>   (serif, başlıklar) + Hanken Grotesk (gövde)**; palet stone/emerald →
+>   **orman yeşili `#1F4A3D`, krem zemin `#F7F5F0`, amber `#E38A2A`** (tüm
+>   tokenlar: `tailwind.config.js` + `lib/theme.ts`; ortak bileşenler:
+>   `components/ui/` — Chip, Card, MissingBadge, SectionLabel, PrimaryButton,
+>   PhotoPlaceholder). Aşağıdaki "Tasarım sistemi" bölümündeki eski
+>   renk/tipografi maddeleri ve MVP-8/10/17-21 kart-tasarım geçmişi ARTIK
+>   TARİHİ KAYITTIR — güncel görünümün tek kaynağı spec + `components/ui/`.
+>   Eski Fraunces/Outfit fontları hâlâ yüklenir (yalnızca "emin olunamayan
+>   ürünler" modalının eski `InventoryRow`'u kullanıyor) — modal
+>   birleştirilince kaldırılabilir.
+> - **MVP kapsamı GENİŞLEDİ (kullanıcı onayı):** sepet, tarife özel chat
+>   (Şefe Sor), tarif tercihleri, Temel Malzemeler (kiler) ve asistanla/
+>   kamerayla ekleme artık KAPSAM İÇİ. "Kayıtlı" sayfası hâlâ kapsam dışı.
+> - **Navigasyon 3 sekme:** Mutfağım `/` · Tarifler `/recipes` · Market
+>   `/market` (spec §7; eski "4 sekme" planı geçersiz). Tam ekran rotalar:
+>   `/capture/camera` (expo-camera, basılı-tut video → `store/captureStore`
+>   köprüsüyle Mutfağım'daki mevcut analiz akışına), `/capture/assistant`
+>   (`?mode=pantry` kilere ekler; `lib/claude/parseIngredients.ts`,
+>   claude-haiku-4-5, zorunlu tool-use).
+> - **Recipe şeması v3:** `RecipeIngredient` artık `{name, qty, unit, kcal,
+>   category, in_inventory}` (qty/kcal varsayılan porsiyon içindir);
+>   `Recipe.nutrition_tag` eklendi (kart meta şeridi). Tarif cache
+>   `GENERATION_VERSION v3` + zustand persist migrate (eski cache atılır).
+>   Parmak izi artık envanter + TERCİHLER + AKTİF KİLER içerir.
+> - **Tercihler:** `types/preferences.ts` (4 kategori chip seçimi), Tarifler
+>   sekmesi cache geçersizse önce tercih ekranı gösterir; yenile butonu
+>   tercihlere döner. Tercih metni üretim promptlarına eklenir (ortak detay
+>   bloğunun İÇİNDE — 6 çağrıda aynı olduğu için prefix cache BOZULMAZ).
+> - **Kiler:** `store/pantryStore.ts` — `PANTRY_STAPLES` ile aynı 20 varsayılan,
+>   kullanıcı chip'le aç/kapar; üretime SADECE aktifler gider
+>   (`activePantryNames`), `generateRecipesTwoPhase(inventory, {preferences,
+>   activePantryNames, ...})` yeni imza.
+> - **Sepet:** `store/cartStore.ts` — ham kayıt tarif+malzeme bazında
+>   (`CartEntry`), görünüm `mergeCartEntries` ile malzeme bazında birleşik
+>   (kaynak tarif etiketleri). Sepete ekleme aksiyonu TARİF KARTINDAKİ eksik
+>   rozetinde (kullanıcı kararı; toggle — tekrar basınca çıkarır). Detayda
+>   kişi sayısı değişince tarif sepetteyse miktarlar YENİDEN ölçeklenip
+>   senkronlanır (`lib/recipes/cart-helpers.ts`).
+> - **Eksik hesabı CANLI:** rozetler, bölümleme ve sıralama üretim anındaki
+>   `missing_count`/`in_inventory`'ye değil `computeMissing(recipe, inventory,
+>   pantry)`'ye dayanır (`lib/recipes/recipe-math.ts`, saf + birim testli:
+>   `npx tsx --test tests/unit/recipe-math.test.ts`). `scaleServings` de orada.
+> - **Şefe Sor:** `lib/claude/askChef.ts` (claude-sonnet-4-6, tarif system
+>   bloğunda cache'li, geçmiş `store/chefChatStore.ts`'te recipeId bazlı,
+>   markdown YASAK — düz metin talimatı).
+> - **Metro düzeltmesi:** zustand v5 ESM'i web bundle'ını `import.meta` ile
+>   kırıyordu; `metro.config.js`'te `unstable_conditionNames`'ten "import"
+>   çıkarıldı (native davranış değişmedi).
+> - **Mikrofon (sesli giriş) MVP DIŞI** (buton var, "yakında" uyarısı verir);
+>   kamera ilerleme halkası saf View'la (yeni paket YOK, react-native-svg yok).
+> - Supabase HÂLÂ KURULU DEĞİL — kalıcılık zustand persist/AsyncStorage;
+>   anahtarlar `.env` `EXPO_PUBLIC_*` (mevcut düzen korundu). "Mimari"
+>   bölümündeki Supabase/TanStack satırları hedef mimaridir, mevcut durum değil.
 
 ## Mimari
 
 - **Framework:** React Native + Expo (managed workflow, TypeScript)
-- **Navigasyon:** expo-router, alt tab bar ile 4 sekme
+- **Navigasyon:** expo-router, alt tab bar ile 3 sekme (Mutfağım · Tarifler ·
+  Market, MVP-22) + tam ekran `/capture/*` ve `/recipe/[id]` rotaları
 - **Backend:** Supabase (auth, Postgres, storage)
 - **AI:** Claude API (`claude-sonnet-4-6`) — tarif üretimi, tarif chat'i
 - **AI:** Gemini görsel üretimi (`gemini-3.1-flash-lite-image`) — tarif
@@ -32,12 +141,13 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
 ## MVP kapsamı (öncelik sırası)
 
-Şu an SADECE iki özellik geliştiriliyor; diğer sayfalar için istek gelirse
-kullanıcıya MVP kapsamını hatırlat:
-1. Fotoğraf/video ile ürün tanıma → envantere ekleme (Mutfağım sayfası)
-2. Envanterden kaliteli tarif üretimi (Tarifler sayfası, chat HARİÇ)
+> ⚠️ MVP-22 ile GENİŞLEDİ (bkz. üstteki MVP-22 bloğu): sepet, Şefe Sor
+> chat'i, tarif tercihleri, kiler ve kamera/asistan ekleme artık kapsam İÇİ.
+> Sadece "Kayıtlı" sayfası kapsam dışı kaldı.
 
-Kayıtlı yemekler, sepet ve tarif chat'i MVP SONRASI eklenecek.
+Çekirdek iki özellik (öncelik hâlâ bunlarda):
+1. Fotoğraf/video ile ürün tanıma → envantere ekleme (Mutfağım sayfası)
+2. Envanterden kaliteli tarif üretimi (Tarifler sayfası)
 
 ## Sayfalar ve sorumlulukları
 
@@ -50,10 +160,11 @@ Kayıtlı yemekler, sepet ve tarif chat'i MVP SONRASI eklenecek.
    kalori, kişi sayısı, süre, makrolar, envanter uyum yüzdesi.
    Detayda adım adım hazırlanış + **tarife özel chat** (her tarif için ayrı
    konuşma geçmişi, `recipe_id` ile saklanır).
-3. **Kayıtlı (`/saved`)** — Kaydedilen tarifler; malzemeler ve hazırlanış;
-   "malzemeleri sepete ekle" aksiyonu.
-4. **Sepet (`/cart`)** — Tarife göre gruplu alışveriş listesi; işaretleme,
-   silme, temizleme.
+3. **Market (`/market`)** — seçilen tariflerin eksik malzemeleri, malzeme
+   KATEGORİSİNE göre gruplu 2 sütun; kaynak tarif etiketleri, işaretleme,
+   "Tümünü tamamla"/"Listeyi temizle" (MVP-22; eski `/cart` planının yerini
+   aldı).
+4. ~~Kayıtlı (`/saved`)~~ — HÂLÂ kapsam dışı, ileride.
 
 ## Tasarım sistemi
 
