@@ -9,8 +9,11 @@ export type RecipeDifficulty = 'Kolay' | 'Orta' | 'Zor';
 export interface RecipeIngredient {
   name: string;
   /**
-   * Malzemenin envanterde (veya temel kilerde: tuz, karabiber, su, sıvı yağ)
-   * bulunup bulunmadığı — Claude tarif üretirken envanter listesine göre işaretler.
+   * Malzemenin envanterde veya kilerde bulunup bulunmadığı — Claude tarif
+   * üretirken envanter listesine göre işaretler. Kiler malzemeleri (geniş
+   * liste: baharatlar, yağlar, un/şeker, salça, soğan/sarımsak, makarna/
+   * pirinç/bulgur — bkz. `PANTRY_STAPLES`, lib/claude/generateRecipes.ts)
+   * her zaman evde var kabul edilir ve daima true işaretlenir (MVP-16).
    */
   in_inventory: boolean;
 }
@@ -24,9 +27,18 @@ export interface Recipe {
   time_min: number;
   difficulty: RecipeDifficulty;
   macros: RecipeMacros;
+  /**
+   * Envanterde bulunan malzeme oranı (kodda hesaplanır). MVP-16'dan beri
+   * katmanlama/sıralama `missing_count` ile yapılır — bu alan sadece bilgi
+   * amaçlı tutulur (eski cache + detay ekranı uyumu), UI kartında gösterilmez.
+   */
   match_pct: number;
   ingredients: RecipeIngredient[];
-  /** Envanterde olmayan malzeme sayısı — kartta "2 eksik" rozeti için. */
+  /**
+   * Envanterde/kilerde olmayan malzeme sayısı (kodda hesaplanır) — kartta
+   * "2 eksik" rozeti ve MVP-16'dan beri bölüm ataması (0 = "Hemen
+   * Yapabilirsin", 1+ = "Küçük Bir Alışverişle") bunu kullanır.
+   */
   missing_count: number;
   steps: string[];
   /** Kısa, pratik şef önerisi/tüyosu — tarif detayında amber vurguyla gösterilir. */

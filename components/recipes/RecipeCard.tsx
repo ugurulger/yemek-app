@@ -15,13 +15,6 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
   // üretim arka plandaki sıralı kuyruğa eklenir — bkz. services/images/
   const { uri: imageUri, isGenerating } = useRecipeImage(recipe, 'thumbnail');
 
-  const matchColor =
-    recipe.match_pct >= 80
-      ? 'bg-emerald-900'
-      : recipe.match_pct >= 50
-        ? 'bg-amber-500'
-        : 'bg-stone-400';
-
   return (
     <Pressable
       accessibilityRole="button"
@@ -95,17 +88,6 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
               className="ml-1 text-xs text-stone-600"
             >
               Zorluk: {recipe.difficulty}
-            </Text>
-          </View>
-
-          <View
-            className={`mr-2 mb-1 flex-row items-center rounded-full px-2 py-0.5 ${matchColor}`}
-          >
-            <Text
-              style={{ fontFamily: 'Outfit_500Medium' }}
-              className="text-xs text-white"
-            >
-              %{recipe.match_pct} uyum
             </Text>
           </View>
 

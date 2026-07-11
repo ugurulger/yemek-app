@@ -15,17 +15,21 @@ interface RecipeSection {
 }
 
 /**
- * Tarifleri iki bölümde gösterir: "Hemen Yapabilirsin" (match_pct = 100,
- * üstte/belirgin) ve "Küçük Bir Alışverişle" (geri kalanlar). Bölüm
- * başlıkları MVP-10'daki grup başlığı chip stiliyle tutarlıdır.
+ * Tarifleri iki bölümde gösterir: "Hemen Yapabilirsin" (hiç eksik malzeme
+ * yok, üstte/belirgin) ve "Küçük Bir Alışverişle" (geri kalanlar, eksik
+ * sayısına göre artan sıralı — bkz. SKILL.md "MVP-16" eksik-bazlı
+ * katmanlama). Bölüm başlıkları MVP-10'daki grup başlığı chip stiliyle
+ * tutarlıdır.
  */
 export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) {
   if (recipes.length === 0) {
     return null;
   }
 
-  const ready = recipes.filter((recipe) => recipe.match_pct === 100);
-  const withShopping = recipes.filter((recipe) => recipe.match_pct < 100);
+  const ready = recipes.filter((recipe) => recipe.missing_count === 0);
+  const withShopping = recipes
+    .filter((recipe) => recipe.missing_count > 0)
+    .sort((a, b) => a.missing_count - b.missing_count);
 
   const sections: RecipeSection[] = [];
   if (ready.length > 0) {

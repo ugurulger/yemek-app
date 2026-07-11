@@ -465,10 +465,19 @@ birbirinden bağımsız, sabit birer sağlayıcıya bağlı (tarif üretimi hep
 Claude, envanter çıkarımı hep Gemini/Claude karşılaştırması).
 
 Girdi: envanter listesi (`{name, qty, unit}`'e sadeleştirilmiş). Çıktı:
-**TAM 9 tarif, kademeli 3 katman** (MVP-11): 3 tarif `match_pct = 100`
-(SADECE envanter + temel kiler malzemeleri: tuz, karabiber, su, sıvı yağ),
-3 tarif `match_pct 75-99` (1-2 eksik malzeme), 3 tarif `match_pct 50-74`
-(birkaç eksik malzeme). Birleşik `Recipe` şeması (`types/recipe.ts`):
+**TAM 6 tarif, 3 katman — katmanlar EKSİK MALZEME SAYISI bazlı** (MVP-16
+katman tanımı; MVP-11'in "9 tarif, match_pct yüzdesi bazlı" tanımı ve
+MVP-15'in ~3'er dağılımı DEĞİŞTİ — bkz. altta "MVP-16"): 2 tarif `ready`
+(`missing_count = 0`, SADECE envanter + kiler malzemeleri), 2 tarif
+`closeMatch` (1-2 eksik malzeme), 2 tarif `fewMissing` (3-4 eksik malzeme,
+yüksek temperature ile daha yaratıcı). **Kiler listesi MVP-16'da geniş
+tutuldu** (kullanıcı kararı: "temel baharatlar/kiler evde var kabul edilir",
+`PANTRY_STAPLES` sabiti, `lib/claude/generateRecipes.ts` — tek kaynak,
+promptlara interpolate edilir): tuz, karabiber, pul biber, kimyon, kekik,
+nane, toz kırmızı biber, sıvı yağ, zeytinyağı, tereyağı, un, şeker, su,
+sirke, salça, soğan, sarımsak, makarna, pirinç, bulgur. Bu listedekiler
+DAİMA `in_inventory: true` sayılır, eksik olarak gösterilmez. Birleşik
+`Recipe` şeması (`types/recipe.ts`):
 ```
 { name, emoji, kcal, servings, time_min,
   difficulty: "Kolay" | "Orta" | "Zor",
@@ -476,37 +485,231 @@ Girdi: envanter listesi (`{name, qty, unit}`'e sadeleştirilmiş). Çıktı:
   ingredients: [{ name, in_inventory: boolean }],
   missing_count, steps: string[], chef_tip, image_prompt_en? }
 ```
-`match_pct` = kiler malzemeleri (tuz, karabiber, su, sıvı yağ) hariç
-tutularak hesaplanan, envanterde bulunan malzeme oranı. `difficulty`
-gerçekçi olmalı (çoğu ev yemeği Kolay/Orta, Zor nadiren). `chef_tip` =
-tarife özel kısa bir şef önerisi.
+`match_pct` alanı tipte ve hesaplamada DURUYOR (eski cache + detay ekranı
+uyumu) ama MVP-16'dan beri hiçbir karar mekanizmasında (katmanlama,
+sıralama, tekilleştirme, kart rozeti) KULLANILMIYOR — hepsi `missing_count`
+ile yapılır. `difficulty` gerçekçi olmalı (çoğu ev yemeği Kolay/Orta, Zor
+nadiren). `chef_tip` = tarife özel kısa bir şef önerisi.
 
 **`ingredients` şeması (MVP-11'de `string[]`'ten değişti):** her malzeme
 `{ name, in_inventory }` objesidir — `in_inventory` işaretlemesini MODEL
-yapar (sistem talimatı: "envanter listesine göre işaretle; temel kiler
-malzemelerini in_inventory: true say"). `missing_count` = `in_inventory:
-false` malzeme sayısı; client tarafında `toRecipe` bu sayıyı işaretlerden
-YENİDEN HESAPLAR (model sayıyla işaretler çelişirse işaretler kazanır —
-rozet ile detay listesi aynı kaynaktan beslensin diye). `image_prompt_en`
-görsel üretimi içindir (bkz. "Tarif görselleri"): tool şemasında zorunlu
-(Claude tarif üretirken doldurur, ekstra LLM çağrısı YOK) ama TS tipinde
-opsiyonel (eski cache'lerle uyum).
+yapar (sistem talimatı: "envanter listesine göre işaretle; kiler
+malzemelerini [MVP-16'dan beri geniş `PANTRY_STAPLES` listesi, bkz. yukarı]
+in_inventory: true say"). **MVP-15'ten itibaren `match_pct` ve
+`missing_count` MODELDEN İSTENMEZ** — ikisi de `ingredients[].
+in_inventory`'den KODDA deterministik hesaplanır (bkz. altta "MVP-15",
+`toRecipeDetail`): `match_pct = round((in_inventory=true sayısı / toplam
+malzeme sayısı) × 100)`, `missing_count` = `in_inventory: false` sayısı.
+`image_prompt_en` görsel üretimi içindir (bkz. "Tarif görselleri"): tool
+şemasında zorunlu (Claude tarif üretirken doldurur, ekstra LLM çağrısı
+YOK) ama TS tipinde opsiyonel (eski cache'lerle uyum).
 
-**UI (app/(tabs)/recipes.tsx, MVP-11):** liste iki bölüm halinde —
-"Hemen Yapabilirsin" (`match_pct = 100`, üstte, emerald-900 chip başlık)
-ve "Küçük Bir Alışverişle" (kalan 6 tarif, stone-100 chip başlık; MVP-10
-grup başlığı chip stiliyle tutarlı). `match_pct < 100` kartlarda amber-500
-"N eksik" rozeti (`missing_count`) gösterilir. Tarif detayında
+**UI (app/(tabs)/recipes.tsx, MVP-11; kademeli gösterim MVP-14, tek-tek/
+canlı gösterim MVP-15; eksik-bazlı bölümleme MVP-16):** cache'lenmiş/statik
+görünümde liste iki bölüm halinde — "Hemen Yapabilirsin"
+(`missing_count = 0`, üstte, emerald-900 chip başlık) ve "Küçük Bir
+Alışverişle" (kalan tarifler `missing_count`'a göre ARTAN sıralı —
+2-eksikliler 4-eksiklilerin üstünde; stone-100 chip başlık; MVP-10 grup
+başlığı chip stiliyle tutarlı). Eksikli kartlarda amber-500 "N eksik"
+rozeti (`missing_count`) gösterilir; **"%N uyum" rozeti MVP-16'da
+KALDIRILDI** (eksik-bazlı kategorileme sonrası bilgi tekrarıydı —
+kullanıcı kararı; tarif DETAY ekranındaki %uyum göstergesi duruyor). Tarif detayında
 `in_inventory: false` malzemelerin yanında amber "eksik" mikro-rozeti +
 sepet ikonu vardır; `in_inventory: true` olanlar sade kalır (tik ikonu
-YOK — gürültü olur, bilinçli karar).
+YOK — gürültü olur, bilinçli karar). Üretim SIRASINDA gösterilen kademeli/
+canlı görünüm için bkz. altta "MVP-15".
 
-**Tarif önbelleği (MVP-11):** `store/recipeStore.ts` zustand `persist` ile
-AsyncStorage'a yazılır (`yemek-app-recipes`) ve tariflerin hangi envanter
-için üretildiği `inventoryFingerprint` (sadeleştirilmiş + sıralanmış
-`{name, qty, unit}` listesinin JSON'u) olarak saklanır. Envanter
-DEĞİŞMEDİYSE (parmak izi aynıysa) 9 tarif yeniden ÜRETİLMEZ — ekrandaki
-üret/yenile aksiyonları API'ye gitmeden mevcut listeyi kullanır.
+**Tarif önbelleği (MVP-11; sürümleme MVP-16):** `store/recipeStore.ts`
+zustand `persist` ile AsyncStorage'a yazılır (`yemek-app-recipes`) ve
+tariflerin hangi envanter için üretildiği `inventoryFingerprint`
+(sadeleştirilmiş + sıralanmış `{name, qty, unit}` listesinin JSON'u)
+olarak saklanır. Envanter DEĞİŞMEDİYSE (parmak izi aynıysa) tarifler
+yeniden ÜRETİLMEZ — ekrandaki üret/yenile aksiyonları API'ye gitmeden
+mevcut listeyi kullanır. Bu kural MVP-14/15/16'nın mimari
+değişikliklerinde de aynen korundu — cache edilen şey her zaman üretim
+adımlarından BAĞIMSIZ, final BİRLEŞMİŞ liste (bkz. altta
+`mergeRecipeLayers`); üretim sırasındaki ara state (katman/slot durumları)
+sadece UI'da tutulur, kalıcı değildir. **MVP-16'dan itibaren parmak izi
+`GENERATION_VERSION` önekli** (`"v2|" + JSON`): üretim mantığı
+değiştiğinde sürüm artırılır ki envanteri değişmeyen kullanıcının eski
+mantıkla üretilmiş cache'i eşleşmeye devam edip yeni akışı sonsuza dek
+engellemesin (v2 = MVP-16).
+
+**MVP-14 (2026-07-08, tarihi not — MVP-15 ile DEĞİŞTİRİLDİ) — 9 tarifi 3
+paralel çağrıya bölme:** Profilleme, tek `submit_recipes` çağrısıyla 9
+tarifin TAMAMININ üretilmesinin ~88s sürdüğünü ve bunun ~%99'unun tek model
+çıkarım süresi olduğunu gösterdi. Çözüm: 9 tarif, katman başına 3'er
+tarif üreten 3 BAĞIMSIZ paralel çağrıya (`ready`/`closeMatch`/`fewMissing`)
+bölündü, ~35.7s'ye indi. **Ancak kullanıcı bu mimariyle üretilen 9 tarifin
+çeşitliliğinin düştüğünü bildirdi** (benzer/klasik tarifler, aynı ana
+malzemenin — patates, tavuk, yoğurt — tekrar tekrar farklı katmanlarda
+çıkması) — kök neden, her katmanın DİĞER İKİSİNDEN HABERSİZ, kendi 3
+tarifini bağımsız planlamasıydı; 9 tarif hiçbir zaman BİRLİKTE
+düşünülmüyordu. Bu, MVP-15'in çözdüğü sorundur (altta). Bu bölümde
+tanımlanan `generateRecipeLayer`/`generateRecipesInLayers`/`RECIPE_LAYERS`
+fonksiyonları/tipleri artık KODDA YOK, MVP-15'in aşağıdaki fonksiyonlarıyla
+DEĞİŞTİRİLDİ.
+
+**MVP-15 (2026-07-09) — iki aşamalı üretim (isim planı → 9 paralel detay):**
+> ⚠️ Bu bölümdeki tarif SAYISI (9), katman eşikleri (match_pct bazlı) ve
+> `generateRecipeDetail` imzası MVP-16'da DEĞİŞTİ (bkz. altta "MVP-16") —
+> iki aşamalı mimarinin kendisi ve çeşitlilik/canlı-gösterim kararları
+> geçerliliğini koruyor.
+
+Karar: Yöntem B — önce TEK Claude çağrısında 9 tarifin İSMİ+kaba planı
+üretilir (9'u BİRLİKTE planlandığı için çeşitlilik garantili — model aynı
+istek içinde önceki 8 ismi "görür" ve tekrardan kaçınabilir), sonra bu 9
+isim 9 BAĞIMSIZ paralel çağrıyla detaylandırılır. Bu hem MVP-14'ün hız
+kazanımını korur hem çeşitliliği MVP-11'in tek-çağrı seviyesine geri
+getirir hem de doğal bir tek-tek/canlı gösterim sağlar (her detay
+kendi hızında dönüp kendi kartını doldurur). `lib/claude/generateRecipes.ts`:
+
+- `generateRecipeNames(inventory)` — Aşama 1: TEK çağrı, `submit_recipe_names`
+  aracı, çıktı KISA (sadece isim + `estimated_layer` enum + `estimated_missing`
+  string[], TAM tarif detayı İSTENMEZ — hızlı olması için). Sistem talimatı
+  (`PLAN_SYSTEM_PROMPT`) 9 tarifi BİRLİKTE, ÇEŞİTLİ planlamasını ister (aynı
+  ana malzeme/pişirme tekniğini tekrarlama, farklı öğün tiplerine yay:
+  kahvaltı/ana yemek/salata/çorba/atıştırmalık), Türk mutfağı önceliğini ve
+  isimlendirme doğruluğu kuralını (MVP-11'den beri değişmeyen "Menemen
+  yalnızca domates+biber varsa" kuralı) korur. `estimated_layer`in ~3'er 3'er
+  dağılımı HEDEFLENİR ama KATI DEĞİLDİR — çeşitlilik dağılımdan önceliklidir.
+- `generateRecipeDetail(name, inventory)` — Aşama 2: TEK tarifin TAM detayını
+  üreten çağrı (`submit_recipe_detail` aracı: emoji, kcal, servings, time_min,
+  difficulty, macros, ingredients, steps, chef_tip, image_prompt_en). Şema
+  BİLEREK `name`, `match_pct`, `missing_count` İSTEMEZ: isim zaten Aşama 1'den
+  parametre olarak gelir (kart başlığı planlama anından itibaren tutarlı
+  kalsın diye modelin çıktısından ALINMAZ), match_pct/missing_count ise
+  `toRecipeDetail` içinde `ingredients[].in_inventory`'den KODDA hesaplanır
+  (bkz. yukarıdaki "ingredients şeması" notu). Ortak sistem talimatı
+  (`COMMON_DETAIL_SYSTEM_PROMPT`) dokuz çağrıda da BİREBİR AYNI metin —
+  `cache_control: ephemeral` ile önbelleklenir (maliyet kuralı).
+- `assignRecipeLayer(matchPct)` — **kesin katman ataması KODDA yapılır,
+  modelin `estimated_layer` tahminine GÜVENİLMEZ**: match_pct=100 → `ready`,
+  75-99 → `closeMatch`, 50-74 → `fewMissing`, <50 → `null` (nadir; hiçbir
+  bölümde gösterilmez — modelin planı yanlış çıktıysa yapay doldurma
+  yapılmaz). `estimated_layer` SADECE Aşama 2 çağrılarının bölüm bazlı ön
+  yerleşimi (kart hangi bölümde iskelet olarak belirsin) için kullanılır;
+  detay dönünce kod otomatik doğru bölüme taşır (kendi kendini düzeltme).
+- `generateRecipesTwoPhase(inventory, {onPlanReady?, onDetailSettled?})` —
+  orkestratör: Aşama 1'i bekler, `onPlanReady` ile 9 planı bildirir, sonra
+  9 `generateRecipeDetail` çağrısını `Promise.allSettled` ile EŞZAMANLI
+  başlatır (bir tarif başarısız olursa diğerleri ETKİLENMEZ), her biri
+  TAMAMLANDIĞI ANDA `onDetailSettled` çağrılır. Sonunda `layer !== null`
+  olan `done` tarifleri `mergeRecipeLayers` ile isim bazında tekilleştirip
+  (nadir durumda plan aynı ismi iki kez üretirse) döner.
+
+**Ölçüm (2026-07-09, gerçek API çağrısı, aynı 12 ürünlük örnek envanter,
+`npx tsx` ile masaüstünde — SKILL.md'nin diğer perf ölçümleriyle aynı
+yöntem, MVP-14 ölçümüyle birebir karşılaştırılabilir):** Aşama 1 (isim
+planı) **8.8s**, Aşama 2 (9 paralel detay) **24.0s** (en yavaş tekil detay
+çağrısı da 24.0s — paralelleşmenin kazandırdığı, dokuzun TOPLAMI değil),
+**TOPLAM 32.8s duvar-saati**. Bu, MVP-14'ün 35.7s'sinden hafif daha hızlı
+(gürültü seviyesinde, iki ölçüm de aynı ~30-36s bandında) ve orijinal
+tek-çağrı ~88s'ye göre ~%63 azalma — yani MVP-15 HIZ kazanımını
+KORUYARAK çeşitlilik sorununu çözdü. 9/9 tarif BENZERSİZ (tekilleştirme
+gerekmedi). **Çeşitlilik karşılaştırması:** MVP-14 ölçümünde 8 tarifin
+çoğu aynı temaların (patates/tavuklu/yoğurtlu/pilav) yeniden karışımıydı
+(örn. "Sarımsaklı Patates Yoğurtlu" ve "Patates Yoğurtlu Sarımsaklı Tavuk"
+neredeyse aynı yemeğin yeniden adlandırılmış hali); MVP-15 ölçümünde 9
+tarif (Menemen, Tavuklu Pirinç Pilavı, Patates Çorbası, Sarımsaklı Yoğurt
+Soslu Makarna, Fırın Tavuklu Patates, Domates Soslu Beyaz Peynirli Omlet,
+Tavuk Sote, Izgara Patates & Yoğurtlu Sos, Beyaz Peynirli & Domatesli Soğuk
+Pirinç Salatası) farklı pişirme tekniklerine (çorba, fırın, sote, ızgara,
+soğuk salata, omlet) ve öğün tiplerine yayıldı — aynı ana malzeme (ör.
+patates, tavuk) birden fazla tarifte geçse de her seferinde belirgin
+şekilde FARKLI bir yemek formatında. **Kendi kendini düzeltme örneği:**
+"Menemen" Aşama 1'de `estimated_layer: ready` olarak planlandı ama Aşama
+2'de gerçek malzeme listesi hesaplanınca match_pct=78 çıktı — kod bunu
+OTOMATİK `closeMatch` bölümüne yerleştirdi (model tahmini değil, gerçek
+hesap kazandı); aynı şekilde "Tavuklu Pirinç Pilavı" `ready` tahmin edildi
+ama match_pct=73 ile `fewMissing`e yerleşti.
+
+**MVP-16 (2026-07-11) — 6 tarif, eksik-malzeme bazlı katmanlama, garantili
+"ready" tarifler:** Kullanıcı, tarif süresinin iyi olduğunu ama "Hemen
+Yapabilirsin" bölümüne HİÇ tarif düşmediğini bildirdi. Kök neden (iki
+parça): (1) Aşama 1 üç tarifi `ready` TAHMİN ediyordu ama Aşama 2'nin detay
+promptunda "sadece envanterdeki malzemeleri kullan" diye bir ZORLAMA yoktu
+— model gerçekçi tarif kurarken envanter dışı malzeme ekliyor, kod
+match_pct'i deterministik hesaplayınca 100 çıkmıyor ve tarif alışveriş
+bölümüne kayıyordu; (2) kiler listesi çok dardı (tuz/karabiber/su/sıvı yağ)
+— kimyon kullanan her tarif otomatik "eksikli" sayılıyordu. Çözüm
+(`lib/claude/generateRecipes.ts`):
+
+- **6 tarif, dağılım ZORUNLU:** `RECIPE_COUNT` 9 → 6; `PLAN_SYSTEM_PROMPT`
+  artık TAM 2 `ready` + 2 `closeMatch` (1-2 eksik) + 2 `fewMissing` (3-4
+  eksik) ister (MVP-15'in "yaklaşık 3'er, çeşitlilik öncelikli" esnekliği
+  kalktı; "ready bulamazsan en basit formatlara in — omlet/makarna/pilav"
+  yönlendirmesi eklendi). Çeşitlilik/isimlendirme kuralları aynen duruyor.
+  Kod dağılımı doğrulamaz/zorlamaz — model 2/2/2 tutturamazsa akış yine
+  çalışır, kesin katman zaten koddan gelir.
+- **Katman bazlı detay varyantları (`LAYER_VARIANTS`):**
+  `generateRecipeDetail(name, inventory, layerTarget)` artık plandan gelen
+  hedef katmanı alır; `system` İKİ blok olur — ilk blok
+  (`COMMON_DETAIL_SYSTEM_PROMPT`, 6 çağrıda birebir aynı,
+  `cache_control: ephemeral`) + katman kısıtı (cache'siz ikinci blok,
+  prefix cache BOZULMAZ). `ready`: "SADECE envanter+kiler, HER malzeme
+  in_inventory: true" + `temperature: 0.3`; `closeMatch`: "en fazla 1-2
+  dışarıdan" + `0.7`; `fewMissing`: "3-4 dışarıdan, yaratıcı ol" + `1.0`
+  (Claude API'de temperature 0-1, varsayılan 1 — "yüksek" = 1.0;
+  `temperature` alanı `lib/claude/client.ts`'e eklendi).
+- **Ready retry (kullanıcı kararı):** `ready` hedefli tarif buna rağmen
+  eksikle dönerse 1 kez düzeltme çağrısı yapılır (user mesajına "şu
+  malzemeler envanterde yok: X — tarifi onlarsız yeniden kur" eklenir);
+  o da eksikli dönerse olduğu gibi kabul edilir (eksik sayısına göre
+  alışveriş bölümüne düşer — MVP-15'in kendi-kendini-düzeltmesi korunur).
+- **`assignRecipeLayer(missingCount)`** — match_pct DEĞİL eksik SAYISI:
+  0 → `ready`, 1-2 → `closeMatch`, 3+ → `fewMissing`. `null`/gizleme
+  KALDIRILDI (UI zaten closeMatch+fewMissing'i tek "Küçük Bir Alışverişle"
+  bölümünde birleştiriyor; plan dışı sonuç gizlenmek yerine rozetiyle
+  gösterilir). `mergeRecipeLayers` tekilleştirme/sıralaması da
+  `missing_count` ARTAN düzene geçti.
+- **Geniş kiler** (`PANTRY_STAPLES`, kullanıcı kararı) ve **cache
+  sürümleme** (`GENERATION_VERSION`) — bkz. yukarıdaki ilgili bölümler.
+- **Ölçüm (2026-07-11, gerçek API, aynı 12 ürünlük örnek envanter, `npx
+  tsx` masaüstünde — önceki MVP ölçümleriyle aynı yöntem, tek koşu):**
+  Aşama 1 (plan) **7.3s**, Aşama 2 (6 paralel detay) **29.5s**, TOPLAM
+  **36.8s** — MVP-14/15'in ~30-37s bandında (MVP-15: 32.8s; fark tek-koşu
+  gürültüsü seviyesinde, hız hedefi korundu). Sonuç: 6/6 tarif üretildi,
+  **3 tarif missing_count=0** ("Hemen Yapabilirsin" ≥2 kabul kriterini
+  aştı — Menemen, Cacık, Tavuklu Yoğurt Çorbası), 1 tarif 1 eksik, 2 tarif
+  3-4 eksik. Ready-retry hiç TETİKLENMEDİ (iki ready tarif de ilk denemede
+  0 eksik döndü — kısıtlı prompt işe yarıyor). Kendi kendini düzeltme
+  örneği: "Tavuklu Yoğurt Çorbası" `closeMatch` planlandı ama detayı 0
+  eksik çıktı — kod ready bölümüne taşıdı (dağılım bu yüzden 3/1/2 oldu;
+  2/2/2 katı bir UI garantisi DEĞİL, kesin katman her zaman gerçek eksik
+  sayısından gelir). Çeşitlilik: kahvaltı (menemen), meze/salata (cacık),
+  çorba, fırın graten, börek, fırın tavuk — farklı format/öğün tiplerine
+  yayıldı.
+
+**Tek-tek/canlı gösterim (`app/(tabs)/recipes.tsx`, `components/recipes/
+RecipeLayerSections.tsx`, `components/recipes/RecipeSkeletonCard.tsx`;
+MVP-15'te 9, MVP-16'dan beri 6 slot):**
+ekran artık `slots: RecipeSlotState[]` (6 eleman, plan sırasına göre sabit
+index) tutar — her slot `{name, estimatedLayer, status: loading|done|error,
+recipe, actualLayer}`. Üç aşama:
+1. **Aşama 1 dönmeden önce** (`slots.length === 0`): isimsiz, bölümsüz 6
+   genel iskelet kart (`RecipeSkeletonCard`, `name` prop'u YOK) düz bir
+   liste olarak gösterilir — henüz hangi tarifin hangi bölüme gideceği
+   bilinmiyor.
+2. **Aşama 1 döner dönmez**: 6 slot isim + `estimatedLayer` ile oluşturulur,
+   `RecipeLayerSections` bunları `estimatedLayer`e göre bölümlere yerleştirir;
+   her kart artık ADI GÖRÜNEN ama gövdesi hâlâ iskelet olan bir karttır
+   (`RecipeSkeletonCard`'a `name` verilince başlık gri bar yerine gerçek
+   metin olur — "isim biliniyor, detay yükleniyor" hissi).
+3. **Her Aşama 2 çağrısı TAMAMLANDIKÇA** o slot TEK BAŞINA `done`/`error`
+   olur — kart iskeletten dolu `RecipeCard`'a döner (diğer 5 kart
+   ETKİLENMEZ, MVP-14'teki "6 tarif aynı anda göründü" sorunu çözüldü) ve
+   bölüm ataması `actualLayer`e (MVP-16'dan beri gerçek `missing_count`)
+   göre YENİDEN hesaplanır — tahmin yanlışsa kart doğru bölüme "taşınır";
+   alışveriş bölümü içinde dolan kartlar eksik sayısına göre artan sıraya
+   girer (`shoppingSortKey`). `error` olan slot için
+   o kartın yerinde küçük bir "'{isim}' yüklenemedi / Tekrar dene" satırı
+   gösterilir (`retrySlot`, SADECE o tarifi yeniden dener, diğerlerini
+   etkilemez). Bölüm başlıkları ("Hemen Yapabilirsin"/"Küçük Bir
+   Alışverişle") o bölümde EN AZ bir slot varsa görünür, yoksa gizlenir.
+Üretim bitip `setRecipes` (birleşmiş final liste) çağrılınca ekran statik/
+cache'lenmiş `RecipeList` render yoluna döner (iki render yolu kasıtlı ayrı
+tutuldu — MVP-10'daki `InventoryRow`/`ProductCard` ayrımıyla aynı desen).
 
 ### Tarif görselleri (AI görsel üretimi, MVP-11)
 
@@ -529,7 +732,7 @@ kullanır. Vision'a dokunmadan değiştirilebilir.
   (AYRI bir LLM çağrısı YAPILMAZ); alan yoksa (eski cache) tarif adı +
   malzeme özetinden basit birleştirme kullanılır.
 - **Lazy + sıralı kuyruk (ZORUNLU maliyet kuralı):** liste render olunca
-  9 görsel birden İSTENMEZ. Kartlar mount oldukça `enqueueRecipeImage`
+  tüm tariflerin görselleri birden İSTENMEZ. Kartlar mount oldukça `enqueueRecipeImage`
   ile modül seviyesindeki kuyruğa girer; kuyruk istekleri SIRAYLA (aynı
   anda tek API çağrısı) işler, görsel hazır olana kadar kartta mevcut
   emoji gösterilir (`useRecipeImage` hook'u, null → emoji).
@@ -561,20 +764,33 @@ kullanır. Vision'a dokunmadan değiştirilebilir.
 
 **Native structured output (Claude tool-use ile), markdown/JSON.parse YOK:**
 Gemini'nin `responseMimeType`/`responseSchema`'sının Claude'daki karşılığı
-zorunlu tool-use'dur — `lib/claude/generateRecipes.ts` istekte tek bir
-`submit_recipes` aracı tanımlar (`input_schema`: yukarıdaki şemanın array
-hali) ve `tool_choice: {type: "tool", name: "submit_recipes"}` ile modeli
-bu aracı çağırmaya zorlar (bkz. `lib/claude/client.ts` —
-`callClaudeForToolInput`). Yanıt `tool_use` bloğunun `input` alanından
-doğrudan bir JS objesi olarak gelir — eski markdown-fence temizleme ve
-JSON.parse yeniden deneme mantığı tamamen kaldırıldı, sadece minimal bir
-alan/tip kontrolü (`toRecipe`) kaldı. Karar nedeni: tutarlılık (şema
-zorunlu tool ile garanti edilir) ve markdown-parse riskinin ortadan
+zorunlu tool-use'dur. MVP-15'ten itibaren `lib/claude/generateRecipes.ts`
+İKİ ayrı tool tanımlar (bkz. yukarıda "MVP-15"): Aşama 1 için
+`submit_recipe_names` (`input_schema`: `RECIPE_COUNT` [MVP-16'dan beri 6]
+elemanlı, her biri sadece
+`name`+`estimated_layer`+`estimated_missing` — TAM tarif alanları YOK, kısa/
+hızlı olsun diye) ve Aşama 2 için `submit_recipe_detail` (`input_schema`:
+TEK bir tarifin tüm alanları — `name`/`match_pct`/`missing_count` HARİÇ,
+bkz. yukarıda "ingredients şeması"). İkisi de `tool_choice: {type: "tool",
+name: "..."}` ile modeli o aracı çağırmaya zorlar (bkz. `lib/claude/
+client.ts` — `callClaudeForToolInput`). Yanıt `tool_use` bloğunun `input`
+alanından doğrudan bir JS objesi olarak gelir — markdown-fence temizleme
+veya JSON.parse yeniden deneme mantığı YOK, sadece minimal bir alan/tip
+kontrolü (`toRecipePlan`, `toRecipeDetail`) var. Karar nedeni: tutarlılık
+(şema zorunlu tool ile garanti edilir) ve markdown-parse riskinin ortadan
 kalkması — Gemini'nin native JSON şema kısıtlı üretimiyle aynı prensip,
 Claude'un API yüzeyine uyarlanmış hali.
 
-Sistem talimatı `cache_control: {"type": "ephemeral"}` ile önbelleklenir
-(`system` bir blok dizisi olarak gönderilir, bkz. `ClaudeSystemBlock`).
+Aşama 2'nin sistem talimatı İKİ bloktur (MVP-16): ilk blok
+(`COMMON_DETAIL_SYSTEM_PROMPT`) `cache_control: {"type": "ephemeral"}` ile
+önbelleklenir — altı paralel detay çağrısının HEPSİNDE BİREBİR aynı olduğu
+için prefix önbelleği tutar (maliyet kuralı; `system` bir blok dizisi
+olarak gönderilir, bkz. `ClaudeSystemBlock`); ikinci blok katman bazlı
+varyant kısıtıdır (`LAYER_VARIANTS[layer].constraint`, cache'siz — cache
+breakpoint'i İLK bloğun sonunda olduğu için sonrasındaki farklılık prefix
+cache'i BOZMAZ). Aşama 1 (`PLAN_SYSTEM_PROMPT`) TEK bir çağrı olduğu
+için cache_control KULLANMAZ — tekrar kullanılmayan bir önbellek yazma
+maliyeti kendini amorti etmez.
 
 ### Tarif chat'i
 Her istek şunları içerir: tarifin tamamı + o tarife ait geçmiş mesajlar

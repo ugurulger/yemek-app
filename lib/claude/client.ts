@@ -32,6 +32,8 @@ export interface ClaudeMessageRequest {
   tools?: ClaudeToolDefinition[];
   /** Modeli belirli bir aracı çağırmaya zorlar — Gemini'nin `responseSchema`'sının Claude karşılığı. */
   tool_choice?: { type: 'tool'; name: string };
+  /** 0-1 arası; verilmezse API varsayılanı (1.0) geçerlidir. */
+  temperature?: number;
 }
 
 interface ClaudeContentBlock {
@@ -47,6 +49,10 @@ async function sendClaudeMessage(body: ClaudeMessageRequest): Promise<ClaudeCont
     throw new Error('EXPO_PUBLIC_ANTHROPIC_API_KEY tanımlı değil (.env dosyasını kontrol edin)');
   }
 
+  // GEÇİCİ ÖLÇÜM (salt-analiz görevi, bkz. SKILL.md): istek gönderiminden
+  // yanıt gövdesi tam okunana kadarki süre — Claude API'nin (network + model
+  // üretim süresi dahil) toplam gecikmesi.
+  const tRequestStart = performance.now();
   let response: Response;
   try {
     response = await fetch(API_URL, {
@@ -75,6 +81,7 @@ async function sendClaudeMessage(body: ClaudeMessageRequest): Promise<ClaudeCont
   }
 
   const data: unknown = await response.json();
+  console.log(`[PERF][recipe] claude-api-call: ${(performance.now() - tRequestStart).toFixed(0)}ms`);
   const content =
     typeof data === 'object' && data !== null
       ? (data as { content?: unknown }).content
