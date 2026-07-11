@@ -90,7 +90,8 @@ export const VIDEO_INVENTORY_PROMPT = `Buzdolabı videosunu sistematik olarak an
 
 Kurallar:
 - "name" SPESİFİK Türkçe ürün adı olmalı; sıfat tamlaması tercih edilir: "Küflü Peynir", "Cherry Domates", "Kırmızı Biber". Tekli ürünler sade kalır: "Süt", "Marul", "Maydanoz". Marka adını "name" alanına YAZMA — ambalajda görünüyorsa "brand" alanına koy, görünmüyorsa null bırak.
-- "category" için SADECE şemadaki sabit listeden bir değer seç.
+- "category" için SADECE şemadaki sabit listeden bir değer seç. Yumurta → "Şarküteri" kategorisi. Turşu, konserve gibi kavanoz/teneke ürünler → "Sos & Baharat" kategorisi.
+- İçecekleri (su, gazlı içecek, meyve suyu, ayran, bira, şarap vb.) envantere ALMA — hiç listeleme. Soslar, baharatlar ve yemek malzemeleri listelenmeye devam eder. (Süt bir içecek DEĞİL, yemek malzemesidir — listele.)
 - "reasoning": bu ürünü neden bu isimle ve bu netlikte tanımladığının TEK CÜMLELİK özeti (örn. "Etiketteki Milner yazısı net okunuyor"). Bunu "confidence"tan ÖNCE yaz.
 - "confidence" (0-100) kalibrasyonu: 95-100 = etiket/ambalaj yazısı net okunuyor VEYA ürünün şekli tartışmasız (yumurta, marul gibi); 80-94 = ürün türü netçe belli ama detay (çeşit/marka) tam seçilemiyor; 50-79 = form tahmin edilebilir ama emin değilsin; 50'nin altı = sadece tahmin.`;
 
@@ -268,5 +269,9 @@ export function parseVideoInventoryItems(responseText: string): InventoryItem[] 
     throw new InventoryVisionError('Yanıt ayrıştırılamadı, tekrar deneyin');
   }
 
-  return items;
+  // MVP-17: içecekler envantere alınmıyor (kullanıcı kararı; soslar kalır).
+  // Prompt zaten "içecekleri listeleme" diyor (VIDEO_INVENTORY_PROMPT) — bu
+  // filtre kaçakları yakalayan emniyet kemeri. Sıfır-öğe kontrolünden SONRA
+  // uygulanır ki sadece içecek içeren bir yanıt parse hatası sayılmasın.
+  return items.filter((item) => item.category !== 'İçecek');
 }

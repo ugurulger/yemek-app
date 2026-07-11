@@ -83,20 +83,22 @@ Demo'da onaylanan görsel dil. Bundan sapma:
   hissi). Grup başlıkları "chip" görünümünde: `bg-stone-100 rounded-full
   px-3 py-1`, `Outfit_600SemiBold`, `text-sm` — önceki (MVP-8) soluk
   `text-sm text-stone-500` başlıktan daha belirgin.
-- **Kart ikonu yerine renkli şerit (MVP-10):** kart solunda tabak/çatal
-  emoji'si YERİNE grup bazlı ince bir renkli şerit (`GROUP_STRIPE_COLORS`)
-  — emerald-900/amber-500 paletinin ton varyasyonları (emerald-900,
-  emerald-500, amber-500, amber-300, stone-300), yeni bir renk ailesi
-  İCAT EDİLMEDİ. Confidence rozeti (`%92` gibi) ana kategorili listede
-  ARTIK GÖSTERİLMİYOR (zaten `CONFIDENCE_THRESHOLD`'un üzerindeki ürünler
-  gösteriliyor, rozet bilgi değeri taşımıyordu) — SADECE "emin olunamayan
-  ürünler" modalında gösterilmeye devam ediyor.
+- **Kart ikonu yerine renkli şerit (MVP-10):** ⚠️ ŞERİT MVP-21'DE
+  KALDIRILDI (bkz. altta, "Kategori arka plan renkleri" maddesinin
+  sonundaki not) — tarihi kayıt: kart solunda tabak/çatal emoji'si
+  YERİNE grup bazlı ince bir renkli şerit (`GROUP_STRIPE_COLORS`)
+  kullanılıyordu — emerald-900/amber-500 paletinin ton varyasyonları
+  (emerald-900, emerald-500, amber-500, amber-300, stone-300), yeni bir
+  renk ailesi İCAT EDİLMEMİŞTİ. Confidence rozeti (`%92` gibi) ana
+  kategorili listede ARTIK GÖSTERİLMİYOR (zaten `CONFIDENCE_THRESHOLD`'un
+  üzerindeki ürünler gösteriliyor, rozet bilgi değeri taşımıyordu) —
+  SADECE "emin olunamayan ürünler" modalında gösterilmeye devam ediyor.
 - **⚠️ İki farklı kart render yolu var (MVP-10 mimari notu):** ana
   kategorili liste artık `components/inventory/InventoryRow.tsx`'i
   KULLANMIYOR — `app/(tabs)/index.tsx` içinde yerel tanımlı `ProductCard`
-  (ikon yok, rozet yok, renkli şerit) kullanıyor. "Emin olunamayan
-  ürünler" modalı ise HÂLÂ eski `InventoryList`/`InventoryRow`'u (ikon +
-  confidence rozetiyle) kullanıyor — bilinçli bir ayrım (MVP-10 görevinin
+  (ikon yok, rozet yok, MVP-21'den beri şerit de yok) kullanıyor. "Emin
+  olunamayan ürünler" modalı ise HÂLÂ eski `InventoryList`/`InventoryRow`'u
+  (ikon + confidence rozetiyle) kullanıyor — bilinçli bir ayrım (MVP-10 görevinin
   kapsamı SADECE `app/(tabs)/index.tsx`'in render katmanıyla
   sınırlandırılmıştı, `InventoryRow.tsx`'e dokunulmadı). Yani modal
   kartları ile ana liste kartları görsel olarak FARKLI — bu kasıtlı,
@@ -106,6 +108,182 @@ Demo'da onaylanan görsel dil. Bundan sapma:
   (`bg-amber-50`, `ring-amber-200`, `text-amber-900`, "⚠️ N ürün kontrol
   bekliyor" + `chevron-forward` ikonu) — "Buzdolabım" dış kartının
   DIŞINDA, listenin en üstünde.
+- **2'li grid — kategori bölümleri yan yana (MVP-17, 2026-07-11):** ⚠️ Bu
+  MADDENİN YAN YANA GRID KISMI MVP-19'DA GERİ ALINDI (bkz. altta) — uzun
+  ürün adları dar sütunda görünmüyordu. `chunkPairs` fonksiyonu da MVP-19'da
+  SİLİNDİ (kullanım yeri kalmadı). Tarihi kayıt olarak bırakılıyor. İlk
+  denemede ürünler kendi grubu İÇİNDE ikişerli eşlenmişti; kullanıcı bunu
+  reddedip KATEGORİ BÖLÜMLERİNİN kendisinin yan yana olmasını istedi
+  ("Süt & Peynir ve Et & Şarküteri yanyana"). O hâl: `categorizedSections`
+  (`GROUP_ORDER` sırasına göre) `chunkPairs` ile ikişerli satırlara
+  bölünürdü, her satırda iki `CategoryColumn` (`flex-1`) yan yana —
+  her sütun kendi başlık chip'i + altında TEK SÜTUN halinde dikey sıralı
+  `ProductCard`'lar içerir (bölümler farklı ürün sayısına sahip olabilir,
+  sütun yükseklikleri farklı olabilir — bu normal). Tek sayıda bölümde son
+  satırın ikinci hücresi boş `flex-1` (son sütun tam genişliğe YAYILMAZ).
+  `ProductCard` kompaktlaştırıldı (kart yüksekliği DEĞİŞMEDİ — kullanıcı
+  şartı): ad satırında sağda küçük sil ikonu (`h-5 w-5`, ilk denemede
+  kontrol satırındaydı ama dar sütunda 3 buton + miktar metni sığmadığı
+  için — "1 li..." gibi kesiliyordu — ad satırına taşındı), marka altında,
+  en altta TEK satırda `[−] [qty unit] [+]` (`h-6 w-6` butonlar, ikonlar
+  13/14, miktar metni `text-xs` `flex-1`); ad/marka `numberOfLines={1}` ile
+  üç noktayla kısalır. **⚠️ Bu paragraftaki `[−] [qty unit] [+]` kontrol
+  satırı MVP-18'de KALDIRILDI** (bkz. altta) — butonlar tamamen gitti,
+  satır tek satıra indi; kalan kısımlar (2'li grid, `CategoryColumn`,
+  sil ikonunun ad satırında olması) hâlâ geçerli. "Emin olunamayan
+  ürünler" modalı TEK SÜTUN kaldı (kullanıcı kararı — MVP-10'un iki
+  render yolu ayrımı sürüyor).
+- **İçecekler envantere alınmaz (MVP-17):** kullanıcı kararı — içecekler
+  (su, meyve suyu, gazlı içecek, bira...) envanterde İSTENMİYOR; soslar/
+  baharatlar kalır. Kapsam SADECE video akışı (bkz. "Video → envanter" —
+  içecek filtresi maddesi); iki aşamalı fotoğraf/fiş akışının prompt'larına
+  BİLİNÇLİ dokunulmadı (o akış `category` üretmiyor, davranışı değişmesin
+  istendi — fişten içecek gelirse elle silinir). Görüntüleme grubu
+  "İçecek & Sos" → **"Sos & Baharat"** (`🧂`) olarak yeniden adlandırıldı;
+  şerit rengi (amber-300) aynı. `CATEGORY_GROUPS`'ta `İçecek` anahtarı tip
+  gereği duruyor ve "Diğer"e eşlenir (store'da kalmış eski içecek
+  kayıtları için geri-dönüş; bir sonraki tam tarama zaten temizler).
+  `INVENTORY_CATEGORIES`'teki `'İçecek'` enum değeri SİLİNMEDİ — şemadan
+  çıkarılsaydı model içecekleri başka kategoriye zorlardı ve parse filtresi
+  yakalayamazdı.
+- **Kategori düzeltmeleri: yumurta, turşu/konserve (MVP-18, 2026-07-11):**
+  kullanıcı gerçek veriyle test edip yumurtanın "Diğer" yerine "Et &
+  Şarküteri" grubunda, turşu/konserve gibi kavanoz/teneke ürünlerin de
+  "Sos & Baharat" grubunda görünmesini istedi. Sadece `VIDEO_INVENTORY_PROMPT`
+  "Kurallar" listesine iki somut örnek eklendi ("Yumurta → 'Şarküteri'
+  kategorisi", "Turşu, konserve gibi kavanoz/teneke ürünler → 'Sos &
+  Baharat' kategorisi") — şema (`INVENTORY_CATEGORIES`) ve `CATEGORY_GROUPS`
+  eşlemesi DEĞİŞMEDİ (MVP-10/17 ile aynı ilke: sadece modele yönlendirme,
+  görüntüleme gruplaması zaten doğru eşliyor). Bu bir garanti DEĞİL, model
+  yönlendirmesi — otomatik testi yok, gerçek API çağrısıyla doğrulanmalı.
+  İki aşamalı fotoğraf/fiş akışı zaten `category` üretmediği için
+  etkilenmedi (o akışa dokunulmadı, önceki oturumdaki kararla tutarlı).
+- **+/- butonları kalktı, satır kaydırmaya (swipe) geçti (MVP-18):**
+  ⚠️ Bu maddenin KAYDIRMA/MİKTAR kısmı MVP-20'de TAMAMEN kaldırıldı (bkz.
+  altta) — tarihi kayıt olarak bırakılıyor, `PanResponder`/`Animated`/
+  chevron/peek-hint kodu artık YOK. +/- butonlarının kaldırılması ve
+  kartın tek satıra inmesi kararı hâlâ geçerli.
+  kullanıcı satırların "buton grubu" değil gerçek bir liste gibi
+  görünmesini istedi. `ProductCard` (`app/(tabs)/index.tsx`) artık TEK
+  satır: `[ad, flex-1] [miktar+birim] [silme kutusu]` + (varsa) altında
+  küçük marka satırı — azalt/artır `Pressable`leri ve ayrı kontrol satırı
+  TAMAMEN kaldırıldı, şerit `h-10` → `h-8`, satır dolgusu `py-3` → `py-2`
+  (kart doğal olarak kısaldı). Miktar artık **kaydırma** ile değişiyor:
+  sola kaydırma TEK EŞİKLİ (`SWIPE_THRESHOLD = 40`, `SWIPE_MAX_OFFSET =
+  56`) — miktarı 1 azaltır, miktar zaten 1 ise AYNI hareket ürünü SİLER;
+  sağa kaydırma miktarı 1 artırır. İki eşikli (kısmi=azalt, tam=sil)
+  tasarım kullanıcı kararıyla ELENDİ — 2'li grid sütunu zaten dar
+  (~150-170px), iki eşiği ayırt etmek zorlaşırdı; satırdaki sabit silme
+  kutusu (çöp ikonu, kaydırmadan bağımsız, onaysız anında siler) büyük
+  miktarları tek seferde silmek için zaten yeterli. **Yeni paket
+  EKLENMEDİ** — proje `react-native-gesture-handler` içermiyor (kontrol
+  edildi: sadece `react-native-reanimated` var, `react-native-screens`'in
+  kendi iç kopyası uygulama kodundan kullanılamaz); kaydırma React
+  Native çekirdeğinin `PanResponder` + `Animated` API'siyle yazıldı.
+  `PanResponder.create(...)` her render'da YENİDEN oluşturulur (bir
+  `useRef` içine SARILMAZ) — aksi halde `onPanResponderRelease` içindeki
+  "azalt mı sil mi" kararı ilk mount'taki bayat `item.qty` değerini
+  kullanırdı (stale closure hatası). Keşfedilebilirlik için — kullanıcı
+  kararıyla İKİSİ BİRDEN: (a) her satırın sol/sağ kenarında sabit soluk
+  `chevron-back`/`chevron-forward` ikonları (`size 12`, `#d6d3d1`,
+  kaydırılan `Animated.View`'ın DIŞINDA, statik), (b) ekran ilk mount
+  olduğunda listedeki İLK satır için tek seferlik bir "peek" animasyonu
+  (`translateX` kısaca -14 → 0) — bir daha TEKRARLANMAMASI için
+  `AsyncStorage` üzerinde kalıcı bir bayrak (`yemek-app-swipe-hint-seen`)
+  kullanılır (`showSwipeHintOnFirstItem` prop'u `CategoryColumn` →
+  `ProductCard`'a `itemIndex === 0` olan karta iletilir). `store/
+  inventoryStore.ts`'e YENİ bir action EKLENMEDİ — mevcut `decrementQty`/
+  `incrementQty`/`removeItem` yeterli, "azaltınca sıfırlanırsa sil"
+  kararı `index.tsx`'teki swipe handler'da veriliyor. **Kapsam dışı,
+  bilinçli:** "Buzdolabım" başlığına gelecek "Ekle" butonu (elle malzeme
+  girişi açacak) kullanıcının ayrı talimatını bekliyor, bu görevde
+  YAPILMADI.
+- **Bölümler tekrar alt alta + kategori arka plan renkleri (MVP-19,
+  2026-07-11):** ⚠️ "ALT ALTA" YERLEŞİMİ MVP-20'de TEKRAR YAN YANA'ya
+  DÖNDÜ (`chunkPairs` geri getirildi, bkz. altta) — kullanıcı bu sefer
+  kartın miktar/kaydırma taşımadığı için dar sütunda sığacağını
+  düşündü. ARKA PLAN RENKLERİ (`GROUP_BACKGROUND_COLORS`) ve krem tonu
+  DEĞİŞMEDİ, hâlâ geçerli. "Kaydırma daha görünür" alt maddesi MVP-20'de
+  konusu KALKTI (kaydırma tamamen silindi). Tarihi bağlam için: kullanıcı
+  MVP-17'nin yan yana 2'li bölüm düzeninde uzun ürün adlarının
+  (`numberOfLines={1}` ile) kesildiğini bildirmişti — dar sütun
+  (~150-170px) yeterli genişlik vermiyordu. O zamanki çözüm: `chunkPairs`
+  SİLİNDİ, `categorizedSections` düz `.map()` ile TAM GENİŞLİK, ALT ALTA
+  render ediliyordu (`app/(tabs)/index.tsx`, "Buzdolabım" kartı içinde
+  `gap-3` ile ayrılan tek sütun). Aynı geri bildirimde kullanıcı iki
+  tasarım isteği daha eklemişti:
+  - **Kategori arka plan renkleri:** her `CategoryColumn` artık kendi
+    soluk pastel arka plan tonuyla (`GROUP_BACKGROUND_COLORS`,
+    `rounded-2xl px-3 py-3`) ayrı bir "raf" gibi görünüyor — bölümler
+    arası eski `border-t` çizgi ayracı KALKTI, renk geçişinin kendisi
+    ayırıyor. Bu palet o zamanki `GROUP_STRIPE_COLORS`'tan (emerald/amber
+    ailesi) BİLEREK TÜRETİLMEMİŞTİ: türetilseydi Süt & Peynir ile Sos &
+    Baharat aynı amber ailesinde neredeyse ayırt edilemez olurdu. Süt &
+    Peynir = açık krem `#FAF3E7` (kullanıcının özel isteği — "daha açık
+    krem yap"), Et & Şarküteri = soluk terracotta `#F6E8E2`, Meyve &
+    Sebze = soluk adaçayı yeşili `#EAF3EA`, Sos & Baharat = soluk
+    hardal/altın `#F5EFD6`, Diğer = soluk taş grisi `#F3F1EE`. O sırada
+    `GROUP_STRIPE_COLORS` (item şeridi) BİLEREK DEĞİŞTİRİLMEMİŞTİ — Süt &
+    Peynir zaten koyu emerald-900 şerit kullanıyordu, kontrastı krem
+    arka planla bozulmuyordu ("rengi krem yap" isteği o an STRIPE değil
+    bu ARKA PLAN katmanı olarak yorumlanmıştı). **MVP-21'de şeridin
+    kendisi TAMAMEN KALDIRILDI** (`GROUP_STRIPE_COLORS` sabiti SİLİNDİ,
+    kullanıcı "envanterdeki itemlerin solundaki renkli şeyi kaldır, ürün
+    isimleri sola yaslansın" dedi) — artık kategori ayrımını TEK BAŞINA
+    bu arka plan tonu taşıyor, `ProductCard`'ın stripe `View`'ı ve
+    `stripeColor` prop'u tamamen gitti. Bölüm başlığı chip'i
+    `bg-stone-100` → `bg-white/60` (yarı saydam beyaz, hangi pastel
+    tonun üstünde olursa olsun "yüzüyor" gibi durur); satır içi ayraç
+    `border-stone-50` → `border-stone-900/5` (sabit gri yerine düşük
+    opaklıklı siyah, her pastel tonla uyumlu).
+  - **Kaydırma daha görünür:** kullanıcı MVP-18'in soluk sabit
+    (`stone-300`, `size 12`) kenar chevron'larının yeterince fark
+    edilmediğini bildirdi. Chevron'lar büyüdü (`size 12 → 18`) ve yöne
+    göre renklendirildi (sol `#fca5a5` soluk kırmızı = azalt/sil, sağ
+    `#6ee7b7` soluk emerald = artır — tasarım sistemindeki hata/birincil
+    renk çağrışımlarıyla tutarlı). Daha önemlisi: artık SADECE ilk
+    satırdaki tek seferlik "peek" değil, HER satırda SÜREKLİ bir soluk
+    nefes alma (opacity 0.4↔1, `Animated.loop`, `useNativeDriver: true`,
+    900ms) animasyonu var — kaydırma artık kalıcı olarak fark ediliyor,
+    tek seferlik ilk-açılış ipucuyla sınırlı değil.
+  - **Doğrulama notu:** chevron animasyon LOOP'unun kendisi web
+    önizlemesinde gözlemlenemedi (react-native-web'in `useNativeDriver`
+    desteği platform farkı gösterebiliyor, bkz. MVP-9 dersi) — statik
+    stiller (boyut, renk, opaklık başlangıç değeri) DOM'da doğrulandı,
+    animasyonun gerçek akıcılığı cihazda kontrol edilmeli.
+- **Kaydırma sistemi tamamen kaldırıldı, bölümler tekrar yan yana
+  (MVP-20, 2026-07-11):** kullanıcı miktar (`qty`) bilgisinin UI'da
+  gösterilmesine gerek olmadığına karar verdi ("bilgi olarak arkada
+  tutulabilir" — `item.qty` veri modelinde/store'da AYNEN KALIYOR,
+  sadece render edilmiyor); miktar gösterilmeyince onu değiştirecek bir
+  kaydırma yönlendirmesine de gerek kalmadığını belirtti. Sonuç:
+  - **`ProductCard` tamamen statikleşti:** MVP-18/19'un TÜM kaydırma
+    kodu (`PanResponder`, `Animated.Value`/`translateX`, chevron
+    `Animated.loop` nefes alma animasyonu, tek seferlik "peek" ipucu,
+    `AsyncStorage` bayrağı `yemek-app-swipe-hint-seen`) SİLİNDİ. Kart
+    artık sadece `[şerit] [ad, flex-1] [silme kutusu]` + (varsa) marka
+    satırı — hiç hook/animasyon yok, tamamen statik bir View ağacı.
+    `onIncrement`/`onDecrement` prop'ları `ProductCard`/`CategoryColumn`
+    imzalarından TAMAMEN kalktı.
+  - **Store'a DOKUNULMADI:** `incrementQty`/`decrementQty` action'ları
+    `store/inventoryStore.ts`'te SİLİNMEDİ — "emin olunamayan ürünler"
+    modalı (`InventoryList`/`InventoryRow`, MVP-10'dan beri ayrı tutulan
+    render yolu) hâlâ bu action'ları kullanıyor, `MutfagimScreen`'deki
+    `incrementQty`/`decrementQty` store seçicileri o modal için KALDI —
+    sadece ana listeye (`CategoryColumn`/`ProductCard`) geçirilmekten
+    çıkarıldılar.
+  - **Bölümler tekrar YAN YANA:** `chunkPairs` geri getirildi
+    (`app/(tabs)/index.tsx`), kategori bölümleri MVP-17/19-öncesi gibi
+    2'li grid'de (`flex-row gap-3`, tek sayıda bölümde boş `flex-1`
+    hücre). Kullanıcının gerekçesi: kart artık miktar metni/kaydırma
+    taşımadığı için (sadece ad + silme kutusu) dar sütunda daha rahat
+    sığıyor. MVP-19'un arka plan renkleri (`GROUP_BACKGROUND_COLORS`,
+    krem dahil) ve başlık chip stili (`bg-white/60`) DEĞİŞMEDİ, aynen
+    korundu — sadece yerleşim yönü (alt alta → yan yana) değişti. Uzun
+    ürün adları (`numberOfLines={1}`) yine dar sütunda kısalabilir —
+    bu MVP-17'de sorun olarak bildirilmişti, MVP-20'de kullanıcı bu
+    trade-off'u bilerek tekrar tercih etti (kart artık daha az bilgi
+    taşıdığı için kabul edilebilir görüldü).
 
 ## Veritabanı şeması (Supabase)
 
@@ -275,7 +453,13 @@ tarafında garanti ettiği için parser kırılganlığı sınıfça ortadan kal
   Eski `VIDEO_TABLE_PROMPT`'un markdown tablo, sütun, placeholder satırı,
   konum ve gerekçe talimatlarının TAMAMI kaldırıldı — yapıyı şema garanti
   ediyor, prompt sadece görevi ve isimlendirme kurallarını anlatıyor
-  (çıktı tokeni tasarrufu da cabası).
+  (çıktı tokeni tasarrufu da cabası). **MVP-17 içecek kuralı:** prompt'a
+  "içecekleri (su, gazlı içecek, meyve suyu, ayran, bira...) envantere
+  ALMA; soslar/baharatlar listelenir; süt içecek DEĞİL" maddesi eklendi
+  ve `parseVideoInventoryItems` sonunda `category === 'İçecek'` öğeler
+  düşürülür (emniyet kemeri; sıfır-öğe/parse-hatası kontrolünden SONRA
+  uygulanır ki sadece içecek içeren yanıt "tekrar dene" hatasına
+  dönüşmesin) — bkz. "Tasarım sistemi" MVP-17 maddesi (kapsam kararları).
 - **Çağrı** (`extractInventoryFromVideoNative`, `gemini-provider.ts`):
   TEK istek, `systemInstruction` KULLANILMAZ (talimat tek `user` mesajının
   `text` parçası). `config`: `temperature: 0.2`

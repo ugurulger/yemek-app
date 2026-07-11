@@ -25,14 +25,18 @@ const CONFIDENCE_THRESHOLD = 90;
 // görüntülemede 5 üst gruba birleştirilir — sadece GÖRÜNTÜLEME gruplaması,
 // yeni bir API çağrısı/şema değişikliği gerekmez, ham `item.category` aynen
 // saklanır.
-type CategoryGroup = 'Süt & Peynir' | 'Et & Şarküteri' | 'Meyve & Sebze' | 'İçecek & Sos' | 'Diğer';
+type CategoryGroup = 'Süt & Peynir' | 'Et & Şarküteri' | 'Meyve & Sebze' | 'Sos & Baharat' | 'Diğer';
 
+// MVP-17: içecekler artık envantere alınmıyor (video akışında prompt kuralı +
+// parse filtresi, bkz. services/vision/prompt.ts) — "İçecek & Sos" grubu
+// "Sos & Baharat" oldu. 'İçecek' anahtarı tip gereği kalıyor; store'da kalmış
+// eski içecek kayıtları için "Diğer"e düşen bir geri-dönüş.
 const CATEGORY_GROUPS: Record<InventoryCategory, CategoryGroup> = {
   'Süt Ürünleri': 'Süt & Peynir',
   Peynir: 'Süt & Peynir',
   Şarküteri: 'Et & Şarküteri',
-  İçecek: 'İçecek & Sos',
-  'Sos & Baharat': 'İçecek & Sos',
+  İçecek: 'Diğer',
+  'Sos & Baharat': 'Sos & Baharat',
   'Meyve & Sebze': 'Meyve & Sebze',
   Diğer: 'Diğer',
 };
@@ -41,7 +45,7 @@ const GROUP_ORDER: CategoryGroup[] = [
   'Süt & Peynir',
   'Et & Şarküteri',
   'Meyve & Sebze',
-  'İçecek & Sos',
+  'Sos & Baharat',
   'Diğer',
 ];
 
@@ -49,19 +53,24 @@ const GROUP_LABELS: Record<CategoryGroup, string> = {
   'Süt & Peynir': '🥛 Süt & Peynir',
   'Et & Şarküteri': '🍖 Et & Şarküteri',
   'Meyve & Sebze': '🥦 Meyve & Sebze',
-  'İçecek & Sos': '🥤 İçecek & Sos',
+  'Sos & Baharat': '🧂 Sos & Baharat',
   Diğer: '🗂️ Diğer',
 };
 
-// Kart başına tabak/çatal ikonu yerine kullanılan sol renkli şerit — tasarım
-// sistemindeki emerald-900/amber-500 paletinin ton varyasyonları (bkz.
-// SKILL.md "Tasarım sistemi"), yeni bir renk ailesi İCAT EDİLMEDİ.
-const GROUP_STRIPE_COLORS: Record<CategoryGroup, string> = {
-  'Süt & Peynir': '#064e3b', // emerald-900
-  'Et & Şarküteri': '#f59e0b', // amber-500
-  'Meyve & Sebze': '#10b981', // emerald-500
-  'İçecek & Sos': '#fcd34d', // amber-300
-  Diğer: '#d6d3d1', // stone-300
+// MVP-19: her kategori bölümü kendi soluk arka plan tonuyla ayırt ediliyor
+// ("dolapta farklı raflar" hissini güçlendirir, kullanıcı isteği — bkz.
+// SKILL.md). Bu 5 ton birbirinden ayırt edilsin diye ayrı bir mini palet —
+// tasarım sistemindeki emerald/amber ana renk ailesinden TÜRETİLMEDİ
+// (türetilseydi Süt & Peynir ve Sos & Baharat aynı aile içinde neredeyse
+// ayırt edilemez olurdu). MVP-21: kart solundaki renkli şerit (eski
+// `GROUP_STRIPE_COLORS`) KALDIRILDI — ürün adı artık doğrudan sola
+// yaslanıyor, bu arka plan tonu artık kategori ayrımını TEK BAŞINA taşıyor.
+const GROUP_BACKGROUND_COLORS: Record<CategoryGroup, string> = {
+  'Süt & Peynir': '#FAF3E7', // açık krem
+  'Et & Şarküteri': '#F6E8E2', // soluk terracotta
+  'Meyve & Sebze': '#EAF3EA', // soluk adaçayı yeşili
+  'Sos & Baharat': '#F5EFD6', // soluk hardal/altın
+  Diğer: '#F3F1EE', // soluk taş grisi
 };
 
 // asset.mimeType yoksa uzantıdan tahmin için — özellikle iOS galerisinden
@@ -118,79 +127,106 @@ function groupItemsByCategoryGroup(
   }));
 }
 
+// MVP-20: kaydırma (swipe) sistemi TAMAMEN kaldırıldı — kullanıcı miktar
+// bilgisinin UI'da gösterilmesine gerek olmadığına karar verdi (`item.qty`
+// veri modelinde/store'da KALIYOR, sadece render edilmiyor); miktar
+// gösterilmeyince onu değiştirecek bir kaydırma yönlendirmesine de gerek
+// kalmadı. MVP-18/19'un `PanResponder`/`Animated`/chevron/peek-hint
+// mekanizmasının TAMAMI silindi — kart artık tamamen statik: `[şerit] [ad]
+// [silme kutusu]` + (varsa) marka satırı. `onIncrement`/`onDecrement` bu
+// bileşenden TAMAMEN kalktı (store'daki `incrementQty`/`decrementQty`
+// action'ları SİLİNMEDİ — "emin olunamayan ürünler" modalı
+// (`InventoryList`/`InventoryRow`, bkz. altta) hâlâ kullanıyor).
+//
 // MVP-10 (Bölüm B): ana kategorili listenin kart görünümü — tabak/çatal
-// ikonu YOK (yerine sol renkli şerit), confidence rozeti YOK (bu liste zaten
-// CONFIDENCE_THRESHOLD'un üzerindeki ürünleri gösterir, bkz. yukarıda).
-// `components/inventory/InventoryRow.tsx` bu görev kapsamı dışında
-// tutulduğu (SADECE index.tsx'in render/stil katmanı) için kart burada
-// YEREL olarak tanımlanır — "emin olunamayan ürünler" modalı hâlâ mevcut
-// `InventoryList`/`InventoryRow`'u (ikon + confidence rozetiyle) kullanır,
-// bilinçli olarak DEĞİŞTİRİLMEDİ.
+// ikonu YOK, confidence rozeti YOK (bu liste zaten CONFIDENCE_THRESHOLD'un
+// üzerindeki ürünleri gösterir, bkz. yukarıda). `components/inventory/
+// InventoryRow.tsx` bu görev kapsamı dışında tutulduğu (SADECE
+// index.tsx'in render/stil katmanı) için kart burada YEREL olarak
+// tanımlanır — "emin olunamayan ürünler" modalı hâlâ mevcut
+// `InventoryList`/`InventoryRow`'u (ikon + confidence rozetiyle, VE +/-
+// butonlarıyla) kullanır, bilinçli olarak DEĞİŞTİRİLMEDİ.
+//
+// MVP-21: sol renkli şerit (MVP-10'dan beri vardı) KALDIRILDI — ürün adı
+// artık doğrudan kartın sol kenarına yaslanıyor. Kategori ayrımı artık
+// TAMAMEN `CategoryColumn`'ın arka plan tonuna (MVP-19) bırakıldı.
 function ProductCard({
   item,
-  stripeColor,
-  onIncrement,
-  onDecrement,
   onDelete,
 }: {
   item: InventoryItem;
-  stripeColor: string;
-  onIncrement: (id: string) => void;
-  onDecrement: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const isAtMin = item.qty <= 1;
-  const formattedQty = Number.isInteger(item.qty) ? item.qty.toString() : item.qty.toFixed(1);
-
   return (
-    <View className="flex-row items-center py-3">
-      <View className="mr-3 h-10 w-1.5 rounded-full" style={{ backgroundColor: stripeColor }} />
-      <View className="flex-1">
-        <Text className="text-base text-stone-900" style={{ fontFamily: 'Outfit_600SemiBold' }}>
+    <View className="py-2">
+      <View className="flex-row items-center">
+        <Text
+          numberOfLines={1}
+          className="flex-1 text-base text-stone-900"
+          style={{ fontFamily: 'Outfit_600SemiBold' }}>
           {item.name}
         </Text>
-        {item.brand && (
-          <Text className="text-xs text-stone-400" style={{ fontFamily: 'Outfit_400Regular' }}>
-            {item.brand}
-          </Text>
-        )}
-        <Text className="mt-0.5 text-sm text-stone-500" style={{ fontFamily: 'Outfit_400Regular' }}>
-          {formattedQty} {item.unit}
-        </Text>
-      </View>
-      <View className="flex-row items-center">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${item.name} miktarını azalt`}
-          disabled={isAtMin}
-          onPress={() => onDecrement(item.id)}
-          className={`h-8 w-8 items-center justify-center rounded-full bg-emerald-900 active:scale-95 ${
-            isAtMin ? 'opacity-50' : ''
-          }`}>
-          <Ionicons name="remove" size={16} color="white" />
-        </Pressable>
-        <Text
-          className="mx-2 min-w-[20px] text-center text-sm text-stone-900"
-          style={{ fontFamily: 'Outfit_500Medium' }}>
-          {formattedQty}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${item.name} miktarını artır`}
-          onPress={() => onIncrement(item.id)}
-          className="h-8 w-8 items-center justify-center rounded-full bg-emerald-900 active:scale-95">
-          <Ionicons name="add" size={16} color="white" />
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${item.name} ürününü sil`}
           onPress={() => onDelete(item.id)}
-          className="ml-3 h-8 w-8 items-center justify-center rounded-full active:scale-95">
-          <Ionicons name="trash-outline" size={18} color="#ef4444" />
+          className="ml-2 h-5 w-5 items-center justify-center rounded-full active:scale-95">
+          <Ionicons name="trash-outline" size={14} color="#ef4444" />
         </Pressable>
       </View>
+      {item.brand && (
+        <Text
+          numberOfLines={1}
+          className="text-xs text-stone-400"
+          style={{ fontFamily: 'Outfit_400Regular' }}>
+          {item.brand}
+        </Text>
+      )}
     </View>
   );
+}
+
+// MVP-20: kategori bölümleri tekrar YAN YANA (2'li grid) — bkz.
+// `chunkPairs` kullanımı altta. Kart artık miktar metni/kaydırma
+// taşımadığı için (sadece ad + silme kutusu) dar sütunda daha rahat sığıyor.
+// Arka plan tonu (GROUP_BACKGROUND_COLORS, MVP-19) ve başlık chip'i
+// (`bg-white/60`) DEĞİŞMEDİ. Bölüm içindeki ürünler TEK sütun.
+function CategoryColumn({
+  group,
+  items: groupItems,
+  onDelete,
+}: {
+  group: CategoryGroup;
+  items: InventoryItem[];
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <View
+      className="rounded-2xl px-3 py-3"
+      style={{ backgroundColor: GROUP_BACKGROUND_COLORS[group] }}>
+      <View className="mb-1 self-start rounded-full bg-white/60 px-3 py-1">
+        <Text className="text-sm text-stone-900" style={{ fontFamily: 'Outfit_600SemiBold' }}>
+          {GROUP_LABELS[group]}
+        </Text>
+      </View>
+      {groupItems.map((item, itemIndex) => (
+        <View key={item.id} className={itemIndex > 0 ? 'border-t border-stone-900/5' : ''}>
+          <ProductCard item={item} onDelete={onDelete} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// MVP-17/20: kategori bölümlerini ikişerli satırlara bölüp yan yana
+// göstermek için — tek sayıda bölümde son satırın ikinci hücresi boş kalır
+// (render tarafında boş flex-1 View), son sütun tam genişliğe yayılmaz.
+function chunkPairs<T>(items: T[]): [T, T | undefined][] {
+  const pairs: [T, T | undefined][] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    pairs.push([items[i], items[i + 1]]);
+  }
+  return pairs;
 }
 
 export default function MutfagimScreen() {
@@ -400,36 +436,39 @@ export default function MutfagimScreen() {
           )}
 
           {/* MVP-10 (Bölüm B): tüm kategoriler TEK bir "Buzdolabım" dış
-              kartı içinde, aralarında ince ayraçlarla ayrılan iç bölümler
-              olarak — "dolap ve rafları" hissi. */}
+              kartı içinde — "dolap ve rafları" hissi. MVP-20: bölümler
+              tekrar YAN YANA (2'li grid) — kart artık miktar metni/kaydırma
+              taşımadığı (sadece ad + silme kutusu) için dar sütunda daha
+              rahat sığıyor. Ayraç çizgi değil, her bölümün kendi
+              GROUP_BACKGROUND_COLORS tonu (MVP-19, renk geçişi ayırıyor). */}
           <View className="mb-4 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-stone-200">
             <Text
-              className="mb-1 text-base text-stone-500"
+              className="mb-2 text-base text-stone-500"
               style={{ fontFamily: 'Outfit_500Medium' }}>
               🧊 Buzdolabım
             </Text>
-            {categorizedSections.map(({ group, items: groupItems }, sectionIndex) => (
+            {chunkPairs(categorizedSections).map(([leftSection, rightSection], rowIndex) => (
               <View
-                key={group}
-                className={sectionIndex > 0 ? 'mt-4 border-t border-stone-100 pt-4' : 'mt-2'}>
-                <View className="mb-1 self-start rounded-full bg-stone-100 px-3 py-1">
-                  <Text
-                    className="text-sm text-stone-900"
-                    style={{ fontFamily: 'Outfit_600SemiBold' }}>
-                    {GROUP_LABELS[group]}
-                  </Text>
+                key={leftSection.group}
+                className={`flex-row gap-3 ${rowIndex > 0 ? 'mt-3' : ''}`}>
+                <View className="flex-1">
+                  <CategoryColumn
+                    group={leftSection.group}
+                    items={leftSection.items}
+                    onDelete={removeItem}
+                  />
                 </View>
-                {groupItems.map((item, itemIndex) => (
-                  <View key={item.id} className={itemIndex > 0 ? 'border-t border-stone-50' : ''}>
-                    <ProductCard
-                      item={item}
-                      stripeColor={GROUP_STRIPE_COLORS[group]}
-                      onIncrement={incrementQty}
-                      onDecrement={decrementQty}
+                {rightSection ? (
+                  <View className="flex-1">
+                    <CategoryColumn
+                      group={rightSection.group}
+                      items={rightSection.items}
                       onDelete={removeItem}
                     />
                   </View>
-                ))}
+                ) : (
+                  <View className="flex-1" />
+                )}
               </View>
             ))}
           </View>
