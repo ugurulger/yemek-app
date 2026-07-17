@@ -54,3 +54,6 @@ tests/vision-eval/fixtures/*.png
 tests/vision-eval/fixtures/*.mp4
 tests/vision-eval/fixtures/*.mov
 tests/vision-eval/fixtures/*.MOV
+
+# RAG embed script checkpoint'i (runtime durumu, bkz. scripts/embed-recipes.ts)
+data/.embed-checkpoint.json
