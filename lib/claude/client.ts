@@ -43,6 +43,14 @@ interface ClaudeContentBlock {
   input?: unknown;
 }
 
+export interface ClaudeUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Son sendClaudeMessage çağrısının usage'ı — callClaudeForToolInputWithUsage için. */
+let lastUsage: ClaudeUsage = { inputTokens: 0, outputTokens: 0 };
+
 async function sendClaudeMessage(body: ClaudeMessageRequest): Promise<ClaudeContentBlock[]> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -91,6 +99,12 @@ async function sendClaudeMessage(body: ClaudeMessageRequest): Promise<ClaudeCont
     throw new Error('Claude yanıtında content bulunamadı');
   }
 
+  const usage =
+    typeof data === 'object' && data !== null
+      ? ((data as { usage?: { input_tokens?: number; output_tokens?: number } }).usage ?? {})
+      : {};
+  lastUsage = { inputTokens: usage.input_tokens ?? 0, outputTokens: usage.output_tokens ?? 0 };
+
   return content as ClaudeContentBlock[];
 }
 
@@ -130,4 +144,16 @@ export async function callClaudeForToolInput(
   }
 
   return toolBlock.input as Record<string, unknown>;
+}
+
+/**
+ * `callClaudeForToolInput` ile aynı, ek olarak API'nin döndürdüğü gerçek
+ * token kullanımını da verir — eşleştirme motorunun maliyet raporu
+ * (`MatchRunReport`) gerçek rakamlarla çalışsın diye.
+ */
+export async function callClaudeForToolInputWithUsage(
+  body: ClaudeMessageRequest & { tool_choice: { type: 'tool'; name: string } }
+): Promise<{ input: Record<string, unknown>; usage: ClaudeUsage }> {
+  const input = await callClaudeForToolInput(body);
+  return { input, usage: lastUsage };
 }

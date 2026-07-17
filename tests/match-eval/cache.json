@@ -1,0 +1,500 @@
+{
+ "soğan": {
+  "nlQuery": "uien",
+  "perStore": {
+   "ah": {
+    "sku": "525847",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017755
+   },
+   "jumbo": {
+    "sku": "213007NET",
+    "confidence": 72,
+    "source": "fuzzy",
+    "updatedAt": 1784331017755
+   }
+  }
+ },
+ "domates": {
+  "nlQuery": "tomaten",
+  "perStore": {
+   "ah": {
+    "sku": "4088",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017756
+   },
+   "jumbo": {
+    "sku": "415609BAK",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017756
+   }
+  }
+ },
+ "sarımsak": {
+  "nlQuery": "knoflook",
+  "perStore": {
+   "ah": {
+    "sku": "4160",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   },
+   "jumbo": {
+    "sku": "213178STK",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   }
+  }
+ },
+ "kıyma": {
+  "nlQuery": "gehakt",
+  "perStore": {
+   "ah": {
+    "sku": "4004",
+    "confidence": 95,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   },
+   "jumbo": {
+    "sku": "629761TRA",
+    "confidence": 92,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   }
+  }
+ },
+ "tavuk göğsü": {
+  "nlQuery": "kipfilet",
+  "perStore": {
+   "ah": {
+    "sku": "533083",
+    "confidence": 89,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   },
+   "jumbo": {
+    "sku": "515014BAK",
+    "confidence": 92,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   }
+  }
+ },
+ "patates": {
+  "nlQuery": "aardappelen",
+  "perStore": {
+   "ah": {
+    "sku": "173817",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   },
+   "jumbo": {
+    "sku": "380106ZK",
+    "confidence": 84,
+    "source": "fuzzy",
+    "updatedAt": 1784331017757
+   }
+  }
+ },
+ "havuç": {
+  "nlQuery": "wortelen",
+  "perStore": {
+   "ah": {
+    "sku": "607249",
+    "confidence": 78,
+    "source": "fuzzy",
+    "updatedAt": 1784331017758
+   },
+   "jumbo": {
+    "sku": "196113ZK",
+    "confidence": 72,
+    "source": "fuzzy",
+    "updatedAt": 1784331017758
+   }
+  }
+ },
+ "salatalık": {
+  "nlQuery": "komkommer",
+  "perStore": {
+   "ah": {
+    "sku": "54074",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017758
+   },
+   "jumbo": {
+    "sku": "526991STK",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017758
+   }
+  }
+ },
+ "maydanoz": {
+  "nlQuery": "peterselie",
+  "perStore": {
+   "ah": {
+    "sku": "238971",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017758
+   },
+   "jumbo": {
+    "sku": "581148ZK",
+    "confidence": 72,
+    "source": "fuzzy",
+    "updatedAt": 1784331017758
+   }
+  }
+ },
+ "limon": {
+  "nlQuery": "citroen",
+  "perStore": {
+   "ah": {
+    "sku": "230708",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   },
+   "jumbo": {
+    "sku": "746699STK",
+    "confidence": 72,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   }
+  }
+ },
+ "yumurta": {
+  "nlQuery": "eieren",
+  "perStore": {
+   "ah": {
+    "sku": "619425",
+    "confidence": 81,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   },
+   "jumbo": {
+    "sku": "602645DS",
+    "confidence": 81,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   }
+  }
+ },
+ "süt": {
+  "nlQuery": "melk",
+  "perStore": {
+   "ah": {
+    "sku": "474591",
+    "confidence": 92,
+    "source": "fuzzy",
+    "updatedAt": 1784331029212
+   },
+   "jumbo": {
+    "sku": "771364CAN",
+    "confidence": 89,
+    "source": "fuzzy",
+    "updatedAt": 1784331029212
+   }
+  }
+ },
+ "yoğurt": {
+  "nlQuery": "yoghurt",
+  "perStore": {
+   "ah": {
+    "sku": "370580",
+    "confidence": 86,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   },
+   "jumbo": {
+    "sku": "751912PAK",
+    "confidence": 85,
+    "source": "llm",
+    "updatedAt": 1784331017759
+   }
+  }
+ },
+ "tereyağı": {
+  "nlQuery": "roomboter",
+  "perStore": {
+   "ah": {
+    "sku": "548039",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   },
+   "jumbo": {
+    "sku": "696352STK",
+    "confidence": 84,
+    "source": "fuzzy",
+    "updatedAt": 1784331017759
+   }
+  }
+ },
+ "beyaz peynir": {
+  "nlQuery": "witte kaas",
+  "perStore": {
+   "ah": {
+    "sku": "462708",
+    "confidence": 95,
+    "source": "fuzzy",
+    "updatedAt": 1784331017760
+   },
+   "jumbo": {
+    "sku": "449606CUP",
+    "confidence": 92,
+    "source": "fuzzy",
+    "updatedAt": 1784331017760
+   }
+  }
+ },
+ "kaşar": {
+  "nlQuery": "kasseri",
+  "perStore": {
+   "jumbo": {
+    "sku": "698959PAK",
+    "confidence": 90,
+    "source": "llm",
+    "updatedAt": 1784331017760
+   }
+  }
+ },
+ "krema": {
+  "nlQuery": "kookroom",
+  "perStore": {
+   "ah": {
+    "sku": "509631",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017760
+   },
+   "jumbo": {
+    "sku": "189102STK",
+    "confidence": 81,
+    "source": "fuzzy",
+    "updatedAt": 1784331017760
+   }
+  }
+ },
+ "pirinç": {
+  "nlQuery": "rijst",
+  "perStore": {
+   "ah": {
+    "sku": "197585",
+    "confidence": 95,
+    "source": "fuzzy",
+    "updatedAt": 1784331017760
+   },
+   "jumbo": {
+    "sku": "186364ZK",
+    "confidence": 86,
+    "source": "fuzzy",
+    "updatedAt": 1784331017760
+   }
+  }
+ },
+ "bulgur": {
+  "nlQuery": "bulgur",
+  "perStore": {
+   "ah": {
+    "sku": "202222",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   },
+   "jumbo": {
+    "sku": "391711ZK",
+    "confidence": 87,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   }
+  }
+ },
+ "kırmızı mercimek": {
+  "nlQuery": "rode linzen",
+  "perStore": {
+   "ah": {
+    "sku": "437645",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   },
+   "jumbo": {
+    "sku": "711097ZK",
+    "confidence": 84,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   }
+  }
+ },
+ "nohut": {
+  "nlQuery": "kikkererwten",
+  "perStore": {
+   "ah": {
+    "sku": "569513",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   },
+   "jumbo": {
+    "sku": "599258PAK",
+    "confidence": 87,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   }
+  }
+ },
+ "makarna": {
+  "nlQuery": "pasta",
+  "perStore": {
+   "ah": {
+    "sku": "477905",
+    "confidence": 75,
+    "source": "llm",
+    "updatedAt": 1784331017761
+   },
+   "jumbo": {
+    "sku": "717448ZK",
+    "confidence": 81,
+    "source": "fuzzy",
+    "updatedAt": 1784331017761
+   }
+  }
+ },
+ "un": {
+  "nlQuery": "bloem",
+  "perStore": {
+   "ah": {
+    "sku": "36783",
+    "confidence": 95,
+    "source": "fuzzy",
+    "updatedAt": 1784331017762
+   },
+   "jumbo": {
+    "sku": "170327ZK",
+    "confidence": 95,
+    "source": "fuzzy",
+    "updatedAt": 1784331017762
+   }
+  }
+ },
+ "zeytinyağı": {
+  "nlQuery": "olijfolie",
+  "perStore": {
+   "ah": {
+    "sku": "429754",
+    "confidence": 89,
+    "source": "fuzzy",
+    "updatedAt": 1784331017762
+   },
+   "jumbo": {
+    "sku": "357162FLS",
+    "confidence": 89,
+    "source": "fuzzy",
+    "updatedAt": 1784331017762
+   }
+  }
+ },
+ "salça": {
+  "nlQuery": "tomatenpuree",
+  "perStore": {
+   "ah": {
+    "sku": "2226",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017762
+   },
+   "jumbo": {
+    "sku": "711236BLK",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017762
+   }
+  }
+ },
+ "pul biber": {
+  "nlQuery": "chilivlokken",
+  "perStore": {
+   "ah": {
+    "sku": "234759",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017763
+   },
+   "jumbo": {
+    "sku": "188343POT",
+    "confidence": 72,
+    "source": "fuzzy",
+    "updatedAt": 1784331017763
+   }
+  }
+ },
+ "yufka": {
+  "nlQuery": "filodeeg",
+  "perStore": {
+   "ah": {
+    "sku": "66154",
+    "confidence": 72,
+    "source": "fuzzy",
+    "updatedAt": 1784331017763
+   },
+   "jumbo": {
+    "sku": "971162PAK",
+    "confidence": 95,
+    "source": "llm",
+    "updatedAt": 1784331017763
+   }
+  }
+ },
+ "sucuk": {
+  "nlQuery": "sucuk",
+  "perStore": {
+   "ah": {
+    "sku": "586331",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017763
+   },
+   "jumbo": {
+    "sku": "614692PAK",
+    "confidence": 84,
+    "source": "fuzzy",
+    "updatedAt": 1784331017763
+   }
+  }
+ },
+ "nar ekşisi": {
+  "nlQuery": "granaatappelmelasse",
+  "perStore": {
+   "ah": {
+    "sku": "470623",
+    "confidence": 75,
+    "source": "fuzzy",
+    "updatedAt": 1784331017763
+   }
+  }
+ },
+ "tel şehriye": {
+  "nlQuery": "vermicelli",
+  "perStore": {
+   "ah": {
+    "sku": "3325",
+    "confidence": 90,
+    "source": "fuzzy",
+    "updatedAt": 1784331017764
+   },
+   "jumbo": {
+    "sku": "484837ZK",
+    "confidence": 87,
+    "source": "fuzzy",
+    "updatedAt": 1784331017764
+   }
+  }
+ }
+}
