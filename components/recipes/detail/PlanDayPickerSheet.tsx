@@ -1,7 +1,12 @@
 import { Pressable, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui';
+import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
+import { useCartStore } from '@/store/cartStore';
+import { useInventoryStore } from '@/store/inventoryStore';
+import { usePantryStore } from '@/store/pantryStore';
 import { PLAN_DAYS, usePlanStore, type PlanDay } from '@/store/planStore';
+import { showToast } from '@/store/toastStore';
 import type { Recipe } from '@/types/recipe';
 
 export interface PlanDayPickerSheetProps {
@@ -35,6 +40,9 @@ export default function PlanDayPickerSheet({
 }: PlanDayPickerSheetProps) {
   const plan = usePlanStore((state) => state.plan);
   const addToPlan = usePlanStore((state) => state.addToPlan);
+  const inventoryItems = useInventoryStore((state) => state.items);
+  const pantryItems = usePantryStore((state) => state.items);
+  const syncRecipeMissing = useCartStore((state) => state.syncRecipeMissing);
 
   const handleSelectDay = (day: PlanDay) => {
     addToPlan(day, {
@@ -45,6 +53,18 @@ export default function PlanDayPickerSheet({
       meal: 'Akşam',
       servings,
     });
+    // Plan → sepet otomasyonu (kullanıcı kararı): planlanan tarifin CANLI
+    // eksikleri otomatik markete yazılır — manuel "sepete ekle" adımı yok.
+    // syncRecipeMissing tarif bazlı DEĞİŞTİRDİĞİ için aynı tarif ikinci bir
+    // güne planlansa da katkı bir kez sayılır; farklı tariflerin ortak
+    // eksikleri market ekranında mergeCartEntries ile tek satırda toplanır.
+    const missing = buildCartMissingInput(recipe, servings, inventoryItems, pantryItems);
+    if (missing.length > 0) {
+      syncRecipeMissing(recipe.name, missing);
+      showToast('Plana eklendi · eksikler markete yazıldı');
+    } else {
+      showToast('Plana eklendi');
+    }
     onClose();
   };
 

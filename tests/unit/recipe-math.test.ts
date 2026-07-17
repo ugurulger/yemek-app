@@ -101,6 +101,19 @@ test('scaleServings: miktar ve tekil kcal orantılanır, orijinal değişmez', (
   assert.equal(r.ingredients[0].qty, 400);
 });
 
+test('scaleServings: kalori ve makrolar malzemelerle AYNI çarpanla ölçeklenir', () => {
+  const r = recipe([ing('Tavuk')], 2); // kcal 400, protein 20, karb 30, yağ 10
+  const doubled = scaleServings(r, 4);
+  assert.equal(doubled.kcal, 800);
+  assert.deepEqual(doubled.macros, { protein: 40, karb: 60, yag: 20 });
+  const halved = scaleServings(r, 1);
+  assert.equal(halved.kcal, 200);
+  assert.deepEqual(halved.macros, { protein: 10, karb: 15, yag: 5 });
+  // Orijinal tarif nesnesi değişmedi:
+  assert.equal(r.kcal, 400);
+  assert.equal(r.macros.protein, 20);
+});
+
 test('scaleServings: küçültme yönü ve yuvarlama (2→1 kişi)', () => {
   const r = recipe([ing('Süt', { qty: 1, unit: 'su bardağı', kcal: 90 })], 2);
   const scaled = scaleServings(r, 1);

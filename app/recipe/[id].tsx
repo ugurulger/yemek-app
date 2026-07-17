@@ -176,12 +176,13 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     savedRecipeIds.includes(recipe.id) ||
     cookbooks.some((cookbook) => cookbook.recipeIds.includes(recipe.id));
 
-  /** Market butonu: canlı eksikleri sepete yazar; eksik yoksa sepete dokunmaz. */
+  /**
+   * Market butonu: canlı eksikleri sepete yazar. Eksik yoksa ("hemen
+   * yapabilirsin") buton disabled/sönük olduğu için hiç çağrılmaz.
+   */
+  const hasMissing = missingIngredients.length > 0;
   const handleMarketPress = () => {
-    if (missingIngredients.length === 0) {
-      showToast('Tüm malzemeler evinde var 🎉');
-      return;
-    }
+    if (!hasMissing) return;
     syncRecipeMissing(
       recipe.name,
       buildCartMissingInput(recipe, servings, inventoryItems, pantryItems)
@@ -216,14 +217,15 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     }
   };
 
+  // Besin değerleri kişi sayısıyla ÖLÇEKLİ gösterilir (malzemelerle aynı çarpan).
   const macroPills = [
-    { label: `Protein ${recipe.macros.protein}g`, dot: colors.macroProtein },
-    { label: `Karb ${recipe.macros.karb}g`, dot: colors.macroKarb },
-    { label: `Yağ ${recipe.macros.yag}g`, dot: colors.macroYag },
+    { label: `Protein ${scaled.macros.protein}g`, dot: colors.macroProtein },
+    { label: `Karb ${scaled.macros.karb}g`, dot: colors.macroKarb },
+    { label: `Yağ ${scaled.macros.yag}g`, dot: colors.macroYag },
   ];
 
   /** Bilgi satırı parçaları — minimal muted metin, `·` ayraçlı (referans SCREEN 3). */
-  const infoParts = [`${recipe.kcal} kcal`, `${recipe.time_min} dk`, recipe.difficulty];
+  const infoParts = [`${scaled.kcal} kcal`, `${recipe.time_min} dk`, recipe.difficulty];
 
   return (
     <SafeAreaView className="flex-1 bg-cream" edges={['top', 'bottom']}>
@@ -311,9 +313,13 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Eksik malzemeleri markete ekle"
+                accessibilityLabel={
+                  hasMissing ? 'Eksik malzemeleri markete ekle' : 'Eksik malzeme yok'
+                }
+                accessibilityState={{ disabled: !hasMissing }}
+                disabled={!hasMissing}
                 onPress={handleMarketPress}
-                className="w-[70px] items-center active:scale-95">
+                className={`w-[70px] items-center ${hasMissing ? 'active:scale-95' : 'opacity-35'}`}>
                 <View
                   className="h-[52px] w-[52px] items-center justify-center rounded-full"
                   style={ACTION_CIRCLE_STYLE}>
@@ -414,6 +420,14 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
               className="flex-1 py-1 font-sans text-[14px] text-ink"
               returnKeyType="send"
               onSubmitEditing={() => handleSend()}
+              // "Şefe bir şey sor"a basınca sayfa chat'in olduğu en alta kayar;
+              // focus native olarak inputta kalır (ayrı ekran/modal yok). Küçük
+              // gecikme şart: focus'un kendi scroll ayarlaması animasyonlu
+              // scrollToEnd'i iptal ediyor (web önizlemesinde doğrulandı);
+              // native'de de klavye açılışıyla yarışmasını önler.
+              onFocus={() => {
+                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+              }}
               accessibilityLabel="Şefe soru yaz"
             />
             <Pressable

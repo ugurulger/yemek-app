@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import PlanDayRow from '@/components/plan/PlanDayRow';
-import { countPlannedMeals, PLAN_DAYS, usePlanStore } from '@/store/planStore';
+import { useCartStore } from '@/store/cartStore';
+import { countPlannedMeals, PLAN_DAYS, usePlanStore, type PlanDay } from '@/store/planStore';
 
 /**
  * Planlama — haftalık yemek ajandası (spec: Mutfagim.dc.html SCREEN 6).
@@ -19,6 +20,25 @@ export default function PlanScreen() {
   const removeFromPlan = usePlanStore((state) => state.removeFromPlan);
 
   const totalMeals = countPlannedMeals(plan);
+
+  /**
+   * Plan → sepet otomasyonu: tarif plandan çıkarılınca, BAŞKA planlı girdisi
+   * kalmadıysa yalnızca o tarifin sepet katkısı düşer (sepet kayıtları tarif
+   * bazlı olduğu için diğer tariflerin ortak malzemeleri sepette kalır).
+   */
+  const handleRemoveEntry = (day: PlanDay, index: number) => {
+    const entry = plan[day][index];
+    removeFromPlan(day, index);
+    if (!entry) return;
+    const stillPlanned = PLAN_DAYS.some((d) =>
+      plan[d].some(
+        (other, i) => other.recipeId === entry.recipeId && !(d === day && i === index)
+      )
+    );
+    if (!stillPlanned) {
+      useCartStore.getState().removeRecipe(entry.name);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
@@ -44,7 +64,7 @@ export default function PlanScreen() {
               day={day}
               entries={plan[day]}
               onPressEntry={(entry) => router.push(`/recipe/${entry.recipeId}`)}
-              onRemoveEntry={(index) => removeFromPlan(day, index)}
+              onRemoveEntry={(index) => handleRemoveEntry(day, index)}
             />
           ))}
         </View>
