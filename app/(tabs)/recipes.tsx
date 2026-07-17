@@ -18,6 +18,7 @@ import {
   RecipeGenerationError,
   type RecipeLayerId,
 } from '@/lib/claude/generateRecipes';
+import { generateRecipesRag, RAG_ENABLED } from '@/lib/rag/generateRecipesRag';
 import { cardShadow, colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
@@ -88,7 +89,12 @@ export default function TariflerScreen() {
     setSlots([]);
     setIsGenerating(true);
     try {
-      const merged = await generateRecipesTwoPhase(inventoryItems, {
+      // RAG feature flag (BLOK A / A6): EXPO_PUBLIC_USE_RAG=true iken üretim
+      // Supabase edge function'ına gider (tek çağrı, canlı slot gösterimi yok —
+      // ekran genel iskeletlerde bekler); kapalıyken mevcut akış AYNEN çalışır.
+      const merged = RAG_ENABLED
+        ? await generateRecipesRag(inventoryItems, { preferences, activePantryNames })
+        : await generateRecipesTwoPhase(inventoryItems, {
         // Tercihler + aktif kiler üretim promptuna girer (servis kontratı —
         // bkz. services/contracts.ts, GenerateRecipesOptions).
         preferences,
