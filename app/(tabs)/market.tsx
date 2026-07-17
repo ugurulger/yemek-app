@@ -1,13 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 
 import { CartCategorySection } from '@/components/cart/CartCategorySection';
+import ProductMatchSheet from '@/components/cart/ProductMatchSheet';
+import { StoreComparisonCard } from '@/components/cart/StoreComparisonCard';
 import { PrimaryButton } from '@/components/ui';
+import { useCartMatches } from '@/lib/market/useCartMatches';
 import { colors } from '@/lib/theme';
+import type { StoreId, StoreProduct } from '@/services/stores/types';
 import { mergeCartEntries, useCartStore } from '@/store/cartStore';
+import { useMarketMatchStore } from '@/store/marketMatchStore';
+import { showToast } from '@/store/toastStore';
 import type { CartItemView } from '@/types/cart';
 import { INGREDIENT_CATEGORIES, type IngredientCategory } from '@/types/recipe';
 
@@ -62,6 +68,24 @@ export default function MarketScreen() {
   const checkedCount = items.filter((item) => item.checked).length;
   const allChecked = !isEmpty && checkedCount === items.length;
 
+  // AH/Jumbo fiyat karşılaştırması — sepet değişince otomatik koşar.
+  const { byKey, totals, status, refresh } = useCartMatches(items);
+  const applyCorrection = useMarketMatchStore((state) => state.applyCorrection);
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const detailItem = detailKey ? (items.find((item) => item.key === detailKey) ?? null) : null;
+
+  const handleSelectAlternative = (storeId: StoreId, product: StoreProduct) => {
+    if (detailKey) {
+      applyCorrection(detailKey, storeId, product);
+      showToast('Eşleşme güncellendi');
+    }
+  };
+
+  const handlePressStore = (_storeId: StoreId) => {
+    // Faz 4'te deeplink (lib/market/storeLinks) bağlanacak.
+    showToast('Mağaza yönlendirmesi yakında');
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
       {/* Başlık — referans 336-337: h1 500 34px Newsreader, margin 6 üst 2 alt;
@@ -82,6 +106,14 @@ export default function MarketScreen() {
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 24 }}>
+            {/* AH vs Jumbo toplam karşılaştırması. */}
+            <StoreComparisonCard
+              totals={totals}
+              status={status}
+              onPressStore={handlePressStore}
+              onRetry={refresh}
+            />
+
             {/* Grid — referans 339: 2 sütun, gap 12, üstten hizalı. */}
             <View className="flex-row items-start gap-3 px-5">
               <View className="flex-1 gap-3">
@@ -91,6 +123,8 @@ export default function MarketScreen() {
                     title={section.category}
                     items={section.items}
                     onToggle={toggleChecked}
+                    matchesByKey={byKey}
+                    onPressDetails={setDetailKey}
                   />
                 ))}
               </View>
@@ -101,6 +135,8 @@ export default function MarketScreen() {
                     title={section.category}
                     items={section.items}
                     onToggle={toggleChecked}
+                    matchesByKey={byKey}
+                    onPressDetails={setDetailKey}
                   />
                 ))}
               </View>
@@ -121,6 +157,14 @@ export default function MarketScreen() {
               />
             )}
           </View>
+
+          <ProductMatchSheet
+            visible={detailKey !== null}
+            onClose={() => setDetailKey(null)}
+            item={detailItem}
+            match={detailKey ? byKey[detailKey]?.match : undefined}
+            onSelect={handleSelectAlternative}
+          />
         </>
       )}
     </SafeAreaView>

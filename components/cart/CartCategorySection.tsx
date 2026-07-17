@@ -3,9 +3,15 @@ import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { SectionLabel } from '@/components/ui';
+import { formatPriceCents } from '@/lib/market/format';
+import type { CartMatchView } from '@/lib/market/useCartMatches';
 import { formatQty } from '@/lib/recipes/recipe-math';
 import { cardShadow, colors } from '@/lib/theme';
+import { STORE_IDS, type StoreId } from '@/services/stores/types';
 import type { CartItemView } from '@/types/cart';
+
+/** Satır içi fiyat şeridindeki kısa mağaza adları. */
+const STORE_SHORT_NAMES: Record<StoreId, string> = { ah: 'AH', jumbo: 'Jumbo' };
 
 /** Görselde birimler kısaltılmış görünür ("4 ad") — sadece bilinenler kısalır. */
 const UNIT_ABBREVIATIONS: Record<string, string> = {
@@ -22,6 +28,10 @@ export interface CartCategorySectionProps {
   title: string;
   items: CartItemView[];
   onToggle: (key: string) => void;
+  /** AH/Jumbo eşleşme görünümleri (satır anahtarıyla) — verilmezse fiyat şeridi çizilmez. */
+  matchesByKey?: Record<string, CartMatchView>;
+  /** Fiyat şeridine/uyarı ikonuna dokununca (alternatif ürün sheet'i açılır). */
+  onPressDetails?: (key: string) => void;
 }
 
 /**
@@ -31,7 +41,13 @@ export interface CartCategorySectionProps {
  * Etiket kartın DIŞINDA (600 10px uppercase ls .5, mb 7); kart beyaz,
  * radius 16, padding 2px 12px, gölge 0 2px 10px -4px rgba(31,74,61,.12).
  */
-export function CartCategorySection({ title, items, onToggle }: CartCategorySectionProps) {
+export function CartCategorySection({
+  title,
+  items,
+  onToggle,
+  matchesByKey,
+  onPressDetails,
+}: CartCategorySectionProps) {
   return (
     <View>
       {/* NativeWind'in `uppercase` sınıfı Türkçe i/İ dönüşümünü garanti etmez —
@@ -41,7 +57,13 @@ export function CartCategorySection({ title, items, onToggle }: CartCategorySect
       </SectionLabel>
       <View className="rounded-2xl bg-white px-3 py-[2px]" style={cardShadow}>
         {items.map((item) => (
-          <CartItemRow key={item.key} item={item} onToggle={() => onToggle(item.key)} />
+          <CartItemRow
+            key={item.key}
+            item={item}
+            onToggle={() => onToggle(item.key)}
+            matchView={matchesByKey?.[item.key]}
+            onPressDetails={onPressDetails ? () => onPressDetails(item.key) : undefined}
+          />
         ))}
       </View>
     </View>
@@ -51,6 +73,59 @@ export function CartCategorySection({ title, items, onToggle }: CartCategorySect
 interface CartItemRowProps {
   item: CartItemView;
   onToggle: () => void;
+  matchView?: CartMatchView;
+  onPressDetails?: () => void;
+}
+
+/**
+ * Satır altındaki kompakt fiyat şeridi: "AH €1,29 · Jumbo €1,15" — ucuz
+ * mağaza forest/semibold, eşleşmeyen taraf "—". Düşük güvenli eşleşme amber
+ * uyarı ikonu taşır; dokunmak alternatif ürün sheet'ini açar (checkbox
+ * jesti satır gövdesinde kalır, bu şerit AYRI pressable).
+ */
+function PriceStrip({ matchView, onPressDetails }: { matchView: CartMatchView; onPressDetails?: () => void }) {
+  const { match, loading, lowConfidence } = matchView;
+  if (loading) {
+    return <Text className="mt-[3px] font-sans text-[9.5px] text-muted">Fiyatlar alınıyor…</Text>;
+  }
+  if (!match) {
+    return null;
+  }
+  const prices = STORE_IDS.map((storeId) => ({
+    storeId,
+    cents: match.perStore[storeId]?.product.priceCents ?? null,
+  }));
+  const pricedValues = prices.filter((p) => p.cents != null).map((p) => p.cents!);
+  const minPrice = pricedValues.length > 0 ? Math.min(...pricedValues) : null;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Ürün eşleşmesini gör ve değiştir"
+      onPress={onPressDetails}
+      hitSlop={6}
+      className="mt-[3px] flex-row items-center gap-[5px] active:opacity-60">
+      {prices.map(({ storeId, cents }, index) => {
+        const isCheapest = cents != null && cents === minPrice && pricedValues.length > 1;
+        return (
+          <View key={storeId} className="flex-row items-center gap-[5px]">
+            {index > 0 ? <Text className="font-sans text-[9.5px] text-muted">·</Text> : null}
+            <Text
+              className={
+                isCheapest
+                  ? 'font-sans-semibold text-[9.5px] text-forest'
+                  : 'font-sans text-[9.5px] text-muted'
+              }>
+              {STORE_SHORT_NAMES[storeId]} {cents != null ? formatPriceCents(cents) : '—'}
+            </Text>
+          </View>
+        );
+      })}
+      {lowConfidence ? (
+        <Ionicons name="alert-circle-outline" size={11} color={colors.amberText} />
+      ) : null}
+    </Pressable>
+  );
 }
 
 /**
@@ -58,7 +133,7 @@ interface CartItemRowProps {
  * 1px üst çizgi rgba(31,74,61,.07). Checkbox 19×19 r6 (boxStyle, 914);
  * ad 500 12.5px (nameStyle, 915); miktar 600 10.5px; tarif etiketi 9.5px.
  */
-function CartItemRow({ item, onToggle }: CartItemRowProps) {
+function CartItemRow({ item, onToggle, matchView, onPressDetails }: CartItemRowProps) {
   // 2'den fazla kaynak tarif tek pill'e katlanır: "3 tarif".
   const pills =
     item.recipeNames.length > 2 ? [`${item.recipeNames.length} tarif`] : item.recipeNames;
@@ -106,6 +181,8 @@ function CartItemRow({ item, onToggle }: CartItemRowProps) {
             ))}
           </View>
         ) : null}
+
+        {matchView ? <PriceStrip matchView={matchView} onPressDetails={onPressDetails} /> : null}
       </View>
     </Pressable>
   );
