@@ -8,7 +8,10 @@
     "scheme": "yemekapp",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["instagram"]
+      }
     },
     "android": {
       "adaptiveIcon": {
