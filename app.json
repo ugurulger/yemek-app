@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["appie", "jumbo"]
+"LSApplicationQueriesSchemes": ["appie", "jumbo", "instagram"]
       }
     },
     "android": {

@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { Linking } from 'react-native';
 
 import { SAMPLE_INSTAGRAM_RECIPE, SAMPLE_WEB_RECIPE } from '@/lib/recipes/sample-imports';
 import { useCookbookStore } from '@/store/cookbookStore';
 import type { Recipe } from '@/types/recipe';
 
+import { AddEntrySheet } from './AddEntrySheet';
 import { AddRecipeMenuSheet } from './AddRecipeMenuSheet';
+import { CreateCookbookSheet } from './CreateCookbookSheet';
 import { InstagramEduSheet } from './InstagramEduSheet';
-import { InstagramFeedScreen } from './InstagramFeedScreen';
 import { InstagramLaunchScreen } from './InstagramLaunchScreen';
 import { SocialPlatformSheet } from './SocialPlatformSheet';
 import { WebImportScreen } from './WebImportScreen';
@@ -17,38 +19,53 @@ export interface ImportFlowProps {
   onClose: () => void;
 }
 
-/** Akış adımları — referans addFlow state'inin karşılığı (Mutfagim.dc.html 1061-1077). */
-type ImportFlowStep = 'menu' | 'social' | 'ig-edu' | 'ig-launch' | 'ig-feed' | 'web';
+/**
+ * Akış adımları — giriş referansı design/Tarif_ekle/IMG_8473.PNG
+ * (Add a Recipe / Add a Cookbook), sonrası referans addFlow state'i.
+ */
+type ImportFlowStep = 'entry' | 'cookbook' | 'menu' | 'social' | 'ig-edu' | 'ig-launch' | 'web';
 
-/** Launch ekranından feed taklidine geçiş gecikmesi — referans launchInstagram: 1900ms. */
+/** Launch ekranından Instagram deeplink'ine geçiş gecikmesi — referans 1900ms. */
 const IG_LAUNCH_DELAY_MS = 1900;
 
+/** Instagram deeplink'i; uygulama yüklü değilse web fallback (IMG_8480→8481). */
+const INSTAGRAM_APP_URL = 'instagram://app';
+const INSTAGRAM_WEB_URL = 'https://www.instagram.com';
+
 /**
- * "+" Tarif Ekle akışının host bileşeni — visible olunca menü sheet'i
- * açılır; iç state machine adımlar arasında gezdirir. RN'de iç içe Modal
- * sorun çıkardığı için her adım AYRI bir Modal/BottomSheet'tir ve tek
- * seferde yalnızca biri görünür. Import başarılı olunca tarif kalıcı
- * listeye yazılır (cookbookStore.importRecipe), akış kapanır ve detay
- * ekranına yönlendirilir.
+ * "+" Tarif Ekle akışının host bileşeni — visible olunca giriş sheet'i
+ * (Add a Recipe / Add a Cookbook) açılır; iç state machine adımlar arasında
+ * gezdirir. RN'de iç içe Modal sorun çıkardığı için her adım AYRI bir
+ * Modal/BottomSheet'tir ve tek seferde yalnızca biri görünür. Import
+ * başarılı olunca tarif kalıcı listeye yazılır (cookbookStore.importRecipe),
+ * akış kapanır ve detay ekranına yönlendirilir.
  */
 export default function ImportFlow({ visible, onClose }: ImportFlowProps) {
-  const [step, setStep] = useState<ImportFlowStep>('menu');
+  const [step, setStep] = useState<ImportFlowStep>('entry');
   const [igPage, setIgPage] = useState(0);
   const launchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Akış kapanınca state sıfırlanır (referans closeFlow: addFlow null, igPage 0).
   useEffect(() => {
     if (!visible) {
-      setStep('menu');
+      setStep('entry');
       setIgPage(0);
     }
   }, [visible]);
 
-  // Launch ekranı görünür olunca 1900ms sonra otomatik feed'e geç;
-  // adım değişirse/kapanırsa/unmount olursa timer temizlenir.
+  // Launch ekranı 1900ms gösterilir, sonra GERÇEK Instagram açılır (deeplink;
+  // uygulama yoksa web fallback) ve akış kapanır. Feed taklidi kaldırıldı —
+  // referans akışın sonu gerçek Instagram'dır (IMG_8481).
   useEffect(() => {
     if (visible && step === 'ig-launch') {
-      launchTimer.current = setTimeout(() => setStep('ig-feed'), IG_LAUNCH_DELAY_MS);
+      launchTimer.current = setTimeout(() => {
+        Linking.openURL(INSTAGRAM_APP_URL)
+          .catch(() => Linking.openURL(INSTAGRAM_WEB_URL))
+          .catch(() => {
+            // Web fallback bile açılamadıysa sessizce akışı kapatmak yeterli.
+          })
+          .finally(onClose);
+      }, IG_LAUNCH_DELAY_MS);
       return () => {
         if (launchTimer.current) {
           clearTimeout(launchTimer.current);
@@ -56,7 +73,7 @@ export default function ImportFlow({ visible, onClose }: ImportFlowProps) {
         }
       };
     }
-  }, [visible, step]);
+  }, [visible, step, onClose]);
 
   /** İçe aktarma (referans importRecipe): store'a yaz → kapat → detayı aç. */
   function handleImport(recipe: Recipe) {
@@ -73,6 +90,17 @@ export default function ImportFlow({ visible, onClose }: ImportFlowProps) {
 
   return (
     <>
+      <AddEntrySheet
+        visible={visible && step === 'entry'}
+        onClose={onClose}
+        onAddRecipe={() => setStep('menu')}
+        onAddCookbook={() => setStep('cookbook')}
+      />
+      <CreateCookbookSheet
+        visible={visible && step === 'cookbook'}
+        onClose={onClose}
+        onBack={() => setStep('entry')}
+      />
       <AddRecipeMenuSheet
         visible={visible && step === 'menu'}
         onClose={onClose}
@@ -96,11 +124,6 @@ export default function ImportFlow({ visible, onClose }: ImportFlowProps) {
         onImportSample={() => handleImport(SAMPLE_INSTAGRAM_RECIPE)}
       />
       <InstagramLaunchScreen visible={visible && step === 'ig-launch'} onClose={onClose} />
-      <InstagramFeedScreen
-        visible={visible && step === 'ig-feed'}
-        onClose={onClose}
-        onImport={() => handleImport(SAMPLE_INSTAGRAM_RECIPE)}
-      />
       <WebImportScreen
         visible={visible && step === 'web'}
         onClose={onClose}

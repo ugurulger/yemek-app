@@ -11,7 +11,7 @@ export interface SocialPlatformSheetProps {
   onClose: () => void;
   /** Geri butonu → Tarif Ekle menüsü. */
   onBack: () => void;
-  /** Platform satırı seçimi — üçü de Instagram eğitimine gider (prototip kararı). */
+  /** Platform satırı seçimi — YALNIZ Instagram (diğerleri "Coming soon"). */
   onPickPlatform: () => void;
 }
 
@@ -35,11 +35,14 @@ export function SocialPlatformSheet({
   onBack,
   onPickPlatform,
 }: SocialPlatformSheetProps) {
-  const rows: { key: string; label: string; square: React.ReactNode }[] = [
+  // Yalnız Instagram implemente (kullanıcı kararı) — diğerleri market
+  // lansmanından sonra; listede görünür ama "Coming soon" ile disabled.
+  const rows: { key: string; label: string; square: React.ReactNode; enabled: boolean }[] = [
     {
       key: 'instagram',
       label: 'Instagram',
       square: <PlatformSquare color={PLATFORM_COLORS.instagram} />,
+      enabled: true,
     },
     {
       key: 'tiktok',
@@ -49,6 +52,7 @@ export function SocialPlatformSheet({
           <TiktokNote />
         </PlatformSquare>
       ),
+      enabled: false,
     },
     {
       key: 'facebook',
@@ -58,6 +62,7 @@ export function SocialPlatformSheet({
           <FacebookF />
         </PlatformSquare>
       ),
+      enabled: false,
     },
   ];
 
@@ -78,12 +83,24 @@ export function SocialPlatformSheet({
         {rows.map((row) => (
           <Pressable
             key={row.key}
+            accessibilityRole="button"
+            accessibilityLabel={row.enabled ? row.label : `${row.label} — yakında`}
+            accessibilityState={{ disabled: !row.enabled }}
+            disabled={!row.enabled}
             onPress={onPickPlatform}
-            className="flex-row items-center rounded-2xl bg-white active:scale-[0.98]"
+            className={`flex-row items-center rounded-2xl bg-white ${
+              row.enabled ? 'active:scale-[0.98]' : 'opacity-45'
+            }`}
             style={[{ paddingVertical: 15, paddingHorizontal: 16, gap: 13 }, ROW_SHADOW]}>
             {row.square}
             <Text className="flex-1 font-sans-semibold text-[15px] text-ink">{row.label}</Text>
-            <Ionicons name="chevron-forward" size={17} color="#C7CFC9" />
+            {row.enabled ? (
+              <Ionicons name="chevron-forward" size={17} color="#C7CFC9" />
+            ) : (
+              <View className="rounded-full bg-sand px-2.5 py-1">
+                <Text className="font-sans-semibold text-[10.5px] text-muted">Coming soon</Text>
+              </View>
+            )}
           </Pressable>
         ))}
       </View>

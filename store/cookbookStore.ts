@@ -34,6 +34,8 @@ interface CookbookState {
    * "Kategorisiz" defterine ve kayıtlıya eklenir (hepsi tekilleştirilmiş).
    */
   importRecipe: (recipe: Recipe) => void;
+  /** "Add a Cookbook" akışı: verilen adla boş bir defter oluşturur. */
+  createCookbook: (name: string) => void;
 }
 
 /**
@@ -105,6 +107,15 @@ export const useCookbookStore = create<CookbookState>()(
               : [recipe.id, ...state.savedRecipeIds],
           };
         }),
+      createCookbook: (name) =>
+        set((state) => ({
+          cookbooks: [
+            ...state.cookbooks,
+            // Benzersiz id: Date.now yeterli — aynı milisaniyede iki defter
+            // oluşturulamaz (tek kullanıcı, tek buton).
+            { id: `cookbook-${Date.now()}`, name: name.trim(), recipeIds: [] },
+          ],
+        })),
     }),
     {
       name: 'yemek-app-cookbooks',
