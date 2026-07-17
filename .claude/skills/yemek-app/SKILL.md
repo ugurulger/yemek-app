@@ -9,6 +9,63 @@ Bu skill, AI destekli yemek uygulamasının geliştirme kurallarını içerir.
 Bu projede kod yazmadan önce bu dosyayı oku ve buradaki kararlara uy.
 Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
+> ## MVP-24 (2026-07-18) — MARKET SEPETİ: AH & JUMBO FİYAT KARŞILAŞTIRMA
+>
+> Sepetteki her malzeme Albert Heijn ve Jumbo'daki en yakın ürünle
+> eşleştirilir; satır + toplam bazında fiyatlar yan yana gösterilir.
+> Detaylı bakım rehberi: `services/stores/README.md`.
+>
+> - **Veri katmanı** (`services/stores/`, VisionProvider kalıbı):
+>   `StoreProvider` arayüzü + registry (`EXPO_PUBLIC_STORE_PROVIDER=
+>   live|mock`; boşsa web'de MOCK — mağaza API'leri tarayıcıda CORS'a
+>   takılır, canlı yol web'de HİÇ çalışmaz — native'de live). AH: anonim
+>   token'lı unofficial mobil API. Jumbo: `www.jumbo.com/api/graphql`
+>   (yalnızca `apollographql-client-name/-version` header'ları; NOT:
+>   SupermarktConnector'ın `mobileapi.jumbo.com`'u 2026-07-18'de tamamen
+>   yanıtsızdı, bilinçli terk edildi). `createStoreFetcher` (http.ts):
+>   timeout 8s + 2 retry (yalnız network/5xx/429) + mağaza başına seri
+>   kuyruk ~300ms. Kanarya: `npx tsx tests/store-smoke/run-smoke.ts`
+>   (fiyatlar boş görünmeye başlarsa İLK bu koşulur). Fiyatsız ürünler
+>   (AH sanal bundle'ları) sonuç listesinin sonuna atılır.
+> - **Eşleştirme motoru** (`services/matching/`): katmanlar 0-cache →
+>   1-sözlük (`dictionary.ts`, 200 TR→NL kayıt) → 2-fuzzy (`fuzzy.ts`;
+>   NL bileşik kelime kuralı: sorgu token'ı ürün token'ının SONUNDAYSA
+>   iyi eşleşme "rundergehakt", BAŞINDAYSA türev cezası "uiensoep";
+>   birim/miktar uyumu `parseUnitSize`) → 3-LLM (`llm.ts`,
+>   claude-haiku-4-5, koşu başına EN FAZLA 2 TOPLU çağrı: çeviri+seçim,
+>   tool_choice zorlamalı). Cache/provider'lar motora ENJEKTE edilir
+>   (`MatchCache` arayüzü) — eval scripti Node'da dosya cache'iyle, app
+>   zustand adaptörüyle çalışır; ileride Supabase drop-in. Canlı eval
+>   (`npx tsx tests/match-eval/run-eval.ts`): %95 doğruluk (hedef ≥%85),
+>   sıcak koşu 0.033 LLM/malzeme (hedef <0.2). "Eşleşme yok" sonucu
+>   BİLEREK cache'lenmez (sortiman düzelince kendini onarır; koşu başına
+>   birkaç yüz token'lık tekrar maliyeti kabul edildi).
+> - **Store'lar:** `matchCacheStore` (`yemek-app-match-cache`, kalıcı;
+>   kullanıcı düzeltmesi source:'user'/güven 100 — otomatik eşleşme
+>   EZMEZ, ürün sortimandan düşmedikçe), `storePriceStore`
+>   (`yemek-app-store-prices`, 24h TTL), `marketMatchStore` (persist
+>   YOK; fingerprint bazlı otomatik koşu + 5dk cache'li health-check).
+>   `lib/claude/client.ts`'e `callClaudeForToolInputWithUsage` eklendi
+>   (gerçek token/maliyet raporu — `[match-llm]`/`[match-run]` logları).
+> - **UI (kullanıcı kararları):** eşleştirme Market açılınca OTOMATİK;
+>   fiyatlar SATIR İÇİNDE ("AH €1,29 · Jumbo €1,15", ucuz forest
+>   semibold); toplamlar SADECE İŞARETSİZ satırlar. `StoreComparisonCard`
+>   ("En uygun" pili + "Bu mağazadan al"), `ProductMatchSheet`
+>   (CookbookPickerSheet kalıbı; alternatifler `StoreMatch.candidates`'tan
+>   API'siz + Hollandaca manuel arama; seçim = kalıcı düzeltme + toast),
+>   düşük güven (<70) amber işaret, eşleşmeyen/fiyatsız taraf "—".
+>   Mağaza çökmesi: amber banner + o sütun "—", diğeri çalışır
+>   (`EXPO_PUBLIC_STORE_MOCK_FAIL=ah|jumbo|both` ile mock'ta simüle
+>   edilir; web önizlemede doğrulandı).
+> - **Deeplink** (`lib/market/storeLinks.ts`): app şeması (appie/jumbo,
+>   `LSApplicationQueriesSchemes` app.json'a eklendi) → web fallback.
+>   Expo Go'da şema sorgusu HEP false → hep web (beklenen davranış).
+>   Karşı uygulamanın sepetini doldurmak BİLİNÇLİ kapsam dışı
+>   (ToS/güvenlik). Deeplink şemaları gerçek cihazda app yüklüyken
+>   doğrulanmadı — `// DOĞRULA` notları storeLinks.ts'te.
+> - `design/Tarif_ekle/` fotoğrafları BU özellikle İLGİSİZ (kullanıcı:
+>   yanlışlıkla eklendi, başka iş için; yok sayıldı).
+
 > ## ⚠️ MVP-23 (2026-07-12) — REFERANS ZIP TAM İMPLEMENTASYONU:
 > ## 5 SEKME + DEFTERLER + PLAN + İÇE AKTARMA AKIŞI
 >

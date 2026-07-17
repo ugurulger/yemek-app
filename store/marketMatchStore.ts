@@ -17,12 +17,20 @@ import { useStorePriceStore } from '@/store/storePriceStore';
 
 export type MarketMatchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+/** Health sonucu bu süreden eskiyse Market odaklanınca yeniden sorulur. */
+const HEALTH_TTL_MS = 5 * 60 * 1000;
+
 interface MarketMatchState {
   fingerprint: string | null;
   status: MarketMatchStatus;
   matchesByKey: Record<string, IngredientMatch>;
   report: MatchRunReport | null;
+  /** Mağaza başına son health-check sonucu (alan yoksa henüz sorulmadı). */
+  storeHealth: Partial<Record<StoreId, boolean>>;
+  lastHealthAt: number;
   runMatches: (items: MatchableItem[], fingerprint: string, force?: boolean) => Promise<void>;
+  /** Sağlayıcı health-check'leri (5 dk cache'li) — endpoint kırılmasını erken loglar. */
+  runHealthChecks: (force?: boolean) => Promise<void>;
   /** Kullanıcı düzeltmesi: kalıcı cache'e yazar + ekran durumunu günceller. */
   applyCorrection: (cartKey: string, storeId: StoreId, product: StoreProduct) => void;
 }
@@ -45,6 +53,27 @@ export const useMarketMatchStore = create<MarketMatchState>()((set, get) => ({
   status: 'idle',
   matchesByKey: {},
   report: null,
+  storeHealth: {},
+  lastHealthAt: 0,
+
+  runHealthChecks: async (force = false) => {
+    const state = get();
+    if (!force && Date.now() - state.lastHealthAt < HEALTH_TTL_MS) {
+      return;
+    }
+    set({ lastHealthAt: Date.now() });
+    const providers = getStoreProviders();
+    const results = await Promise.all(
+      (Object.keys(providers) as StoreId[]).map(async (storeId) => {
+        const health = await providers[storeId].healthCheck();
+        console.log(
+          `[store-health] ${storeId}: ${health.ok ? 'OK' : 'DOWN'} (${health.latencyMs}ms)${health.detail ? ` — ${health.detail}` : ''}`
+        );
+        return [storeId, health.ok] as const;
+      })
+    );
+    set({ storeHealth: Object.fromEntries(results) });
+  },
 
   runMatches: async (items, fingerprint, force = false) => {
     const state = get();
@@ -56,6 +85,7 @@ export const useMarketMatchStore = create<MarketMatchState>()((set, get) => ({
       return;
     }
     set({ fingerprint, status: 'loading' });
+    void get().runHealthChecks(); // eş zamanlı, koşuyu bloklamaz
     try {
       const { matches, report } = await matchIngredients(items, {
         providers: getStoreProviders(),

@@ -8,6 +8,7 @@ import { CartCategorySection } from '@/components/cart/CartCategorySection';
 import ProductMatchSheet from '@/components/cart/ProductMatchSheet';
 import { StoreComparisonCard } from '@/components/cart/StoreComparisonCard';
 import { PrimaryButton } from '@/components/ui';
+import { openStore } from '@/lib/market/storeLinks';
 import { useCartMatches } from '@/lib/market/useCartMatches';
 import { colors } from '@/lib/theme';
 import type { StoreId, StoreProduct } from '@/services/stores/types';
@@ -71,8 +72,13 @@ export default function MarketScreen() {
   // AH/Jumbo fiyat karşılaştırması — sepet değişince otomatik koşar.
   const { byKey, totals, status, refresh } = useCartMatches(items);
   const applyCorrection = useMarketMatchStore((state) => state.applyCorrection);
+  const storeHealth = useMarketMatchStore((state) => state.storeHealth);
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const detailItem = detailKey ? (items.find((item) => item.key === detailKey) ?? null) : null;
+
+  const downStores = (Object.entries(storeHealth) as [StoreId, boolean][])
+    .filter(([, ok]) => !ok)
+    .map(([storeId]) => (storeId === 'ah' ? 'Albert Heijn' : 'Jumbo'));
 
   const handleSelectAlternative = (storeId: StoreId, product: StoreProduct) => {
     if (detailKey) {
@@ -81,9 +87,9 @@ export default function MarketScreen() {
     }
   };
 
-  const handlePressStore = (_storeId: StoreId) => {
-    // Faz 4'te deeplink (lib/market/storeLinks) bağlanacak.
-    showToast('Mağaza yönlendirmesi yakında');
+  const handlePressStore = (storeId: StoreId) => {
+    // Yalnızca yönlendirme — karşı uygulamanın sepeti doldurulmaz (kapsam kararı).
+    void openStore(storeId).catch(() => showToast('Mağaza açılamadı'));
   };
 
   return (
@@ -106,6 +112,16 @@ export default function MarketScreen() {
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 24 }}>
+            {/* Mağaza servis uyarısı — health-check başarısızsa ince amber banner. */}
+            {downStores.length > 0 ? (
+              <View className="mx-5 mb-3 flex-row items-center gap-2 rounded-xl bg-amber-soft px-3.5 py-2.5">
+                <Ionicons name="warning-outline" size={14} color={colors.amberText} />
+                <Text className="flex-1 font-sans-medium text-[11px] text-amber-text">
+                  {downStores.join(' ve ')} fiyatları şu an alınamıyor
+                </Text>
+              </View>
+            ) : null}
+
             {/* AH vs Jumbo toplam karşılaştırması. */}
             <StoreComparisonCard
               totals={totals}
