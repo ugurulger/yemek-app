@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { parseIngredients } from '@/lib/claude/parseIngredients';
+import { parseIngredients, type ParsedIngredient } from '@/lib/claude/parseIngredients';
 import { Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -61,7 +61,7 @@ export default function AssistantAddScreen() {
 
   const [text, setText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
-  const [parsedItems, setParsedItems] = useState<InventoryItem[]>([]);
+  const [parsedItems, setParsedItems] = useState<ParsedIngredient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDone, setIsDone] = useState(false);
 
@@ -103,12 +103,32 @@ export default function AssistantAddScreen() {
       return;
     }
     if (targetMode === 'pantry') {
-      // PantryItem şeması: kategori bilinmiyorsa 'Kiler' (spec §3).
+      // Kiler modunda kategori: bakliyat/tahıl kendi kategorisine, kalanı 'Kiler'.
       addPantryItems(
-        selected.map((item) => ({ name: item.name, category: 'Kiler' as const, active: true }))
+        selected.map((item) => ({
+          name: item.name,
+          category: item.pantryCategory ?? ('Kiler' as const),
+          active: true,
+        }))
       );
     } else {
-      addInventoryItems(selected);
+      // Envanter modunda bile bakliyat/tahıl (nohut, mercimek, pirinç...)
+      // buzdolabına DEĞİL, alt kısımdaki Temel Malzemeler'in "Bakliyat &
+      // Makarna" kategorisine gider (kullanıcı kararı, kategori düzeltmesi).
+      const pantryBound = selected.filter((item) => item.pantryCategory !== null);
+      const fridgeBound = selected.filter((item) => item.pantryCategory === null);
+      if (pantryBound.length > 0) {
+        addPantryItems(
+          pantryBound.map((item) => ({
+            name: item.name,
+            category: item.pantryCategory!,
+            active: true,
+          }))
+        );
+      }
+      if (fridgeBound.length > 0) {
+        addInventoryItems(fridgeBound);
+      }
     }
     setIsDone(true);
     setTimeout(() => router.back(), 900);
