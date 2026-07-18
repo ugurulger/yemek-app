@@ -14,7 +14,12 @@
 import { llmOutputLanguage } from '@/src/i18n';
 import { PREFERENCE_SECTIONS } from '@/types/preferences';
 
-import { mergeRecipeLayers, RecipeGenerationError } from '@/lib/claude/generateRecipes';
+import {
+  applyInventoryReconciliation,
+  mergeRecipeLayers,
+  RecipeGenerationError,
+  simplifyInventory,
+} from '@/lib/claude/generateRecipes';
 
 import type { InventoryItem } from '@/types/inventory';
 import type { RecipePreferences } from '@/types/preferences';
@@ -58,6 +63,10 @@ export async function generateRecipesRag(
     throw new RecipeGenerationError('Tarif önermek için envanterde ürün olmalı');
   }
 
+  // Üretim promptuna giden envanter adları AKTİF dilde (İş 3b) — mevcut
+  // iki aşamalı akışla (lib/claude/generateRecipes.ts) aynı kural.
+  const language: 'tr' | 'en' = llmOutputLanguage() === 'Turkish' ? 'tr' : 'en';
+
   let response: Response;
   try {
     response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/functions/v1/generate-recipe`, {
@@ -68,7 +77,7 @@ export async function generateRecipesRag(
         authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({
-        inventory: inventory.map((item) => ({ name: item.name, qty: item.qty, unit: item.unit })),
+        inventory: simplifyInventory(inventory, language),
         preferences: flattenPreferences(options.preferences),
         pantry: options.activePantryNames,
         servings: options.servings,
@@ -104,8 +113,11 @@ export async function generateRecipesRag(
   // KARIŞTIRILMAZ — kendi bölümlerinde, listenin sonunda gösterilirler.
   // Üretim dili tariflere işlenir (dil değişiminde çeviri gerekip
   // gerekmediği buradan anlaşılır — bkz. src/i18n/recipeI18n.ts).
-  const language: 'tr' | 'en' = llmOutputLanguage() === 'Turkish' ? 'tr' : 'en';
-  const withLanguage = data.recipes.map((recipe) => ({ ...recipe, language }));
+  // Deterministik emniyet katmanı (İş 3b) burada da uygulanır: envanterle
+  // eşleşen malzemeler in_inventory: true + envanterdeki adla döner.
+  const withLanguage = data.recipes.map((recipe) =>
+    applyInventoryReconciliation({ ...recipe, language }, inventory, language)
+  );
   const fineDining = withLanguage.filter((recipe) => recipe.category === 'fine-dining');
   const normal = withLanguage.filter((recipe) => recipe.category !== 'fine-dining');
   return [...mergeRecipeLayers([normal]), ...fineDining];

@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
+import { getAppLanguage } from '@/src/i18n';
+import { expandInventoryForMatching, expandPantryForMatching } from '@/src/i18n/inventoryI18n';
+import { useLocalizedRecipe } from '@/src/i18n/recipeI18n';
 import { useCartStore } from '@/store/cartStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
@@ -45,6 +48,8 @@ export default function PlanDayPickerSheet({
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const syncRecipeMissing = useCartStore((state) => state.syncRecipeMissing);
+  // Sepet kayıtlarının karşı dil adları için mevcut tarif çevirisi (İş 3c).
+  const localizedRecipe = useLocalizedRecipe(recipe);
 
   const handleSelectDay = (day: PlanDay) => {
     addToPlan(day, {
@@ -60,7 +65,20 @@ export default function PlanDayPickerSheet({
     // syncRecipeMissing tarif bazlı DEĞİŞTİRDİĞİ için aynı tarif ikinci bir
     // güne planlansa da katkı bir kez sayılır; farklı tariflerin ortak
     // eksikleri market ekranında mergeCartEntries ile tek satırda toplanır.
-    const missing = buildCartMissingInput(recipe, servings, inventoryItems, pantryItems);
+    // Envanter/kiler İKİ DİLLİ ad varyantlarıyla genişletilir — rozet/detayla
+    // aynı eşleştirme girdisi (İş 3c tutarlılık kuralı).
+    const missing = buildCartMissingInput(
+      recipe,
+      servings,
+      expandInventoryForMatching(inventoryItems),
+      expandPantryForMatching(pantryItems),
+      localizedRecipe !== recipe
+        ? {
+            language: getAppLanguage(),
+            ingredientNames: localizedRecipe.ingredients.map((ingredient) => ingredient.name),
+          }
+        : undefined
+    );
     if (missing.length > 0) {
       syncRecipeMissing(recipe.name, missing);
       showToast(t('plan.addedWithMissingToast'));

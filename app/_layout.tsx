@@ -16,8 +16,10 @@ import 'react-native-reanimated';
 import '../global.css';
 // i18n init'i (dil algılama + kayıtlı seçim) her şeyden önce yüklenir.
 import '@/src/i18n';
+import { backfillInventoryTranslations } from '@/src/i18n/inventoryI18n';
 import { initLanguageSync } from '@/src/i18n/languageSync';
 import { ToastHost } from '@/components/ui';
+import { useInventoryStore } from '@/store/inventoryStore';
 
 // Dil değişiminde envanter/tarif çevirilerini arka planda tamamlayan dinleyici
 // (bkz. src/i18n/languageSync.ts) — i18n init'inden hemen sonra, bir kez.
@@ -73,6 +75,23 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Açılış backfill'i (İş 3a): nameTr/nameEn karşılığı eksik envanter
+  // kayıtları arka planda TEK toplu çeviri çağrısıyla (dil başına) tamamlanır.
+  // Store AsyncStorage'dan hidrate olmadan koşarsa liste boş görünür — bu
+  // yüzden hidrasyon beklenir. Hata sessizce yutulur (gösterim `name`e düşer,
+  // bir sonraki açılışta yeniden denenir).
+  useEffect(() => {
+    const run = () => {
+      void backfillInventoryTranslations('tr').catch(() => {});
+      void backfillInventoryTranslations('en').catch(() => {});
+    };
+    if (useInventoryStore.persist.hasHydrated()) {
+      run();
+      return undefined;
+    }
+    return useInventoryStore.persist.onFinishHydration(run);
+  }, []);
 
   if (!loaded) {
     return null;

@@ -14,7 +14,13 @@ import { callClaudeForToolInput } from './client';
 
 import type { Recipe, RecipeTexts } from '@/types/recipe';
 
-const MODEL = 'claude-sonnet-4-6';
+/**
+ * Kısa ürün adı listeleri için ucuz model yeterli (İş 3a — envanter adları
+ * TEK TOPLU haiku çağrısıyla çevrilir); tam tarif çevirisi (uzun serbest
+ * metin, doğal akış önemli) sonnet'te kalır.
+ */
+const TEXTS_MODEL = 'claude-haiku-4-5';
+const RECIPE_MODEL = 'claude-sonnet-4-6';
 const TEXTS_MAX_TOKENS = 2048;
 const RECIPE_MAX_TOKENS = 3072;
 const SUBMIT_TRANSLATIONS_TOOL = 'submit_translations';
@@ -45,7 +51,7 @@ export async function translateTexts(
   let toolInput: Record<string, unknown>;
   try {
     toolInput = await callClaudeForToolInput({
-      model: MODEL,
+      model: TEXTS_MODEL,
       max_tokens: TEXTS_MAX_TOKENS,
       temperature: 0,
       system: [
@@ -115,7 +121,7 @@ export async function translateRecipeTexts(
   let toolInput: Record<string, unknown>;
   try {
     toolInput = await callClaudeForToolInput({
-      model: MODEL,
+      model: RECIPE_MODEL,
       max_tokens: RECIPE_MAX_TOKENS,
       temperature: 0,
       system: [

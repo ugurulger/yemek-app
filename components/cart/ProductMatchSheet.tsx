@@ -12,6 +12,7 @@ import { LOW_CONFIDENCE_THRESHOLD } from '@/services/matching/fuzzy';
 import type { IngredientMatch, StoreMatch } from '@/services/matching/types';
 import { getStoreProviders } from '@/services/stores';
 import { STORE_IDS, type StoreId, type StoreProduct } from '@/services/stores/types';
+import { getAppLanguage } from '@/src/i18n';
 import type { CartItemView } from '@/types/cart';
 
 const STORE_NAMES: Record<StoreId, string> = { ah: 'Albert Heijn', jumbo: 'Jumbo' };
@@ -84,7 +85,10 @@ export default function ProductMatchSheet({ visible, onClose, item, match, onSel
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text className="mb-1 font-serif text-[22px] text-forest">{item.name}</Text>
+      {/* Aktif dile göre ad (İş 3c) — sepet satırıyla aynı seçim kuralı. */}
+      <Text className="mb-1 font-serif text-[22px] text-forest">
+        {(getAppLanguage() === 'tr' ? item.nameTr : item.nameEn) ?? item.name}
+      </Text>
       <Text className="mb-3 font-sans text-[12.5px] text-muted">
         {formatQty(item.qty)} {item.unit} · {t('market.matchSheetHint')}
       </Text>

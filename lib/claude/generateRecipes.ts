@@ -1,5 +1,9 @@
 import { callClaudeForToolInput } from './client';
 
+import {
+  inventoryNameForLanguage,
+  reconcileIngredientsWithInventory,
+} from '@/lib/recipes/ingredient-match';
 import { EMPTY_PREFERENCES, PREFERENCE_SECTIONS } from '@/types/preferences';
 import { INGREDIENT_CATEGORIES, NUTRITION_TAGS } from '@/types/recipe';
 
@@ -225,8 +229,39 @@ function toDifficulty(value: unknown): RecipeDifficulty {
   return value === 'Kolay' || value === 'Orta' || value === 'Zor' ? value : 'Orta';
 }
 
-function simplifyInventory(inventory: InventoryItem[]) {
-  return inventory.map((item) => ({ name: item.name, qty: item.qty, unit: item.unit }));
+/**
+ * Prompt'a giden envanter listesi AKTİF dilin adlarıyla gönderilir (İş 3b):
+ * model "listedeki ismi AYNEN kullan" kuralına uyduğunda tarif malzemeleri
+ * envanterle ve UI'daki gösterim adlarıyla birebir aynı olur. Karşı dil
+ * karşılığı henüz üretilmemişse `name`e düşülür.
+ */
+export function simplifyInventory(inventory: InventoryItem[], language: 'tr' | 'en') {
+  return inventory.map((item) => ({
+    name: inventoryNameForLanguage(item, language),
+    qty: item.qty,
+    unit: item.unit,
+  }));
+}
+
+/**
+ * Deterministik emniyet katmanı (İş 3b — modele güvenme): detay döndükten
+ * sonra malzemeler envanterle normalize eşleştirmeden geçirilir (bkz.
+ * lib/recipes/ingredient-match.ts); eşleşen malzeme in_inventory: true olur
+ * ve adı envanterin aktif dildeki adıyla değiştirilir. missing_count ve
+ * match_pct düzeltilmiş listeden YENİDEN hesaplanır.
+ */
+export function applyInventoryReconciliation(
+  recipe: Recipe,
+  inventory: readonly Pick<InventoryItem, 'name' | 'nameTr' | 'nameEn'>[],
+  language: 'tr' | 'en'
+): Recipe {
+  const ingredients = reconcileIngredientsWithInventory(recipe.ingredients, inventory, language);
+  const missingCount = ingredients.filter((ingredient) => !ingredient.in_inventory).length;
+  const matchPct =
+    ingredients.length === 0
+      ? 100
+      : clampPercentage(((ingredients.length - missingCount) / ingredients.length) * 100);
+  return { ...recipe, ingredients, missing_count: missingCount, match_pct: matchPct };
 }
 
 /**
@@ -354,7 +389,7 @@ export async function generateRecipeNames(
     throw new RecipeGenerationError('Tarif önermek için envanterde ürün olmalı');
   }
 
-  const simplifiedInventory = simplifyInventory(inventory);
+  const simplifiedInventory = simplifyInventory(inventory, contextLanguageCode(context));
 
   let toolInput: Record<string, unknown>;
   try {
@@ -428,6 +463,9 @@ function buildCommonDetailSystemPrompt(context: RecipePromptContext): string {
     'tarifin VARSAYILAN kişi sayısı (servings) için miktar (unit serbest Türkçe birimdir: "g", "su bardağı", ' +
     '"yk", "adet" gibi); kcal = o malzemenin varsayılan porsiyondaki TOPLAM kalorisi; category = sabit ' +
     'listeden en uygun market kategorisi; in_inventory işaretlemesini sana verilen envanter listesine göre yap. ' +
+    '- Envanter listesinde OLAN bir malzemeyi kullanırken adını listede yazıldığı şekliyle AYNEN kullan; ' +
+    'eş anlamlısını veya farklı bir adını ÜRETME (örn. listede "Chili Flakes" varsa "Red Pepper Flakes" yazma, ' +
+    'listede "Pickled Jalapenos" varsa "Mexican Pickle Peppers" yazma). ' +
     pantrySentence +
     '- Kalori tutarlılığı: tarifin kcal alanı KİŞİ BAŞI kaloridir; malzemelerin kcal değerlerinin TOPLAMI ' +
     'yaklaşık olarak kcal × servings civarında olmalı (birebir eşitlik şart değil, belirgin tutarsızlık olmasın). ' +
@@ -597,7 +635,8 @@ async function callRecipeDetail(
   variant: DetailVariant,
   userContent: string,
   commonSystemPrompt: string,
-  language: 'tr' | 'en'
+  language: 'tr' | 'en',
+  inventory: InventoryItem[]
 ): Promise<Recipe> {
   let toolInput: Record<string, unknown>;
   try {
@@ -633,7 +672,10 @@ async function callRecipeDetail(
   if (!recipe) {
     throw new RecipeGenerationError(`"${name}" tarifi ayrıştırılamadı, tekrar deneyin`);
   }
-  return recipe;
+  // Emniyet katmanı BURADA (ready-retry kararından ÖNCE) uygulanır: modelin
+  // eş anlamlı adla "eksik" sanıp işaretlediği ama aslında envanterde olan
+  // malzemeler düzeltilir — sahte eksik, gereksiz retry tetiklemez.
+  return applyInventoryReconciliation(recipe, inventory, language);
 }
 
 /**
@@ -650,19 +692,20 @@ export async function generateRecipeDetail(
   layerTarget: RecipeLayerId = 'closeMatch',
   context: RecipePromptContext = DEFAULT_PROMPT_CONTEXT
 ): Promise<RecipeDetail> {
-  const simplifiedInventory = simplifyInventory(inventory);
+  const language = contextLanguageCode(context);
+  const simplifiedInventory = simplifyInventory(inventory, language);
   const baseContent = `Tarif adı: "${name}"\nEnvanter: ${JSON.stringify(simplifiedInventory)}`;
   // Aynı üretim akışındaki 8 paralel çağrıda (ve ready-retry'da) BİREBİR aynı
   // metin — prefix cache bunun üzerinden tutar.
   const commonSystemPrompt = buildCommonDetailSystemPrompt(context);
-  const language = contextLanguageCode(context);
 
   let recipe = await callRecipeDetail(
     name,
     LAYER_VARIANTS[layerTarget],
     baseContent,
     commonSystemPrompt,
-    language
+    language,
+    inventory
   );
 
   if (layerTarget === 'ready' && recipe.missing_count > 0) {
@@ -679,7 +722,8 @@ export async function generateRecipeDetail(
           'Tarifi bu malzemeler OLMADAN yeniden kur veya envanterdeki karşılıklarıyla değiştir — ' +
           'HER malzeme in_inventory: true olmalı.',
         commonSystemPrompt,
-        language
+        language,
+        inventory
       );
     } catch {
       // Düzeltme çağrısı başarısız olursa ilk sonuç kullanılır — eksik
@@ -749,7 +793,10 @@ export async function generateFineDiningNames(
       max_tokens: NAMES_MAX_TOKENS,
       system: [{ type: 'text', text: buildFineDiningPlanSystemPrompt(context) }],
       messages: [
-        { role: 'user', content: `Envanter: ${JSON.stringify(simplifyInventory(inventory))}` },
+        {
+          role: 'user',
+          content: `Envanter: ${JSON.stringify(simplifyInventory(inventory, contextLanguageCode(context)))}`,
+        },
       ],
       tools: [
         {
@@ -795,13 +842,15 @@ export async function generateFineDiningDetail(
   inventory: InventoryItem[],
   context: RecipePromptContext = DEFAULT_PROMPT_CONTEXT
 ): Promise<RecipeDetail> {
-  const baseContent = `Tarif adı: "${name}"\nEnvanter: ${JSON.stringify(simplifyInventory(inventory))}`;
+  const language = contextLanguageCode(context);
+  const baseContent = `Tarif adı: "${name}"\nEnvanter: ${JSON.stringify(simplifyInventory(inventory, language))}`;
   const recipe = await callRecipeDetail(
     name,
     FINE_DINING_VARIANT,
     baseContent,
     buildCommonDetailSystemPrompt(context),
-    contextLanguageCode(context)
+    language,
+    inventory
   );
   const fineDiningRecipe: Recipe = { ...recipe, category: 'fine-dining' };
   return { recipe: fineDiningRecipe, layer: assignRecipeLayer(fineDiningRecipe.missing_count) };

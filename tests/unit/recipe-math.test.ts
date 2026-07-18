@@ -71,6 +71,28 @@ test('computeMissing: kelime içerme eşleşmesi çift yönlü çalışır (doma
   assert.equal(missing.length, 0);
 });
 
+test('computeMissing: farklı dil/eş anlamlı ad, iki dilli genişletilmiş envanterle eşleşir (İş 3)', () => {
+  // expandInventoryForMatching (src/i18n/inventoryI18n.ts) her ürünü bilinen
+  // TÜM dillerdeki adlarıyla ayrı satırlar olarak verir — TR tarif malzemesi
+  // "Pul Biber", envanterdeki "Chili Flakes" ürününün nameTr varyantıyla
+  // eşleşir; tekil/çoğul farkı da tolere edilir.
+  const r = recipe([ing('Pul Biber'), ing('Pickled Jalapeno'), ing('Taze Kişniş')]);
+  const missing = computeMissing(
+    r,
+    inv('Chili Flakes', 'Pul Biber', 'Pickled Jalapenos', 'Jalapeno Turşusu'),
+    []
+  );
+  assert.deepEqual(
+    missing.map((m) => m.name),
+    ['Taze Kişniş']
+  );
+});
+
+test('computeMissing: eski ham substring yanlış pozitifi düzeldi ("un" ⊂ "sabun")', () => {
+  const r = recipe([ing('Un')]);
+  assert.equal(computeMissing(r, inv('Sabun'), []).length, 1);
+});
+
 test('computeMissing: PASİF kiler malzemesi eksik sayılır', () => {
   const r = recipe([ing('Tuz')]);
   const missing = computeMissing(r, [], [{ name: 'Tuz', active: false }]);

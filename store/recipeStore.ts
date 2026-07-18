@@ -18,9 +18,12 @@ import type { Recipe, RecipeTexts } from '@/types/recipe';
  * malzeme şeması qty/unit/kcal/category kazandı, nutrition_tag eklendi,
  * tercihler parmak izine girdi; v4: aktif kiler parmak izinden ÇIKARILDI —
  * kiler değişimi artık üretimi baştan başlatmaz, eksik rozetleri canlı
- * computeMissing'le güncellenir — + 6 standart + 2 fine dining = 8 tarif).
+ * computeMissing'le güncellenir — + 6 standart + 2 fine dining = 8 tarif;
+ * v5: İş 3b — prompt'lara aktif dildeki envanter adları + "ismi AYNEN kullan"
+ * kuralı + üretim sonrası deterministik envanter eşleştirme katmanı, eski
+ * mantıkla üretilmiş cache atılır).
  */
-const GENERATION_VERSION = 'v4';
+const GENERATION_VERSION = 'v5';
 
 /**
  * Envanterin + tercihlerin tarif üretimini etkileyen halinin parmak izi.

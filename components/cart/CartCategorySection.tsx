@@ -9,7 +9,17 @@ import type { CartMatchView } from '@/lib/market/useCartMatches';
 import { formatQty } from '@/lib/recipes/recipe-math';
 import { cardShadow, colors } from '@/lib/theme';
 import { STORE_IDS, type StoreId } from '@/services/stores/types';
+import { getAppLanguage } from '@/src/i18n';
 import type { CartItemView } from '@/types/cart';
+
+/**
+ * Aktif uygulama diline göre satır adı (İş 3c) — kayıt dile kilitli tek
+ * string değil: karşılık biliniyorsa dil değişiminde sepettekiler de birlikte
+ * değişir; bilinmiyorsa tarifin üretildiği dildeki `name`e düşülür.
+ */
+function cartItemDisplayName(item: Pick<CartItemView, 'name' | 'nameTr' | 'nameEn'>): string {
+  return (getAppLanguage() === 'tr' ? item.nameTr : item.nameEn) ?? item.name;
+}
 
 /** Satır içi fiyat şeridindeki kısa mağaza adları. */
 const STORE_SHORT_NAMES: Record<StoreId, string> = { ah: 'AH', jumbo: 'Jumbo' };
@@ -150,7 +160,7 @@ function CartItemRow({ item, onToggle, matchView, onPressDetails }: CartItemRowP
       onPress={onToggle}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.checked }}
-      accessibilityLabel={item.name}
+      accessibilityLabel={cartItemDisplayName(item)}
       className="flex-row items-start gap-[9px] py-[9px] active:opacity-70"
       style={{ borderTopWidth: 1, borderTopColor: colors.divider }}>
       {/* Checkbox: işaretsiz beyaz + 2px #CBD3CD çerçeve; işaretli forest dolu + ✓ 11 */}
@@ -168,7 +178,7 @@ function CartItemRow({ item, onToggle, matchView, onPressDetails }: CartItemRowP
             className={`flex-1 font-sans-medium text-[12.5px] ${
               item.checked ? 'text-checkedtext line-through' : 'text-ink'
             }`}>
-            {item.name}
+            {cartItemDisplayName(item)}
           </Text>
           <Text className="font-sans-semibold text-[10.5px] text-muted">
             {formatQty(item.qty)} {shortUnit(item.unit)}

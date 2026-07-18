@@ -18,6 +18,9 @@ import type { IngredientCategory } from '@/types/recipe';
  */
 export interface CartMissingInput {
   name: string;
+  /** İki dilli gösterim adları (İş 3c) — bkz. types/cart.ts CartEntry. */
+  nameTr?: string;
+  nameEn?: string;
   qty: number;
   unit: string;
   category: IngredientCategory;
@@ -56,10 +59,16 @@ export function mergeCartEntries(
       if (!existing.recipeNames.includes(entry.recipeName)) {
         existing.recipeNames.push(entry.recipeName);
       }
+      // İki dilli ad karşılığı olan İLK kayıt kazanır; eksikse sonraki
+      // kayıtlardan tamamlanır (İş 3c).
+      existing.nameTr = existing.nameTr ?? entry.nameTr;
+      existing.nameEn = existing.nameEn ?? entry.nameEn;
     } else {
       merged.set(key, {
         key,
         name: entry.name,
+        nameTr: entry.nameTr,
+        nameEn: entry.nameEn,
         qty: entry.qty,
         unit: entry.unit,
         category: entry.category,
@@ -82,6 +91,8 @@ export const useCartStore = create<CartState>()(
           const added: CartEntry[] = missing.map((item, index) => ({
             id: `cart-${recipeName}-${index}`,
             name: item.name,
+            nameTr: item.nameTr,
+            nameEn: item.nameEn,
             qty: item.qty,
             unit: item.unit,
             category: item.category,

@@ -11,8 +11,19 @@ import type { IngredientCategory } from './recipe';
 
 export interface CartEntry {
   id: string;
-  /** Jenerik malzeme adı (tarif malzemesinden gelir). */
+  /**
+   * Jenerik malzeme adı (tarif malzemesinden gelir) — KANONİK anahtar
+   * (birleştirme/işaretleme bu ada göre), tarifin ÜRETİLDİĞİ dildedir.
+   */
   name: string;
+  /**
+   * İki dilli gösterim adları (İş 3c): kayıt dile bağlı tek string'e
+   * kilitlenmesin diye, ad biliniyorsa her iki dilde taşınır (kaynak: tarifin
+   * orijinali + mevcut tarif çevirisi — ekstra çeviri çağrısı YAPILMAZ).
+   * Render aktif dile göre seçer, karşılık yoksa `name`e düşer.
+   */
+  nameTr?: string;
+  nameEn?: string;
   qty: number;
   unit: string;
   category: IngredientCategory;
@@ -25,6 +36,9 @@ export interface CartItemView {
   /** normalize(ad)+birim — işaretleme durumu bu anahtarla saklanır. */
   key: string;
   name: string;
+  /** Bkz. CartEntry.nameTr/nameEn — birleşik satırda ilk bilinen karşılıklar. */
+  nameTr?: string;
+  nameEn?: string;
   qty: number;
   unit: string;
   category: IngredientCategory;

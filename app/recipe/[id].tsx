@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { askChef } from '@/lib/claude/askChef';
-import { llmOutputLanguage } from '@/src/i18n';
+import { getAppLanguage, llmOutputLanguage } from '@/src/i18n';
 import ChefChat from '@/components/recipes/detail/ChefChat';
 import CookbookPickerSheet from '@/components/recipes/detail/CookbookPickerSheet';
 import IngredientRow from '@/components/recipes/detail/IngredientRow';
@@ -157,19 +157,43 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
   const servings = selectedServings ?? recipe.servings;
 
   /** CANLI eksikler — modelin in_inventory bayrağına değil, güncel envanter+kilere
-   * göre; adlar İKİ DİLLİ varyantlarıyla eşleştirilir (bkz. inventoryI18n). */
+   * göre; adlar İKİ DİLLİ varyantlarıyla eşleştirilir (bkz. inventoryI18n).
+   * KANONİK kaynak ORİJİNAL tariftir (İş 3c) — çevrilmiş kopya üzerinden
+   * hesaplansaydı rozet ve sepet farklı sonuçlara ulaşabilirdi (gözlenen
+   * hata: detay 3 eksik gösterip sepete 1 ürün yazıyordu). */
   const missingIngredients = useMemo(
     () =>
       computeMissing(
-        displayRecipe,
+        recipe,
         expandInventoryForMatching(inventoryItems),
         expandPantryForMatching(pantryItems)
       ),
-    [displayRecipe, inventoryItems, pantryItems]
+    [recipe, inventoryItems, pantryItems]
   );
+  /** Rozetler çevrilmiş listede gösterildiği için eksik adlar index üzerinden
+   * displayRecipe'nin adlarına çevrilir (ingredients sıra/uzunluk hizalı). */
   const missingNames = useMemo(
-    () => new Set(missingIngredients.map((ingredient) => normalizeIngredientName(ingredient.name))),
-    [missingIngredients]
+    () =>
+      new Set(
+        missingIngredients.map((ingredient) => {
+          const index = recipe.ingredients.indexOf(ingredient);
+          const displayName = displayRecipe.ingredients[index]?.name ?? ingredient.name;
+          return normalizeIngredientName(displayName);
+        })
+      ),
+    [missingIngredients, recipe, displayRecipe]
+  );
+  /** Sepete yazılan kayıtların karşı dil adları — mevcut tarif çevirisinden
+   * (İş 3c; ekstra çeviri çağrısı yok, displayRecipe zaten çevrilmiş kopya). */
+  const cartCounterpart = useMemo(
+    () =>
+      displayRecipe !== recipe
+        ? {
+            language: getAppLanguage(),
+            ingredientNames: displayRecipe.ingredients.map((ingredient) => ingredient.name),
+          }
+        : undefined,
+    [displayRecipe, recipe]
   );
 
   const scaled = useMemo(() => scaleServings(displayRecipe, servings), [displayRecipe, servings]);
@@ -187,7 +211,8 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
           recipe,
           target,
           expandInventoryForMatching(inventoryItems),
-          expandPantryForMatching(pantryItems)
+          expandPantryForMatching(pantryItems),
+          cartCounterpart
         )
       );
     }
@@ -211,7 +236,8 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
         recipe,
         servings,
         expandInventoryForMatching(inventoryItems),
-        expandPantryForMatching(pantryItems)
+        expandPantryForMatching(pantryItems),
+        cartCounterpart
       )
     );
     showToast(t('recipeDetail.missingAddedToast'));

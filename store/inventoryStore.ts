@@ -122,6 +122,23 @@ export const useInventoryStore = create<InventoryState>()(
     {
       name: 'yemek-app-inventory',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      /**
+       * v1 (İş 3a): iki dilli ad alanları öncesinden kalan kayıtlarda `name`
+       * Türkçe kanonik addı — nameTr olarak kopyalanır (nameEn açılış
+       * backfill'iyle LLM'den tamamlanır, bkz. app/_layout.tsx). İki alandan
+       * HERHANGİ biri doluysa kayıt zaten iki dilli akıştan geçmiştir,
+       * dokunulmaz (EN taramadan gelen kayda yanlış nameTr yazmamak için).
+       */
+      migrate: (persisted, version) => {
+        const state = persisted as { items?: InventoryItem[]; lastUpdatedAt?: number | null };
+        if (version < 1 && Array.isArray(state.items)) {
+          state.items = state.items.map((item) =>
+            !item.nameTr && !item.nameEn ? { ...item, nameTr: item.name } : item
+          );
+        }
+        return state;
+      },
     }
   )
 );

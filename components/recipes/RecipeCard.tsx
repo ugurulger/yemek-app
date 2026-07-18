@@ -6,6 +6,7 @@ import { MissingBadge, PhotoPlaceholder } from '@/components/ui';
 import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors, photoTones } from '@/lib/theme';
+import { getAppLanguage } from '@/src/i18n';
 import { expandInventoryForMatching, expandPantryForMatching } from '@/src/i18n/inventoryI18n';
 import { difficultyKey, nutritionTagKey } from '@/src/i18n/labels';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
@@ -67,15 +68,21 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const selectedServings = useRecipeStore((state) => state.selectedServings);
+  // KANONİK kaynak orijinal tarif (İş 3c): `recipe` prop'u yerelleştirilmiş
+  // kopya olabilir (recipes.tsx → useLocalizedRecipes) — sepet anahtarı
+  // (recipeName) ve eksik hesabı, detay ekranıyla AYNI orijinal kayıt
+  // üzerinden yapılır ki dil değişimi rozet/sepet durumunu bozmasın.
+  const originalRecipe =
+    useRecipeStore((state) => state.recipes.find((entry) => entry.id === recipe.id)) ?? recipe;
   const inCart = useCartStore((state) =>
-    state.entries.some((entry) => entry.recipeName === recipe.name)
+    state.entries.some((entry) => entry.recipeName === originalRecipe.name)
   );
   const syncRecipeMissing = useCartStore((state) => state.syncRecipeMissing);
   const removeRecipe = useCartStore((state) => state.removeRecipe);
 
   // İki dilli ad varyantlarıyla eşleştirme (bkz. src/i18n/inventoryI18n.ts).
   const liveMissingCount = computeMissing(
-    recipe,
+    originalRecipe,
     expandInventoryForMatching(inventoryItems),
     expandPantryForMatching(pantryItems)
   ).length;
@@ -94,13 +101,28 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
 
   function handleBadgePress() {
     if (inCart) {
-      removeRecipe(recipe.name);
+      removeRecipe(originalRecipe.name);
       return;
     }
     const targetServings = selectedServings[recipe.id] ?? recipe.servings;
+    // Envanter/kiler adları İKİ DİLLİ varyantlarıyla genişletilir (rozetteki
+    // computeMissing ile aynı girdi — rozet 3 eksik derken sepete 1 ürün
+    // yazma tutarsızlığı olmasın). Karşı dil adları, prop olarak gelen
+    // yerelleştirilmiş kopyadan index hizalı geçirilir (İş 3c).
     syncRecipeMissing(
-      recipe.name,
-      buildCartMissingInput(recipe, targetServings, inventoryItems, pantryItems)
+      originalRecipe.name,
+      buildCartMissingInput(
+        originalRecipe,
+        targetServings,
+        expandInventoryForMatching(inventoryItems),
+        expandPantryForMatching(pantryItems),
+        recipe !== originalRecipe
+          ? {
+              language: getAppLanguage(),
+              ingredientNames: recipe.ingredients.map((ingredient) => ingredient.name),
+            }
+          : undefined
+      )
     );
   }
 

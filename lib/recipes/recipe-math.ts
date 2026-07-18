@@ -3,25 +3,26 @@
  * fonksiyonlar (orkestrasyon Faz 1 kontratı). Birim testleri:
  * tests/unit/recipe-math.test.ts (node --test + tsx ile koşulur).
  */
+import { namesMatch } from '@/lib/recipes/ingredient-match';
 import type { InventoryItem } from '@/types/inventory';
 import type { PantryItem } from '@/types/pantry';
 import type { Recipe, RecipeIngredient } from '@/types/recipe';
 
-/** Türkçe'ye duyarlı normalizasyon — ad eşleştirmelerinin tek kaynağı. */
+/** Türkçe'ye duyarlı normalizasyon — UI'daki ad-anahtarı karşılaştırmaları için. */
 export function normalizeIngredientName(name: string): string {
   return name.trim().toLocaleLowerCase('tr-TR');
 }
 
 /**
  * Bir malzeme adının envanter/kiler listesinde karşılığı var mı?
- * Eşleşme kuralı: normalize edilmiş adlar eşitse VEYA biri diğerini kelime
- * olarak içeriyorsa ("domates" ↔ "cherry domates") var kabul edilir.
+ * İş 3b'den beri üretim sonrası emniyet katmanıyla (lib/recipes/
+ * ingredient-match.ts) AYNI normalize token eşleştirmesi kullanılır:
+ * küçük harf + aksan temizliği + tekil/çoğul toleransı, token alt-küme
+ * kuralı ("domates" ↔ "cherry domates"). Eski ham substring `includes`
+ * kuralı kaldırıldı ("un" ⊂ "sabun" gibi yanlış pozitifler üretiyordu).
  */
 function nameMatches(ingredientName: string, candidateName: string): boolean {
-  const a = normalizeIngredientName(ingredientName);
-  const b = normalizeIngredientName(candidateName);
-  if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
+  return namesMatch(ingredientName, candidateName);
 }
 
 /**
