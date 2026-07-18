@@ -464,6 +464,17 @@ ama match_pct=73 ile `fewMissing`e yerleşti.
   çorba, fırın graten, börek, fırın tavuk — farklı format/öğün tiplerine
   yayıldı.
 
+## Eski tasarım sistemi (MVP-22 öncesi)
+
+Demo'da onaylanan, MVP-22 spec'iyle DEĞİŞTİRİLEN görsel dil (SKILL.md'de
+o dönem "Bundan sapma:" başlığıyla duruyordu):
+
+- **Renkler:** zemin `stone-50`, kartlar beyaz + `ring-stone-100`,
+  birincil `emerald-900`, vurgu `amber-500`, hata `red-500`
+- **Tipografi:** başlıklar Fraunces (serif), gövde Outfit
+- **Bileşen dili:** `rounded-2xl` kartlar, yumuşak gölge (`shadow-sm`),
+  rozetler (`Badge`) ikon + metin ile, dokunmada `active:scale-95`
+
 ## MVP-17→21 tasarım sagası (2026-07-11)
 
 Envanter kartı/yerleşimi deneme-geri alma zinciri. Nihai durum SKILL.md
@@ -623,6 +634,17 @@ Envanter kartı/yerleşimi deneme-geri alma zinciri. Nihai durum SKILL.md
     bu MVP-17'de sorun olarak bildirilmişti, MVP-20'de kullanıcı bu
     trade-off'u bilerek tekrar tercih etti (kart artık daha az bilgi
     taşıdığı için kabul edilebilir görüldü).
+
+## MVP-22/23 süreç notları (2026-07-11/12)
+
+- MVP-22 entegrasyonu `design/CLAUDE_CODE_PROMPT.md` + `design/01…11-*.png`
+  mockup'larıyla, orkestrasyonla yürütüldü
+  (`design/YEMEK_APP_ORKESTRASYON_PROMPT.md`; Faz 1 kontratlar → Faz 2 altı
+  paralel sub-agent → Faz 3 entegrasyon → Faz 4 doğrulama).
+- MVP-23'te referans zip'e karşı fark analizi yapılıp yalnızca eksik/farklı
+  kısımlar eklendi. Doğrulama: `npx tsc --noEmit` temiz, 12 birim test
+  geçti, tüm akışlar Expo web önizlemesinde gerçek etkileşimle uçtan uca
+  doğrulandı.
 
 ## Çeşitli evrim notları
 

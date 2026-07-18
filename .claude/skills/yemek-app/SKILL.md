@@ -9,84 +9,57 @@ Bu skill, AI destekli yemek uygulamasının geliştirme kurallarını içerir.
 Bu projede kod yazmadan önce bu dosyayı oku ve buradaki kararlara uy.
 Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
-> ## RAG-EN (2026-07-18) — RAG HATTI HEP İNGİLİZCE + KİLER PROMPT DİLİ +
-> ## FINE DINING EXACT-SCAN
+> ## RAG-EN (2026-07-18) — RAG HATTI KARARLARI
 >
-> Canlı ölçüm gerekçeli üç karar (ölçümler: `analysis/rag-analysis.md` §7 —
-> RAG kurulumu aynı gün tamamlandı: migration + 10k embedding + 524
-> fine-dining etiketi + edge function deploy; `EXPO_PUBLIC_USE_RAG` hâlâ
-> KAPALI, açma kararı ayrı verilecek):
+> RAG kurulumu tamam (migration + 10k embedding + 524 fine-dining etiketi +
+> edge function deploy); `EXPO_PUBLIC_USE_RAG` hâlâ KAPALI, açma kararı
+> ayrı verilecek. Ölçüm gerekçeleri: `analysis/rag-analysis.md` §7.
 >
-> - **RAG hattı uygulama dilinden BAĞIMSIZ, HER ZAMAN İngilizce çalışır**
->   (kullanıcı kararı; `lib/rag/generateRecipesRag.ts`): envanter `nameEn`
->   adlarıyla (`simplifyInventory(inventory,'en')`), kiler statik EN
->   çeviriyle, `language: "English"` ile gönderilir; tarifler `language:'en'`
+> - **KURAL: RAG hattı uygulama dilinden BAĞIMSIZ, HEP İngilizce çalışır**
+>   (kullanıcı kararı; `lib/rag/generateRecipesRag.ts`): envanter `nameEn`,
+>   kiler statik EN çeviri, `language: "English"`; tarifler `language:'en'`
 >   damgalanır. Gerekçe: korpus %100 EN (retrieval isabeti EN sorguda
->   belirgin yüksek: 0.755 vs 0.722), EN üretim ~%25 hızlı/ucuz (~29s vs
->   ~38s), Haiku'nun TR çıktısı pürüzlü. TR gösterim üretim SONRASI mevcut
->   çeviri katmanıyla: `recipes.tsx` setRecipes ardından
->   `ensureRecipeTranslations(getAppLanguage())` tetikler (RAG'e sınırlı);
->   çeviri gelene dek EN gösterilir, gelince `useLocalizedRecipes` takas eder.
-> - **Prompt'a giden kiler adları çıktı DİLİNDE** (`pantryPromptNames`,
->   `src/i18n/inventoryI18n.ts` — varsayılan 20 malzeme statik i18n
->   etiketiyle çevrilir, LLM YOK; anahtarı olmayan kullanıcı malzemesi
->   adıyla geçer). Kök neden: TR kiler adları EN üretimde modele
->   bağlanamıyor → 8 tarifte 12 sahte eksik + edge function hibrit
->   kısayolunun blokajı (ölçüldü; EN kilerle 12→2 ve kısayol 0.7s'de
->   tetiklendi). İki aşamalı yol `promptPantryNames()` ile aktif dili,
->   RAG kendi içinde hep EN'i kullanır. UI eşleştirmesi zaten iki dilliydi
->   (`expandPantryForMatching`) — DEĞİŞMEDİ.
-> - **`match_recipes` fine dining yolu exact-scan'e alındı** (migration
->   `20260718300000`, plpgsql): HNSW post-filter tuzağı — index top-40
->   adayı getirip filtre SONRA uygulanıyordu, etiketliler havuzun ~%5'i
->   olduğundan sorgu bölgesine göre 0-5 referans kalıyordu (makarna
->   sorgularında 0 → fine dining tarifi hiç üretilemedi). filter_tag
->   doluyken materialized CTE ile 524 satırlık alt kümede tam tarama;
->   filter_tag null iken eski HNSW yolu birebir korunur.
->
-> Aynı gün, cihaz testindeki kullanıcı geri bildirimiyle eklenen kararlar:
->
-> - **Kiler artık ÇİFT DİLLİ** (`PantryItem.nameTr/nameEn`, envanter
->   kalıbıyla aynı): varsayılan 20 malzeme i18n anahtarıyla çevrilmeye devam
->   eder (alanları DOLDURULMAZ); asistanla eklenen ÖZEL malzemeler kaynak
->   dil alanıyla yazılır, karşı dil `backfillPantryTranslations` ile arka
->   planda tamamlanır (tetikler: açılış `_layout`, dil değişimi
->   `languageSync`, asistan ekleme sonrası). Gösterim `pantryDisplayName`
->   (src/i18n/inventoryI18n.ts) — anahtarı olmayan ada `t()` ÇAĞRILMAZ
->   (terminaldeki "EKSİK ÇEVİRİ ANAHTARI: Ekmek/Peynir/Ceviz" uyarılarının
->   kaynağı buydu). `pantryStore.addItems` mükerrer kontrolünü iki dilli
->   varyantlarla yapar ("Ekmek" varken "Bread" ikinci kayıt açmaz).
-> - **`parseIngredients` şema düzeltmesi:** tool şemasındaki `name`
->   description'ı sabit "Jenerik Türkçe malzeme adı" idi — sistem promptu
->   çıktı dilini parametrik istese de model şemaya uyup EN modda Türkçe ad
->   üretiyordu (kullanıcı gözlemi: EN girişte onay chip'leri Türkçe).
->   Description dil-nötr yapıldı; dil kuralı yalnız sistem promptunda.
-> - **RAG edge function 2/4/2 katman dağılımı (kullanıcı kararı):** tam 2
->   tarif SADECE envanter+kiler (0 eksik), 4 tarif 1-4 eksikli; fine dining
->   İKİLİSİ zıt kurgulu — biri 0 eksik ("hemen pişir" seviyesinde rafine),
->   diğeri tam 2-3 eksikli. Eski "Prefer recipes the user can cook NOW"
->   satırı kaldırıldı (her şeyi 0 eksiğe itiyordu).
-> - **Edge function eksik hesabı client'la HİZALANDI:** `namesMatch`
->   (lib/recipes/ingredient-match.ts) edge function'a bilinçli KOPYALANDI
->   (edge bundle app koduna bağımlı olamaz — iki taraf birlikte
->   güncellenmeli) ve üretim sonrası `reconcileRecipes` deterministik
->   düzeltmesi eklendi. Kök neden: model "eksik" diye mevcut malzemenin
->   VARYANTINI seçiyordu (kilerde Vinegar varken "Balsamic Vinegar") —
->   sunucu ham alt-dize eşleştirmesiyle eksik sayarken client namesMatch'le
->   evde-var sayıyor, tarif "alışverişle"den "hemen"e kayıp 2/4 dağılımını
->   bozuyordu (kullanıcı gözlemi: 4 ready). Prompt'a "eksikler GERÇEKTEN
->   yeni malzeme olsun, mevcutun varyantını eksik yazma" kuralı da eklendi.
->   Hibrit kısayolun countMissing'i de aynı eşleştirmeye geçti ("un ⊂
->   sabun" sınıfı yanlış pozitifler sunucudan da temizlendi). Dağılım
->   kotası (2/4) prompt-yönlendirmeli kalır, KOD ZORLAMAZ — MVP-16'nın
->   "kesin katman koddan gelir, dağılım garanti değil" ilkesiyle tutarlı.
-> - **Kiler retrieval sorgusuna dahil + kiler-yıldız kuralı:** queryText'e
->   "Pantry staples: ..." satırı eklendi ve prompt'a "makarna/pirinç/bulgur
->   gibi doyurucu kiler malzemeleri gerçek malzemedir, uygunsa en az bir
->   tarifte taşıyıcı yap" kuralı kondu. Önceki "envantere öncelik ver,
->   kilere yaslanma" ifadesi TERS TEPMİŞTİ (kullanıcı gözlemi: kilerde
->   makarna/pirinç varken hiç makarnalı/pirinçli tarif çıkmıyordu —
->   retrieval sorgusunda kiler hiç yoktu, prompt da kileri bastırıyordu).
+>   belirgin yüksek), EN üretim ~%25 hızlı/ucuz, Haiku'nun TR çıktısı
+>   pürüzlü. TR gösterim üretim SONRASI çeviri katmanıyla
+>   (`ensureRecipeTranslations`; çeviri gelene dek EN gösterilir).
+> - **KURAL: prompt'a giden kiler adları çıktı DİLİNDE** (`pantryPromptNames`,
+>   `src/i18n/inventoryI18n.ts` — statik i18n, LLM YOK; anahtarı olmayan
+>   kullanıcı malzemesi adıyla geçer). TR kiler adları EN üretimde modele
+>   bağlanamıyordu (sahte eksikler + hibrit kısayol blokajı, ölçüldü).
+>   İki aşamalı yol aktif dili, RAG hep EN'i kullanır; UI eşleştirmesi
+>   zaten iki dilli (`expandPantryForMatching`).
+> - **`match_recipes` fine dining yolu exact-scan** (migration
+>   `20260718300000`): HNSW post-filter tuzağı — top-40 aday içinde
+>   etiketliler (~%5) sorgu bölgesine göre 0'a düşebiliyordu. `filter_tag`
+>   doluyken 524 satırlık alt kümede tam tarama; null iken eski HNSW yolu
+>   birebir korunur.
+> - **Kiler ÇİFT DİLLİ** (`PantryItem.nameTr/nameEn`): varsayılan 20
+>   malzeme i18n anahtarıyla çevrilmeye devam eder (alanlar DOLDURULMAZ);
+>   asistanla eklenen ÖZEL malzemeler kaynak dille yazılır, karşı dil
+>   `backfillPantryTranslations` ile arka planda (açılış, dil değişimi,
+>   asistan ekleme). Gösterim `pantryDisplayName` — **KURAL: anahtarı
+>   olmayan ada `t()` ÇAĞRILMAZ** ("EKSİK ÇEVİRİ ANAHTARI" uyarılarının
+>   kaynağıydı). `pantryStore.addItems` mükerrer kontrolü iki dilli
+>   varyantlarla ("Ekmek" varken "Bread" ikinci kayıt açmaz).
+> - **KURAL: tool şema description'ları dil-NÖTR olmalı** —
+>   `parseIngredients`'taki sabit "Jenerik Türkçe malzeme adı" description'ı
+>   parametrik dil talimatını eziyordu (EN modda TR chip'ler); dil kuralı
+>   yalnız sistem promptunda durur.
+> - **Edge function 2/4/2 dağılımı (kullanıcı kararı):** 2 tarif 0 eksik
+>   (SADECE envanter+kiler), 4 tarif 1-4 eksikli; fine dining İKİLİSİ zıt
+>   kurgulu (biri 0, diğeri 2-3 eksik). "Prefer recipes the user can cook
+>   NOW" satırı kaldırıldı (her şeyi 0 eksiğe itiyordu). Dağılım
+>   prompt-yönlendirmeli, KOD ZORLAMAZ (MVP-16 ilkesi).
+> - **KURAL: edge function'daki `namesMatch` kopyası client'la BİRLİKTE
+>   güncellenir** (edge bundle app koduna bağımlı olamaz — bilinçli kopya)
+>   + üretim sonrası `reconcileRecipes` deterministik düzeltme (model
+>   mevcut malzemenin VARYANTINI eksik yazıyordu — prompt'a "mevcudun
+>   varyantını eksik yazma" kuralı da eklendi); hibrit kısayolun
+>   countMissing'i aynı eşleştirmeyi kullanır.
+> - **Kiler retrieval sorgusunda + kiler-yıldız kuralı:** queryText'e
+>   "Pantry staples: ..." satırı; prompt'ta "makarna/pirinç/bulgur gerçek
+>   malzemedir, uygunsa taşıyıcı yap". Önceki "kilere yaslanma" ifadesi
+>   TERS TEPMİŞTİ (kilerde makarna varken hiç makarnalı tarif çıkmıyordu).
 
 > ## IG-EĞİTİM GÖRSELLERİ (2026-07-18)
 >
@@ -203,14 +176,11 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 > - `design/Tarif_ekle/` fotoğrafları BU özellikle İLGİSİZ (kullanıcı:
 >   yanlışlıkla eklendi, başka iş için; yok sayıldı).
 
-> ## ⚠️ MVP-23 (2026-07-12) — REFERANS ZIP TAM İMPLEMENTASYONU:
-> ## 5 SEKME + DEFTERLER + PLAN + İÇE AKTARMA AKIŞI
+> ## ⚠️ MVP-23 (2026-07-12) — 5 SEKME + DEFTERLER + PLAN + İÇE AKTARMA
 >
-> Kullanıcı talimatıyla (`CLAUDE_CODE_PROMPT_v2.md` + `design/reference/
-> "Mobil yemek uygulaması UI tasarımı.zip"` içindeki `Mutfagim.dc.html` —
-> davranışın TEK kaynağı) fark analizi yapılıp yalnızca eksik/farklı
-> kısımlar eklendi. MVP-22'nin "3 sekme" ve "Kayıtlı kapsam dışı"
-> kararları GEÇERSİZ:
+> Davranışın TEK kaynağı: `CLAUDE_CODE_PROMPT_v2.md` + `design/reference/`
+> zip'indeki `Mutfagim.dc.html`. MVP-22'nin "3 sekme" ve "Kayıtlı kapsam
+> dışı" kararları GEÇERSİZ:
 >
 > - **Navigasyon 5 sekme:** Mutfağım `/` · Tarifler `/recipes` · Kayıtlı
 >   `/saved` · Plan `/plan` · Market `/market`.
@@ -249,71 +219,55 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   öğrenildi).
 > - **Sekme reset:** Kayıtlı ekranı `useFocusEffect` cleanup'ında açık
 >   defteri/akışı/aramayı sıfırlar (genel state kuralı).
-> - Doğrulama: `npx tsc --noEmit` temiz, 12 birim test geçti, tüm akışlar
->   Expo web önizlemesinde gerçek etkileşimle uçtan uca doğrulandı.
 
-> ## ⚠️ MVP-22 (2026-07-11) — TASARIM ENTEGRASYONU: BU DOSYANIN BAZI
-> ## BÖLÜMLERİNİ GEÇERSİZ KILAN BÜYÜK SÜRÜM
+> ## ⚠️ MVP-22 (2026-07-11) — TASARIM ENTEGRASYONU (karar özeti)
 >
-> Kullanıcı onayıyla `design/CLAUDE_CODE_PROMPT.md` (bağlayıcı görsel spec)
-> + `design/01…11-*.png` mockup'ları projeye entegre edildi (orkestrasyon:
-> `design/YEMEK_APP_ORKESTRASYON_PROMPT.md`; Faz 1 kontratlar → Faz 2 altı
-> paralel sub-agent → Faz 3 entegrasyon → Faz 4 doğrulama). Çelişkide görünüm
-> konularında SPEC, mimari konularda orkestrasyon dosyası kazanır. Değişenler:
+> `design/CLAUDE_CODE_PROMPT.md` (bağlayıcı görsel spec) + mockup'lar
+> entegre edildi. **KURAL: çelişkide görünüm konularında SPEC, mimari
+> konularda orkestrasyon dosyası (`design/YEMEK_APP_ORKESTRASYON_PROMPT.md`)
+> kazanır.** (Faz'lı entegrasyon süreci: references/HISTORY.md.)
 >
-> - **Tasarım sistemi DEĞİŞTİ:** tipografi Fraunces/Outfit → **Newsreader
->   (serif, başlıklar) + Hanken Grotesk (gövde)**; palet stone/emerald →
->   **orman yeşili `#1F4A3D`, krem zemin `#F7F5F0`, amber `#E38A2A`** (tüm
->   tokenlar: `tailwind.config.js` + `lib/theme.ts`; ortak bileşenler:
->   `components/ui/` — Chip, Card, MissingBadge, SectionLabel, PrimaryButton,
->   PhotoPlaceholder). Aşağıdaki "Tasarım sistemi" bölümündeki eski
->   renk/tipografi maddeleri ve MVP-8/10/17-21 kart-tasarım geçmişi ARTIK
->   TARİHİ KAYITTIR — güncel görünümün tek kaynağı spec + `components/ui/`.
->   Eski Fraunces/Outfit fontları hâlâ yüklenir (yalnızca "emin olunamayan
->   ürünler" modalının eski `InventoryRow`'u kullanıyor) — modal
->   birleştirilince kaldırılabilir.
-> - **MVP kapsamı GENİŞLEDİ (kullanıcı onayı):** sepet, tarife özel chat
->   (Şefe Sor), tarif tercihleri, Temel Malzemeler (kiler) ve asistanla/
->   kamerayla ekleme artık KAPSAM İÇİ. "Kayıtlı" sayfası hâlâ kapsam dışı.
-> - **Navigasyon 3 sekme (⚠️ MVP-23'te 5 SEKMEYE ÇIKTI, bkz. üstteki
->   blok — bu madde tarihi kayıt):** Mutfağım `/` · Tarifler `/recipes` · Market
->   `/market` (spec §7; eski "4 sekme" planı geçersiz). Tam ekran rotalar:
->   `/capture/camera` (expo-camera, basılı-tut video → `store/captureStore`
->   köprüsüyle Mutfağım'daki mevcut analiz akışına), `/capture/assistant`
->   (`?mode=pantry` kilere ekler; `lib/claude/parseIngredients.ts`,
->   claude-haiku-4-5, zorunlu tool-use).
-> - **Recipe şeması v3:** `RecipeIngredient` artık `{name, qty, unit, kcal,
+> - **Tasarım sistemi:** tipografi **Newsreader (serif, başlıklar) +
+>   Hanken Grotesk (gövde)**; palet **orman yeşili `#1F4A3D`, krem
+>   `#F7F5F0`, amber `#E38A2A`** (tokenlar: `tailwind.config.js` +
+>   `lib/theme.ts`; ortak bileşenler: `components/ui/` — Chip, Card,
+>   MissingBadge, SectionLabel, PrimaryButton, PhotoPlaceholder). Güncel
+>   görünümün TEK kaynağı spec + `components/ui/`. Eski Fraunces/Outfit
+>   fontları hâlâ yüklenir (yalnız "emin olunamayan ürünler" modalının eski
+>   `InventoryRow`'u için) — modal birleştirilince kaldırılabilir.
+> - Kapsam genişledi (sepet, Şefe Sor, tercihler, kiler, kamera/asistan) —
+>   bkz. "MVP kapsamı". Sekme sayısı o gün 3'tü; MVP-23'te 5 oldu.
+> - **Tam ekran rotalar:** `/capture/camera` (expo-camera, basılı-tut
+>   video → `store/captureStore` köprüsüyle Mutfağım'daki analiz akışına),
+>   `/capture/assistant` (`?mode=pantry` kilere ekler;
+>   `lib/claude/parseIngredients.ts`, claude-haiku-4-5, zorunlu tool-use).
+> - **Recipe şeması v3:** `RecipeIngredient` = `{name, qty, unit, kcal,
 >   category, in_inventory}` (qty/kcal varsayılan porsiyon içindir);
->   `Recipe.nutrition_tag` eklendi (kart meta şeridi). Cache sürümü o gün
->   v3'e çıktı — GÜNCEL sürüm ve parmak izi içeriği için bkz. "Tarif
->   önbelleği" (v5; kiler v4'te parmak izinden ÇIKARILDI, bu bloktaki
->   "parmak izi aktif kiler içerir" kararı artık geçerli değil).
-> - **Tercihler:** `types/preferences.ts` (4 kategori chip seçimi), Tarifler
->   sekmesi cache geçersizse önce tercih ekranı gösterir; yenile butonu
->   tercihlere döner. Tercih metni üretim promptlarına eklenir (ortak detay
->   bloğunun İÇİNDE — 6 çağrıda aynı olduğu için prefix cache BOZULMAZ).
-> - **Kiler:** `store/pantryStore.ts` — `PANTRY_STAPLES` ile aynı 20 varsayılan,
->   kullanıcı chip'le aç/kapar; üretime SADECE aktifler gider
->   (`activePantryNames`), `generateRecipesTwoPhase(inventory, {preferences,
->   activePantryNames, ...})` yeni imza.
+>   `Recipe.nutrition_tag` (kart meta şeridi). Cache sürümü/parmak izinin
+>   GÜNCEL hali: "Tarif önbelleği" (v5; kiler v4'te parmak izinden çıktı).
+> - **Tercihler:** `types/preferences.ts` (4 kategori chip seçimi); Tarifler
+>   sekmesi cache geçersizse önce tercih ekranı, yenile butonu tercihlere
+>   döner. **KURAL: tercih metni ORTAK detay bloğunun İÇİNDE** (tüm detay
+>   çağrılarında aynı olduğu için prefix cache BOZULMAZ).
+> - **Kiler:** `store/pantryStore.ts` — `PANTRY_STAPLES` ile aynı 20
+>   varsayılan, chip'le aç/kapa; üretime SADECE aktifler gider
+>   (`activePantryNames`).
 > - **Sepet:** `store/cartStore.ts` — ham kayıt tarif+malzeme bazında
 >   (`CartEntry`), görünüm `mergeCartEntries` ile malzeme bazında birleşik
->   (kaynak tarif etiketleri). Sepete ekleme aksiyonu TARİF KARTINDAKİ eksik
->   rozetinde (kullanıcı kararı; toggle — tekrar basınca çıkarır). Detayda
->   kişi sayısı değişince tarif sepetteyse miktarlar YENİDEN ölçeklenip
->   senkronlanır (`lib/recipes/cart-helpers.ts`).
-> - **Eksik hesabı CANLI:** rozetler, bölümleme ve sıralama üretim anındaki
->   `missing_count`/`in_inventory`'ye değil `computeMissing(recipe, inventory,
->   pantry)`'ye dayanır (`lib/recipes/recipe-math.ts`, saf + birim testli:
->   `npx tsx --test tests/unit/recipe-math.test.ts`). `scaleServings` de orada.
-> - **Şefe Sor:** `lib/claude/askChef.ts` (claude-sonnet-4-6, tarif system
->   bloğunda cache'li, geçmiş `store/chefChatStore.ts`'te recipeId bazlı,
->   markdown YASAK — düz metin talimatı).
+>   (kaynak tarif etiketleri). Sepete ekleme TARİF KARTINDAKİ eksik
+>   rozetinde (toggle). Detayda kişi sayısı değişince sepetteki miktarlar
+>   yeniden ölçeklenir (`lib/recipes/cart-helpers.ts`). İki dilli sepet
+>   alanları: ENVANTER-2DİL bloğu.
+> - **KURAL: eksik hesabı CANLI** — rozet/bölümleme/sıralama üretim
+>   anındaki değerlere değil `computeMissing(recipe, inventory, pantry)`'ye
+>   dayanır (`lib/recipes/recipe-math.ts`, saf + birim testli;
+>   `scaleServings` de orada).
+> - Şefe Sor: bkz. "Tarif chat'i" bölümü.
 > - **KURAL: `metro.config.js` `unstable_conditionNames`'ten "import"
 >   ÇIKARILDI — geri EKLEME:** zustand v5 ESM'i web bundle'ını
 >   `import.meta` ile kırar (native davranış değişmedi).
-> - **Mikrofon (sesli giriş) MVP DIŞI** (buton var, "yakında" uyarısı verir);
->   kamera ilerleme halkası saf View'la (yeni paket YOK, react-native-svg yok).
+> - Mikrofon MVP DIŞI (buton "yakında" der); kamera ilerleme halkası saf
+>   View (react-native-svg YOK).
 > - Supabase durumu (2026-07-18'de güncellendi): KISMEN kurulu — yalnız
 >   RAG tarif korpusu (`supabase/migrations/` 3 migration: pgvector +
 >   `match_recipes` + tag filtresi/exact-scan) ve `supabase/functions/
@@ -409,13 +363,14 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
 ## Tasarım sistemi
 
-Demo'da onaylanan görsel dil. Bundan sapma:
+> ⚠️ **Güncel görsel dilin TEK kaynağı MVP-22 spec'i + `components/ui/`**
+> (Newsreader + Hanken Grotesk; orman yeşili `#1F4A3D`, krem `#F7F5F0`,
+> amber `#E38A2A` — bkz. üstteki MVP-22 bloğu). MVP-22 ÖNCESİ
+> stone/emerald + Fraunces/Outfit paleti tarihidir
+> (references/HISTORY.md#eski-tasarım-sistemi-mvp-22-öncesi); eski sınıf
+> adları yalnız henüz taşınmamış eski bileşenlerde görülür. Aşağıdaki
+> maddeler hâlâ AKTİF davranış/yerleşim kurallarıdır.
 
-- **Renkler:** zemin `stone-50`, kartlar beyaz + `ring-stone-100`,
-  birincil `emerald-900`, vurgu `amber-500`, hata `red-500`
-- **Tipografi:** başlıklar Fraunces (serif), gövde Outfit
-- **Bileşen dili:** `rounded-2xl` kartlar, yumuşak gölge (`shadow-sm`),
-  rozetler (`Badge`) ikon + metin ile, dokunmada `active:scale-95`
 - **Kopya dili:** Türkçe, samimi ama net ("Bugün ne pişsin?" tonu);
   buton metinleri eylemi söyler ("Malzemeleri sepete ekle", "Gönder" değil)
 - Boş durumlar yönlendirme içerir ("Tarif sayfasından malzeme
@@ -1190,3 +1145,78 @@ references/HISTORY.md#mvp-9-2026-07-05-performans-profili):
 - Yeni paket eklemeden önce mevcut bağımlılıklarla çözülebiliyor mu kontrol et.
 - Mock veri yalnızca `__mocks__/` altında yaşar; production kodunda mock
   kalmışsa temizle.
+
+## DENENDİ / REDDEDİLDİ — tekrar ÖNERME
+
+Kullanıcının denediği ve bilinçli reddettiği şeyler (en pahalı hata:
+bunları yeniden önermek). Gerekçeler ilgili bölümde/HISTORY'de:
+
+- **İki eşikli swipe** (kısmi=azalt, tam=sil) — dar sütunda ayırt
+  edilemiyordu (MVP-18).
+- **Miktar kaydırma/swipe sistemi** komple — qty artık render edilmiyor
+  (MVP-20); +/- butonları da daha önce elendi.
+- **Ana listede confidence rozeti** — bilgi değeri yok; yalnız "emin
+  olunamayan" modalında (MVP-10/21).
+- **Kart solunda renkli şerit / tabak-çatal ikonu** — kaldırıldı (MVP-21).
+- **Tarif detayında envanterde-var malzemeye tik ikonu** — gürültü.
+- **Kartta "%N uyum" rozeti** — eksik-bazlı bölümleme sonrası tekrar
+  (MVP-16; detay ekranındaki %uyum duruyor).
+- **İçecekler envanterde** — istenmiyor (MVP-17); ama `İçecek` enum'u
+  şemadan SİLİNMEZ (bkz. KRİTİK DETAYLAR).
+- **Katman-bağımsız / tek-çağrı üretim** — çeşitlilik ve hız dersleri
+  (MVP-14/15); isimler önce BİRLİKTE planlanır.
+- **Marka adını ürün adına birleştirmek** (MVP-8) — marka ayrı `brand`
+  alanı/ikincil etiket.
+- **`instagram://app` / `instagram://feed` şeması** — feed'e navige edip
+  durumu sıfırlar; çıplak `instagram://` kullanılır (IG-RESUME).
+- **İki dilli isim için vision şemasını değiştirmek** — çeviri parse
+  SONRASI adımdır (ENVANTER-2DİL).
+- **Karşı market uygulamasının sepetini doldurmak** — ToS/güvenlik,
+  bilinçli kapsam dışı (MVP-24).
+- **`@google/genai` streaming** ve **`File`'ı doğrudan upload'a vermek** —
+  cihazda çöker (MVP-9 kuralları).
+- **`gemini-2.5-flash`'a geçiş** — doğruluk belirgin düşüyor; pro'da
+  kalındı (MVP-9).
+- **Video analizinde karmaşık envanter birleştirme** — `replaceItems`
+  bilinçli basit (MVP-12).
+- **RAG promptunda "Prefer recipes the user can cook NOW"** — her şeyi 0
+  eksiğe itiyordu (RAG-EN).
+- **RAG promptunda "envantere öncelik ver, kilere yaslanma"** — ters
+  tepti; kiler-yıldız kuralıyla değiştirildi (RAG-EN).
+
+## KRİTİK DETAYLAR — kısaltma/temizlikte SİLME
+
+Her biri gerçek bir hatanın önündeki tek settir; küçültme/refactor
+sırasında bilinçli korunur:
+
+- `propertyOrdering`: `reasoning`, `confidence`'tan HEMEN ÖNCE üretilir
+  (`gemini-provider.ts`) — sıra değişirse kalibrasyon etkisi kaybolur.
+- `INVENTORY_CATEGORIES`'teki `'İçecek'` enum değeri şemadan silinmez —
+  silinirse model içecekleri başka kategoriye zorlar, parse filtresi
+  yakalayamaz.
+- Claude detay çağrılarında cache breakpoint İLK system bloğunun
+  SONUNDADIR; katman/fine-dining kısıtı sonraki cache'siz bloktadır —
+  yer değişirse prefix cache bozulur.
+- Tercih metni ORTAK detay bloğunun İÇİNDE kalır (aynı gerekçe).
+- `lib/` ve `services/` i18n IMPORT ETMEZ — Node eval/test script'leri
+  kırılır.
+- "KISMİ token örtüşmesi bilinçli eşleşmez" (`ingredient-match`) — lexical
+  katmanı eş-anlamlı eşleştirmeye genişletme.
+- "Eşleşme yok cache'lenmez" (`services/matching`) — sortiman düzelince
+  kendini onarma mekanizması.
+- Manifest-null/Metro-require kısıtı (`tutorialImages.ts`) — var olmayan
+  dosyaya require yazılamaz.
+- Edge function'daki `namesMatch` KOPYASI client'la birlikte güncellenir.
+- Parmak izinde KİLER YOK (v4 kararı) — geri eklenirse kiler chip'i her
+  değişimde üretimi baştan başlatır.
+- `match_pct` tipte/hesapta durur ama hiçbir karar mekanizmasında
+  kullanılmaz — "ölü alan" sanıp silme (eski cache + detay ekranı uyumu).
+- Sepette kanonik `name` tarifin ÜRETİLDİĞİ dildedir — birleştirme/
+  işaretleme anahtarı; aktif dile çevirme.
+
+## BAKIM KURALI
+
+**Yeni iş = ilgili bölümü GÜNCELLE; en üste yeni blok EKLEME.** Geçersiz
+kılınan anlatı `references/HISTORY.md`'ye taşınır; SKILL.md'de yalnız
+güncel kural kalır (kural = KURAL + 1-2 satır gerekçe + gerekirse HISTORY
+pointer'ı). Hedef boyut ~15-17K token; 20K aşılırsa temizlik işi açılır.
