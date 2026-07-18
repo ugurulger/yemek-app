@@ -1005,11 +1005,16 @@ Deno.serve(async (request) => {
       ? matchCandidates.filter((candidate) => !titleTokens(candidate.title).includes(dominantToken))
       : [];
     const specs = groupSpecs(normalCount, dominantToken);
-    const groupMatches = specs.map((_, index) =>
-      index === 1 && nonDominantCandidates.length >= 3
+    // B grubu referansları: baskın-aile dışı adaylar; HİÇ yoksa referans
+    // bloğu BOŞ bırakılır (ölçüm dersi: baskın-aileli referans içeriği,
+    // açık BAN kuralını bile eziyor — kopyalanacak içerik kalmamalı; prompt'un
+    // referanssız fallback dalı envanterden üretime zaten izin veriyor).
+    const groupMatches = specs.map((_, index) => {
+      if (index !== 1 || !dominantToken) return matches;
+      return nonDominantCandidates.length >= 3
         ? diversifyMatches(nonDominantCandidates, CONFIG.matchCount)
-        : matches
-    );
+        : [];
+    });
     const [normalSettled, fineDiningResult] = await Promise.all([
       Promise.allSettled(
         specs.map((spec, index) =>
