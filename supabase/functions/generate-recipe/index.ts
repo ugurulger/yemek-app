@@ -515,10 +515,12 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     // Madde 3 (baseline B2): retrieval tek malzeme ailesine yığıldığında (örn.
     // 8/8 somon referansı) üretim de tekdüzeleşiyordu — referans yığılmasına
     // karşı açık yıldız-malzeme tavanı.
-    '- STAR INGREDIENT CAP (strict): at most 2 of the recipes may feature the same primary protein or ' +
-    'star ingredient, EVEN IF the reference recipes are dominated by a single ingredient family — use ' +
-    'the references for technique and structure, not to repeat their star. The remaining recipes must ' +
-    'star OTHER inventory items (eggs, vegetables, dairy, pantry carbs...).\n' +
+    '- STAR INGREDIENT CAP (strict — count per star before submitting): no star ingredient may carry ' +
+    'more than 2 of the recipes, and the set must contain at least 4 DIFFERENT star ingredients. First ' +
+    'pick the star of each recipe (e.g. 1: salmon, 2: eggs, 3: salmon, 4: potatoes, 5: spinach, 6: ' +
+    'bell pepper), then write the recipes. This holds EVEN IF the reference recipes are dominated by a ' +
+    'single ingredient family — use the references for technique and structure, not to repeat their ' +
+    'star; the other inventory items (eggs, vegetables, dairy, pantry carbs...) must carry the rest.\n' +
     '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
     'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
     'ingredients too — when available, build at least one dish around one of them (a pasta dish, a rice ' +
