@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 
 import { parseIngredients, type ParsedIngredient } from '@/lib/claude/parseIngredients';
 import { llmOutputLanguage } from '@/src/i18n';
+import { backfillInventoryTranslations } from '@/src/i18n/inventoryI18n';
 import { Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -137,6 +138,11 @@ export default function AssistantAddScreen() {
         addInventoryItems(fridgeBound);
       }
     }
+    // Asistanla eklenen adlar aktif dilde üretilir — karşı dil karşılıkları
+    // ARKA PLANDA tamamlanır (dil değişiminde anında takas için; bkz.
+    // src/i18n/inventoryI18n.ts). Hata akışı bozmaz, ekleme çoktan bitti.
+    void backfillInventoryTranslations('tr').catch(() => {});
+    void backfillInventoryTranslations('en').catch(() => {});
     setIsDone(true);
     setTimeout(() => router.back(), 900);
   }

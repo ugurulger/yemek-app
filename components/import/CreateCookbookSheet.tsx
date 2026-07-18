@@ -59,6 +59,10 @@ export function CreateCookbookSheet({ visible, onClose, onBack }: CreateCookbook
           placeholder={t('cookbooks.namePlaceholder')}
           placeholderTextColor={colors.muted2}
           className="py-3 font-sans text-[15px] text-ink"
+          // Emniyet kemeri (kullanıcı raporu — "yazdığımı görmüyorum"):
+          // NativeWind'in TextInput'ta renk sınıfını uygulamadığı sürümlere
+          // karşı renk açıkça da verilir (klavye düzeltmesi BottomSheet'te).
+          style={{ color: colors.ink }}
           returnKeyType="done"
           onSubmitEditing={handleCreate}
           accessibilityLabel={t('cookbooks.nameA11y')}

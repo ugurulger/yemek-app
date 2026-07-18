@@ -6,6 +6,7 @@ import { MissingBadge, PhotoPlaceholder } from '@/components/ui';
 import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors, photoTones } from '@/lib/theme';
+import { expandInventoryForMatching, expandPantryForMatching } from '@/src/i18n/inventoryI18n';
 import { difficultyKey, nutritionTagKey } from '@/src/i18n/labels';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import { useCartStore } from '@/store/cartStore';
@@ -72,7 +73,12 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
   const syncRecipeMissing = useCartStore((state) => state.syncRecipeMissing);
   const removeRecipe = useCartStore((state) => state.removeRecipe);
 
-  const liveMissingCount = computeMissing(recipe, inventoryItems, pantryItems).length;
+  // İki dilli ad varyantlarıyla eşleştirme (bkz. src/i18n/inventoryI18n.ts).
+  const liveMissingCount = computeMissing(
+    recipe,
+    expandInventoryForMatching(inventoryItems),
+    expandPantryForMatching(pantryItems)
+  ).length;
   const [tone1, tone2] = tonesForRecipe(recipe.name);
 
   // popIn (referans: animation:popIn .3s ease both) — mount'ta bir kez.

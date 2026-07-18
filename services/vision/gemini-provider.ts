@@ -7,7 +7,7 @@ import {
   parseInventoryItems,
   parseVideoInventoryItems,
   TABULATION_TURN_PROMPT,
-  VIDEO_INVENTORY_PROMPT,
+  videoInventoryPrompt,
 } from './prompt';
 import {
   InventoryVisionError,
@@ -410,7 +410,10 @@ async function extractInventoryFromVideoNative(
     result = await callGemini(
       model,
       undefined,
-      [{ role: 'user', parts: [videoPart, { text: VIDEO_INVENTORY_PROMPT }] }],
+      // Prompt, taramanın başlatıldığı uygulama dilinde seçilir (kullanıcı
+      // kararı) — ürün adları o dilde üretilir, karşı dil çeviri adımıyla
+      // doldurulur (bkz. src/i18n/inventoryI18n.ts — bilingualizeItems).
+      [{ role: 'user', parts: [videoPart, { text: videoInventoryPrompt(options?.language ?? 'tr') }] }],
       {
         temperature: VIDEO_INVENTORY_TEMPERATURE,
         responseMimeType: 'application/json',

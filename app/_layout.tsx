@@ -16,7 +16,12 @@ import 'react-native-reanimated';
 import '../global.css';
 // i18n init'i (dil algılama + kayıtlı seçim) her şeyden önce yüklenir.
 import '@/src/i18n';
+import { initLanguageSync } from '@/src/i18n/languageSync';
 import { ToastHost } from '@/components/ui';
+
+// Dil değişiminde envanter/tarif çevirilerini arka planda tamamlayan dinleyici
+// (bkz. src/i18n/languageSync.ts) — i18n init'inden hemen sonra, bir kez.
+initLanguageSync();
 
 // Tasarım piksel-sabit bir referanstan (design/reference/Mutfagim.dc.html)
 // birebir taşındı — cihazın sistem yazı ölçeği (iOS Dynamic Type / Android

@@ -19,6 +19,13 @@ const DETAIL_MAX_TOKENS = 2048;
 const SUBMIT_RECIPE_NAMES_TOOL = 'submit_recipe_names';
 const SUBMIT_RECIPE_DETAIL_TOOL = 'submit_recipe_detail';
 const RECIPE_COUNT = 6;
+/**
+ * İş 1 (RAG'siz akışa taşındı): standart 6 tarifin YANINA 2 fine dining
+ * tarifi üretilir — toplam 8. RAG akışıyla (supabase/functions/
+ * generate-recipe — CONFIG.fineDiningCount) davranış paritesi: fine dining
+ * üretimi başarısız olursa akış BOZULMAZ, 6 standart tarifle devam edilir.
+ */
+export const FINE_DINING_COUNT = 2;
 
 export type RecipeLayerId = 'ready' | 'closeMatch' | 'fewMissing';
 
@@ -114,7 +121,12 @@ function buildPreferenceText(preferences: RecipePreferences): string {
  * eksikli katmanlar giderek daha yaratıcı (Claude API'de temperature 0-1
  * aralığında, varsayılan 1 — "yüksek" = 1.0, diğerleri düşürülür).
  */
-const LAYER_VARIANTS: Record<RecipeLayerId, { temperature: number; constraint: string }> = {
+interface DetailVariant {
+  temperature: number;
+  constraint: string;
+}
+
+const LAYER_VARIANTS: Record<RecipeLayerId, DetailVariant> = {
   ready: {
     temperature: 0.3,
     constraint:
@@ -134,6 +146,17 @@ const LAYER_VARIANTS: Record<RecipeLayerId, { temperature: number; constraint: s
       'BU TARİF İÇİN ÖZEL KISIT: 3-4 malzeme envanter/kiler dışından olabilir (in_inventory: false) — bu payı ' +
       'kullanarak daha yaratıcı, iddialı bir tarif kur; ama envanterdeki malzemeleri de temel olarak kullan.',
   },
+};
+
+/** Fine dining detay varyantı — RAG akışının fine dining prompt'uyla aynı ruh
+ * (restoran kalitesi, sofistike teknik/sunum); eksik payı fewMissing gibi. */
+const FINE_DINING_VARIANT: DetailVariant = {
+  temperature: 0.9,
+  constraint:
+    'BU TARİF İÇİN ÖZEL KISIT: bu bir FINE DINING tarifi — restoran kalitesinde, rafine tekniklerle ve şık ' +
+    'tabaklama/sunum önerisiyle kur (adımlarda sunuma da yer ver). Envanterdeki malzemeleri temel al; en fazla ' +
+    '3-4 malzeme envanter/kiler dışından olabilir (in_inventory: false). Ev mutfağında uygulanabilir kalsın, ' +
+    'ulaşılmaz profesyonel ekipman gerektirme.',
 };
 
 /**
@@ -231,6 +254,18 @@ export interface RecipePlan {
   /** Aşama 2'nin dağılımı için model tahmini — kesin katman DEĞİLDİR. */
   estimatedLayer: RecipeLayerId;
   estimatedMissing: string[];
+  /**
+   * İş 1: fine dining planı — detay çağrısı FINE_DINING_VARIANT'la yapılır,
+   * sonuç tarif `category: 'fine-dining'` alır ve listede ayrı bölümde çıkar.
+   */
+  fineDining?: boolean;
+}
+
+/** Prompt bağlamının dil kodu — Recipe.language alanına yazılır (bkz.
+ * src/i18n/recipeI18n.ts; dil değişiminde çeviri gerekip gerekmediği buradan
+ * anlaşılır). outputLanguage serbest metin ('Turkish'/'English'). */
+function contextLanguageCode(context: RecipePromptContext): 'tr' | 'en' {
+  return (context.outputLanguage ?? 'Turkish') === 'English' ? 'en' : 'tr';
 }
 
 function buildPlanSystemPrompt(context: RecipePromptContext): string {
@@ -485,7 +520,7 @@ const RECIPE_DETAIL_SCHEMA = {
  * Aşama 1'den (parametre olarak) gelir — modelin çıktısından ALINMAZ, ki
  * kart başlığı planlama anından itibaren tutarlı kalsın.
  */
-function toRecipeDetail(name: string, raw: unknown): Recipe | null {
+function toRecipeDetail(name: string, raw: unknown, language: 'tr' | 'en'): Recipe | null {
   if (typeof raw !== 'object' || raw === null) {
     return null;
   }
@@ -543,6 +578,7 @@ function toRecipeDetail(name: string, raw: unknown): Recipe | null {
     steps: obj.steps,
     chef_tip: obj.chef_tip,
     nutrition_tag: toNutritionTag(obj.nutrition_tag),
+    language,
     image_prompt_en:
       typeof obj.image_prompt_en === 'string' && obj.image_prompt_en.trim().length > 0
         ? obj.image_prompt_en
@@ -558,23 +594,24 @@ export interface RecipeDetail {
 
 async function callRecipeDetail(
   name: string,
-  layerTarget: RecipeLayerId,
+  variant: DetailVariant,
   userContent: string,
-  commonSystemPrompt: string
+  commonSystemPrompt: string,
+  language: 'tr' | 'en'
 ): Promise<Recipe> {
   let toolInput: Record<string, unknown>;
   try {
     toolInput = await callClaudeForToolInput({
       model: MODEL,
       max_tokens: DETAIL_MAX_TOKENS,
-      // İlk blok 6 çağrıda birebir aynı (prefix cache tutar; tercih + aktif
-      // kiler metni de bu bloğun içinde ve 6 çağrıda aynı); katman kısıtı
-      // cache'siz ikinci blok — bkz. buildCommonDetailSystemPrompt yorumu.
+      // İlk blok 8 çağrıda birebir aynı (prefix cache tutar; tercih + aktif
+      // kiler metni de bu bloğun içinde ve 8 çağrıda aynı); katman/fine-dining
+      // kısıtı cache'siz ikinci blok — bkz. buildCommonDetailSystemPrompt yorumu.
       system: [
         { type: 'text', text: commonSystemPrompt, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: LAYER_VARIANTS[layerTarget].constraint },
+        { type: 'text', text: variant.constraint },
       ],
-      temperature: LAYER_VARIANTS[layerTarget].temperature,
+      temperature: variant.temperature,
       messages: [{ role: 'user', content: userContent }],
       tools: [
         {
@@ -592,7 +629,7 @@ async function callRecipeDetail(
     });
   }
 
-  const recipe = toRecipeDetail(name, toolInput);
+  const recipe = toRecipeDetail(name, toolInput, language);
   if (!recipe) {
     throw new RecipeGenerationError(`"${name}" tarifi ayrıştırılamadı, tekrar deneyin`);
   }
@@ -615,11 +652,18 @@ export async function generateRecipeDetail(
 ): Promise<RecipeDetail> {
   const simplifiedInventory = simplifyInventory(inventory);
   const baseContent = `Tarif adı: "${name}"\nEnvanter: ${JSON.stringify(simplifiedInventory)}`;
-  // Aynı üretim akışındaki 6 paralel çağrıda (ve ready-retry'da) BİREBİR aynı
+  // Aynı üretim akışındaki 8 paralel çağrıda (ve ready-retry'da) BİREBİR aynı
   // metin — prefix cache bunun üzerinden tutar.
   const commonSystemPrompt = buildCommonDetailSystemPrompt(context);
+  const language = contextLanguageCode(context);
 
-  let recipe = await callRecipeDetail(name, layerTarget, baseContent, commonSystemPrompt);
+  let recipe = await callRecipeDetail(
+    name,
+    LAYER_VARIANTS[layerTarget],
+    baseContent,
+    commonSystemPrompt,
+    language
+  );
 
   if (layerTarget === 'ready' && recipe.missing_count > 0) {
     const missingNames = recipe.ingredients
@@ -630,11 +674,12 @@ export async function generateRecipeDetail(
     try {
       recipe = await callRecipeDetail(
         name,
-        layerTarget,
+        LAYER_VARIANTS[layerTarget],
         `${baseContent}\n\nÖnceki denemede şu malzemeler envanterde/kilerde yoktu: ${missingNames}. ` +
           'Tarifi bu malzemeler OLMADAN yeniden kur veya envanterdeki karşılıklarıyla değiştir — ' +
           'HER malzeme in_inventory: true olmalı.',
-        commonSystemPrompt
+        commonSystemPrompt,
+        language
       );
     } catch {
       // Düzeltme çağrısı başarısız olursa ilk sonuç kullanılır — eksik
@@ -643,6 +688,123 @@ export async function generateRecipeDetail(
   }
 
   return { recipe, layer: assignRecipeLayer(recipe.missing_count) };
+}
+
+// ---------------------------------------------------------------------------
+// İş 1 — fine dining (RAG'siz akış): 2 isim planı + FINE_DINING_VARIANT'lı
+// detay çağrıları; sonuç tarifler `category: 'fine-dining'` alır ve listede
+// ayrı bölümde gösterilir (bkz. components/recipes/RecipeList.tsx).
+// ---------------------------------------------------------------------------
+
+const SUBMIT_FINE_DINING_NAMES_SCHEMA = {
+  type: 'object',
+  properties: {
+    recipes: {
+      type: 'array',
+      minItems: FINE_DINING_COUNT,
+      maxItems: FINE_DINING_COUNT,
+      items: {
+        type: 'object',
+        properties: { name: { type: 'string' } },
+        required: ['name'],
+      },
+    },
+  },
+  required: ['recipes'],
+};
+
+function buildFineDiningPlanSystemPrompt(context: RecipePromptContext): string {
+  const pantryNames = normalizePantryNames(context.activePantryNames);
+  const pantrySentence =
+    pantryNames.length === 0
+      ? ''
+      : `Kiler malzemeleri her zaman evde var kabul edilir: ${pantryNames.join(', ')}. `;
+  return (
+    `Verilen envanter listesine göre TAM ${FINE_DINING_COUNT} adet FINE DINING tarif İSMİ öner ` +
+    '(henüz tam tarif detayı değil, sadece isim). ' +
+    pantrySentence +
+    buildLanguageSentence(context) +
+    buildPreferenceText(context.preferences) +
+    'Kurallar: ' +
+    '- Restoran kalitesinde, sofistike ama ev mutfağında uygulanabilir tarifler olsun; envanterdeki ' +
+    'malzemeleri temel alsın (birkaç eksik malzeme kabul edilebilir). ' +
+    '- İki tarif birbirinden FARKLI olsun: aynı ana malzemeyi veya tekniği tekrarlama. ' +
+    '- İsimler iddialı ve isabetli olsun; adın ima ettiği tanımlayıcı malzemeler envantere/kilere uysun.'
+  );
+}
+
+/** Fine dining Aşama 1: TEK çağrıyla 2 fine dining tarif ismi. */
+export async function generateFineDiningNames(
+  inventory: InventoryItem[],
+  context: RecipePromptContext = DEFAULT_PROMPT_CONTEXT
+): Promise<RecipePlan[]> {
+  if (inventory.length === 0) {
+    throw new RecipeGenerationError('Tarif önermek için envanterde ürün olmalı');
+  }
+
+  let toolInput: Record<string, unknown>;
+  try {
+    toolInput = await callClaudeForToolInput({
+      model: MODEL,
+      max_tokens: NAMES_MAX_TOKENS,
+      system: [{ type: 'text', text: buildFineDiningPlanSystemPrompt(context) }],
+      messages: [
+        { role: 'user', content: `Envanter: ${JSON.stringify(simplifyInventory(inventory))}` },
+      ],
+      tools: [
+        {
+          name: SUBMIT_RECIPE_NAMES_TOOL,
+          description: `Envantere göre planlanan ${FINE_DINING_COUNT} fine dining tarifinin ismini gönderir.`,
+          input_schema: SUBMIT_FINE_DINING_NAMES_SCHEMA,
+        },
+      ],
+      tool_choice: { type: 'tool', name: SUBMIT_RECIPE_NAMES_TOOL },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
+    throw new RecipeGenerationError(`Claude API çağrısı başarısız oldu: ${message}`, {
+      cause: error,
+    });
+  }
+
+  const rawPlans = toolInput.recipes;
+  if (!Array.isArray(rawPlans)) {
+    throw new RecipeGenerationError('Claude yanıtı ayrıştırılamadı, tekrar deneyin');
+  }
+
+  const plans = rawPlans
+    .map((raw): RecipePlan | null => {
+      if (typeof raw !== 'object' || raw === null) return null;
+      const name = (raw as Record<string, unknown>).name;
+      if (typeof name !== 'string' || name.trim().length === 0) return null;
+      // estimatedLayer yalnızca ÖN yerleşim içindir — fine dining slotları
+      // kendi bölümünde gösterilir, kesin katman detaydan hesaplanır.
+      return { name, estimatedLayer: 'fewMissing', estimatedMissing: [], fineDining: true };
+    })
+    .filter((plan): plan is RecipePlan => plan !== null);
+
+  if (plans.length === 0) {
+    throw new RecipeGenerationError('Fine dining planı üretilemedi, tekrar deneyin');
+  }
+  return plans;
+}
+
+/** Fine dining Aşama 2: tek tarifin tam detayı (FINE_DINING_VARIANT ile). */
+export async function generateFineDiningDetail(
+  name: string,
+  inventory: InventoryItem[],
+  context: RecipePromptContext = DEFAULT_PROMPT_CONTEXT
+): Promise<RecipeDetail> {
+  const baseContent = `Tarif adı: "${name}"\nEnvanter: ${JSON.stringify(simplifyInventory(inventory))}`;
+  const recipe = await callRecipeDetail(
+    name,
+    FINE_DINING_VARIANT,
+    baseContent,
+    buildCommonDetailSystemPrompt(context),
+    contextLanguageCode(context)
+  );
+  const fineDiningRecipe: Recipe = { ...recipe, category: 'fine-dining' };
+  return { recipe: fineDiningRecipe, layer: assignRecipeLayer(fineDiningRecipe.missing_count) };
 }
 
 /**
@@ -713,9 +875,19 @@ export async function generateRecipesTwoPhase(
     outputLanguage: options.outputLanguage,
   };
 
-  const plans = await generateRecipeNames(inventory, context);
+  // Standart 6'lı plan + 2 fine dining ismi PARALEL istenir (İş 1). Fine
+  // dining planı başarısız olursa akış BOZULMAZ — 6 standart tarifle devam
+  // edilir (RAG akışının degrade davranışıyla parite).
+  const [standardPlans, finePlans] = await Promise.all([
+    generateRecipeNames(inventory, context),
+    generateFineDiningNames(inventory, context).catch((error): RecipePlan[] => {
+      console.warn('[recipe] fine dining planı üretilemedi — 6 standart tarifle devam:', error);
+      return [];
+    }),
+  ]);
+  const plans = [...standardPlans, ...finePlans];
   console.log(
-    `[PERF][recipe] aşama-1 (isim/plan): ${(performance.now() - tStart).toFixed(0)}ms, ${plans.length} tarif planlandı`
+    `[PERF][recipe] aşama-1 (isim/plan): ${(performance.now() - tStart).toFixed(0)}ms, ${plans.length} tarif planlandı (${finePlans.length} fine dining)`
   );
   options.onPlanReady?.(plans);
 
@@ -723,12 +895,9 @@ export async function generateRecipesTwoPhase(
   const settled = await Promise.allSettled(
     plans.map(async (plan, planIndex): Promise<RecipeDetailResult> => {
       try {
-        const { recipe, layer } = await generateRecipeDetail(
-          plan.name,
-          inventory,
-          plan.estimatedLayer,
-          context
-        );
+        const { recipe, layer } = plan.fineDining
+          ? await generateFineDiningDetail(plan.name, inventory, context)
+          : await generateRecipeDetail(plan.name, inventory, plan.estimatedLayer, context);
         const result: RecipeDetailResult = { planIndex, name: plan.name, status: 'done', recipe, layer };
         options.onDetailSettled?.(result);
         return result;

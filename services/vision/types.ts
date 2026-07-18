@@ -41,6 +41,14 @@ export interface ExtractInventoryOptions {
    * SAYAR (video kabul etmiyor, bkz. SKILL.md).
    */
   video?: { data: string; mimeType: string };
+  /**
+   * Taramanın BAŞLATILDIĞI uygulama dili (kullanıcı kararı): video →
+   * envanter çağrısının prompt'u bu dilde seçilir ve ürün ADLARI bu dilde
+   * üretilir (bkz. services/vision/prompt.ts — videoInventoryPrompt).
+   * Verilmezse Türkçe (eski davranış). Enum alanları (unit/category) veri
+   * katmanı gereği HER DURUMDA Türkçe kalır.
+   */
+  language?: 'tr' | 'en';
 }
 
 /**

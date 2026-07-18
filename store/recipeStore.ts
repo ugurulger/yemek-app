@@ -8,33 +8,36 @@ import {
   preferencesFingerprint,
   type RecipePreferences,
 } from '@/types/preferences';
-import type { Recipe } from '@/types/recipe';
+import type { AppLanguage } from '@/src/i18n';
+import type { Recipe, RecipeTexts } from '@/types/recipe';
 
 /**
  * Üretim mantığı değiştiğinde artırılır — eski mantıkla üretilmiş cache'in
  * parmak izi eşleşmesin ve tarifler yeni akışla yeniden üretilsin diye
  * (v2: MVP-16, 9→6 tarif + eksik-bazlı katmanlama; v3: tasarım entegrasyonu —
  * malzeme şeması qty/unit/kcal/category kazandı, nutrition_tag eklendi,
- * tercihler parmak izine girdi).
+ * tercihler parmak izine girdi; v4: aktif kiler parmak izinden ÇIKARILDI —
+ * kiler değişimi artık üretimi baştan başlatmaz, eksik rozetleri canlı
+ * computeMissing'le güncellenir — + 6 standart + 2 fine dining = 8 tarif).
  */
-const GENERATION_VERSION = 'v3';
+const GENERATION_VERSION = 'v4';
 
 /**
  * Envanterin + tercihlerin tarif üretimini etkileyen halinin parmak izi.
  * Tarifler bu parmak iziyle birlikte AsyncStorage'a yazılır; envanter VE
  * tercihler değişmediyse tarifler yeniden ÜRETİLMEZ, cache'ten okunur.
- * Aktif kiler listesi de üretimi etkilediği için parmak ize dahildir.
+ * AKTİF KİLER BİLİNÇLİ OLARAK DAHİL DEĞİL (kullanıcı kararı): kiler
+ * güncellenince tarifler baştan üretilmez — yalnızca eksik malzeme bilgisi
+ * canlı hesaplanır (bkz. lib/recipes/recipe-math.ts — computeMissing).
  */
 export function inventoryFingerprint(
   inventory: InventoryItem[],
-  preferences: RecipePreferences,
-  activePantryNames: string[]
+  preferences: RecipePreferences
 ): string {
   const simplified = inventory
     .map((item) => ({ name: item.name.trim().toLowerCase(), qty: item.qty, unit: item.unit }))
     .sort((a, b) => a.name.localeCompare(b.name) || a.unit.localeCompare(b.unit));
-  const pantry = [...activePantryNames].map((name) => name.trim().toLowerCase()).sort();
-  return `${GENERATION_VERSION}|${preferencesFingerprint(preferences)}|${pantry.join(',')}|${JSON.stringify(simplified)}`;
+  return `${GENERATION_VERSION}|${preferencesFingerprint(preferences)}|${JSON.stringify(simplified)}`;
 }
 
 interface RecipeState {
@@ -48,10 +51,17 @@ interface RecipeState {
    * `recipe.servings`; sepete giden eksik miktarlar bu değerle ölçeklenir.
    */
   selectedServings: Record<string, number>;
+  /**
+   * Tarif çevirileri (dil değişiminde "topyekün" takas — bkz.
+   * src/i18n/recipeI18n.ts): tarif id → dil → serbest metin alanları.
+   * setRecipes'te SIFIRLANIR (yeni üretim yeni id'ler getirir).
+   */
+  translations: Record<string, Partial<Record<AppLanguage, RecipeTexts>>>;
   setRecipes: (recipes: Recipe[], fingerprint: string) => void;
   getRecipeById: (id: string) => Recipe | undefined;
   setPreferences: (preferences: RecipePreferences) => void;
   setSelectedServings: (recipeId: string, servings: number) => void;
+  setRecipeTranslation: (recipeId: string, language: AppLanguage, texts: RecipeTexts) => void;
 }
 
 export const useRecipeStore = create<RecipeState>()(
@@ -61,13 +71,26 @@ export const useRecipeStore = create<RecipeState>()(
       generatedForFingerprint: null,
       preferences: EMPTY_PREFERENCES,
       selectedServings: {},
+      translations: {},
       setRecipes: (recipes, fingerprint) =>
-        set({ recipes, generatedForFingerprint: fingerprint, selectedServings: {} }),
+        set({
+          recipes,
+          generatedForFingerprint: fingerprint,
+          selectedServings: {},
+          translations: {},
+        }),
       getRecipeById: (id) => get().recipes.find((recipe) => recipe.id === id),
       setPreferences: (preferences) => set({ preferences }),
       setSelectedServings: (recipeId, servings) =>
         set((state) => ({
           selectedServings: { ...state.selectedServings, [recipeId]: Math.max(1, servings) },
+        })),
+      setRecipeTranslation: (recipeId, language, texts) =>
+        set((state) => ({
+          translations: {
+            ...state.translations,
+            [recipeId]: { ...state.translations[recipeId], [language]: texts },
+          },
         })),
     }),
     {
@@ -82,6 +105,7 @@ export const useRecipeStore = create<RecipeState>()(
         generatedForFingerprint: null,
         preferences: EMPTY_PREFERENCES,
         selectedServings: {},
+        translations: {},
       }),
     }
   )

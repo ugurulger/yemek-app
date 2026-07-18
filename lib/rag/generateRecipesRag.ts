@@ -102,7 +102,11 @@ export async function generateRecipesRag(
   // tekilleştirme + missing_count artan sıralama mevcut akışla aynı.
   // Fine dining tarifleri (İş 1: category === 'fine-dining') bu sıralamaya
   // KARIŞTIRILMAZ — kendi bölümlerinde, listenin sonunda gösterilirler.
-  const fineDining = data.recipes.filter((recipe) => recipe.category === 'fine-dining');
-  const normal = data.recipes.filter((recipe) => recipe.category !== 'fine-dining');
+  // Üretim dili tariflere işlenir (dil değişiminde çeviri gerekip
+  // gerekmediği buradan anlaşılır — bkz. src/i18n/recipeI18n.ts).
+  const language: 'tr' | 'en' = llmOutputLanguage() === 'Turkish' ? 'tr' : 'en';
+  const withLanguage = data.recipes.map((recipe) => ({ ...recipe, language }));
+  const fineDining = withLanguage.filter((recipe) => recipe.category === 'fine-dining');
+  const normal = withLanguage.filter((recipe) => recipe.category !== 'fine-dining');
   return [...mergeRecipeLayers([normal]), ...fineDining];
 }

@@ -13,6 +13,7 @@ import RecipeLayerSections, {
 } from '@/components/recipes/RecipeLayerSections';
 import RecipeSkeletonCard from '@/components/recipes/RecipeSkeletonCard';
 import {
+  generateFineDiningDetail,
   generateRecipeDetail,
   generateRecipesTwoPhase,
   mergeRecipeLayers,
@@ -21,13 +22,15 @@ import {
 } from '@/lib/claude/generateRecipes';
 import { generateRecipesRag, RAG_ENABLED } from '@/lib/rag/generateRecipesRag';
 import { llmOutputLanguage } from '@/src/i18n';
+import { useLocalizedRecipes } from '@/src/i18n/recipeI18n';
 import { cardShadow, colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
 import { inventoryFingerprint, useRecipeStore } from '@/store/recipeStore';
 import type { Recipe } from '@/types/recipe';
 
-const PLANNED_RECIPE_COUNT = 6;
+// İş 1: 6 standart + 2 fine dining = 8 (iskelet satır sayısı bunun yarısı).
+const PLANNED_RECIPE_COUNT = 8;
 
 /** Yenile butonu gölgesi — birebir referans: 0 4px 12px -5px rgba(31,74,61,.3). */
 const REFRESH_SHADOW = {
@@ -42,6 +45,8 @@ interface RecipeSlotState {
   name: string;
   /** Aşama 1'in hedefi — detay çağrısının varyantını ve ön bölüm yerleşimini belirler. */
   estimatedLayer: RecipeLayerId;
+  /** İş 1: fine dining slotu — kendi bölümünde gösterilir, retry'ı fine dining detayını çağırır. */
+  fineDining: boolean;
   status: 'loading' | 'done' | 'error';
   recipe: Recipe | null;
   /** Aşama 2 dönünce eksik malzeme sayısından KODDA hesaplanan kesin katman — bkz. `assignRecipeLayer`. */
@@ -65,6 +70,10 @@ export default function TariflerScreen() {
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const recipes = useRecipeStore((state) => state.recipes);
+  // Dil değişiminde "topyekün" takas: liste, aktif dile yerelleştirilmiş
+  // kopyalarla gösterilir (çeviri hazır değilse orijinal dil — bkz.
+  // src/i18n/recipeI18n.ts + languageSync.ts).
+  const displayRecipes = useLocalizedRecipes(recipes);
   const setRecipes = useRecipeStore((state) => state.setRecipes);
   const preferences = useRecipeStore((state) => state.preferences);
   const generatedForFingerprint = useRecipeStore((state) => state.generatedForFingerprint);
@@ -78,10 +87,12 @@ export default function TariflerScreen() {
   const activePantryNames = pantryItems.filter((item) => item.active).map((item) => item.name);
 
   async function handleGenerateRecipes() {
-    // Önbellek kuralı: envanter + tercihler + aktif kiler değişmediyse
-    // tarifler yeniden üretilmez, AsyncStorage'dan hidrate edilen mevcut
-    // (iki aşamalı üretimin birleşmiş) liste kullanılmaya devam eder.
-    const fingerprint = inventoryFingerprint(inventoryItems, preferences, activePantryNames);
+    // Önbellek kuralı: envanter + tercihler değişmediyse tarifler yeniden
+    // üretilmez, AsyncStorage'dan hidrate edilen mevcut liste kullanılmaya
+    // devam eder. AKTİF KİLER parmak izine BİLİNÇLİ olarak dahil değil
+    // (kullanıcı kararı): kiler güncellemesi üretimi baştan başlatmaz,
+    // yalnızca eksik rozetleri canlı güncellenir (RecipeList — computeMissing).
+    const fingerprint = inventoryFingerprint(inventoryItems, preferences);
     setShowPreferences(false);
     if (recipes.length > 0 && generatedForFingerprint === fingerprint) {
       setErrorMessage(null);
@@ -111,6 +122,7 @@ export default function TariflerScreen() {
             plans.map((plan) => ({
               name: plan.name,
               estimatedLayer: plan.estimatedLayer,
+              fineDining: plan.fineDining === true,
               status: 'loading',
               recipe: null,
               actualLayer: null,
@@ -153,11 +165,15 @@ export default function TariflerScreen() {
 
     setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'loading' } : s)));
     try {
-      const { recipe, layer } = await generateRecipeDetail(slot.name, inventoryItems, slot.estimatedLayer, {
+      const context = {
         preferences,
         activePantryNames,
         outputLanguage: llmOutputLanguage(),
-      });
+      };
+      // Fine dining slotunun retry'ı kendi varyantını kullanır (İş 1).
+      const { recipe, layer } = slot.fineDining
+        ? await generateFineDiningDetail(slot.name, inventoryItems, context)
+        : await generateRecipeDetail(slot.name, inventoryItems, slot.estimatedLayer, context);
       const nextSlots = slots.map((s, i) =>
         i === index ? { ...s, status: 'done' as const, recipe, actualLayer: layer } : s
       );
@@ -167,7 +183,7 @@ export default function TariflerScreen() {
         .map((s) => s.recipe as Recipe);
       const merged = mergeRecipeLayers([doneRecipes]);
       if (merged.length > 0) {
-        setRecipes(merged, inventoryFingerprint(inventoryItems, preferences, activePantryNames));
+        setRecipes(merged, inventoryFingerprint(inventoryItems, preferences));
       }
     } catch {
       setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'error' } : s)));
@@ -175,7 +191,7 @@ export default function TariflerScreen() {
   }
 
   const hasInventory = inventoryItems.length > 0;
-  const fingerprint = inventoryFingerprint(inventoryItems, preferences, activePantryNames);
+  const fingerprint = inventoryFingerprint(inventoryItems, preferences);
   // Cache eşleşiyorsa doğrudan liste; eşleşmiyorsa (veya liste boşsa) önce
   // tercih ekranı gösterilir (spec §4 akışı).
   const cacheValid = recipes.length > 0 && generatedForFingerprint === fingerprint;
@@ -195,7 +211,7 @@ export default function TariflerScreen() {
       key: 'ready',
       title: t('recipes.sectionReady'),
       prominent: true,
-      slots: cardSlots.filter((_, i) => layerForSlot(slots[i]) === 'ready'),
+      slots: cardSlots.filter((_, i) => !slots[i].fineDining && layerForSlot(slots[i]) === 'ready'),
     },
     {
       key: 'shopping',
@@ -204,13 +220,22 @@ export default function TariflerScreen() {
       slots: cardSlots
         .map((cardSlot, i) => ({ cardSlot, slot: slots[i] }))
         .filter(({ slot }) => {
+          if (slot.fineDining) return false;
           const layer = layerForSlot(slot);
           return layer === 'closeMatch' || layer === 'fewMissing';
         })
         .sort((a, b) => shoppingSortKey(a.slot) - shoppingSortKey(b.slot))
         .map(({ cardSlot }) => cardSlot),
     },
-  ];
+    // İş 1: fine dining slotları eksik-bazlı bölümlemeye karışmaz — üretim
+    // sırasında da kendi bölümünde görünürler (RecipeList ile tutarlı).
+    {
+      key: 'fineDining',
+      title: t('recipes.sectionFineDining'),
+      prominent: false,
+      slots: cardSlots.filter((_, i) => slots[i].fineDining),
+    },
+  ].filter((section) => section.slots.length > 0);
 
   // Tercih ekranı: üretim yokken cache geçersizse veya kullanıcı yenile ile
   // dönmek istediyse (envanter varken).
@@ -296,7 +321,10 @@ export default function TariflerScreen() {
             </View>
           ) : (
             <View className="flex-1 px-5">
-              <RecipeList recipes={recipes} onPressRecipe={(id) => router.push(`/recipe/${id}`)} />
+              <RecipeList
+                recipes={displayRecipes}
+                onPressRecipe={(id) => router.push(`/recipe/${id}`)}
+              />
             </View>
           )}
         </>

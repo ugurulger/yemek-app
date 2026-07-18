@@ -7,7 +7,8 @@ import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
-import i18n from '@/src/i18n';
+import i18n, { getAppLanguage } from '@/src/i18n';
+import { bilingualizeItems, inventoryDisplayName } from '@/src/i18n/inventoryI18n';
 import InventoryList from '@/components/inventory/InventoryList';
 import { LanguageSelector } from '@/components/settings/LanguageSelector';
 import { LastUpdatedLabel } from '@/components/inventory/LastUpdatedLabel';
@@ -142,7 +143,7 @@ function ProductRow({
     <View className="flex-row items-center py-1.5">
       <View className="flex-1">
         <Text numberOfLines={1} className="font-sans-medium text-[13px] text-body">
-          {item.name}
+          {inventoryDisplayName(item)}
         </Text>
         {item.brand && (
           <Text numberOfLines={1} className="font-sans text-xs text-muted">
@@ -269,6 +270,11 @@ export default function MutfagimScreen() {
     // içinde ayrıca loglanıyor (bkz. `logStage`).
     const tPickStart = performance.now();
 
+    // Tarama dili = tarama BAŞLATILDIĞI ANDAKİ uygulama dili (kullanıcı
+    // kararı): API çağrısı bu dilde yapılır; analiz sürerken dil değişse bile
+    // bu tarama başladığı dilin sonucunu üretir, çeviri adımı karşı dili ekler.
+    const scanLanguage = getAppLanguage();
+
     try {
       let extractedItems;
       const videoProvider = getVisionProvider();
@@ -285,17 +291,29 @@ export default function MutfagimScreen() {
         );
         extractedItems = await videoProvider.extractInventoryFromVideo(
           { file: videoFile, mimeType },
-          { onObservation: setObservationText }
+          { onObservation: setObservationText, language: scanLanguage }
         );
       } else {
         // Geriye dönük uyumluluk: sağlayıcı native-video desteklemiyorsa
         // (örn. Claude seçiliyse) eski kare-tabanlı akış kullanılır.
+        // (İki aşamalı akışın prompt'ları Türkçe — adlar TR üretilir, EN
+        // karşılığı aşağıdaki çeviri adımıyla eklenir.)
         const frames = await extractVideoFramesAsBase64(uri);
         if (frames.length === 0) {
           throw new InventoryVisionError(t('errors.videoProcessing'));
         }
         extractedItems = await extractInventory(frames, { onObservation: setObservationText });
       }
+
+      // EKSTRA ÇEVİRİ ADIMI (kullanıcı kararı): çıkarım tarama dilinde
+      // yapıldı — karşı dildeki adlar tek toplu çağrıyla eklenir ki dil
+      // değişiminde "topyekün" takas anında yapılabilsin. Çeviri hatası akışı
+      // BOZMAZ (kaynak dille devam edilir, backfill dil değişiminde tamamlar).
+      const nativeVideoUsed = Boolean(videoProvider.extractInventoryFromVideo);
+      extractedItems = await bilingualizeItems(
+        extractedItems,
+        nativeVideoUsed ? scanLanguage : 'tr'
+      );
 
       const tBeforeReplace = performance.now();
       // Video = TAM TARAMA → değiştir (bkz. store/inventoryStore.ts).
@@ -357,9 +375,13 @@ export default function MutfagimScreen() {
         onObservation: setObservationText,
       });
 
+      // Fotoğraf akışının prompt'ları Türkçe — EN karşılıkları çeviri adımıyla
+      // eklenir (bkz. analyzeVideo'daki not; hata akışı bozmaz).
+      const bilingualItems = await bilingualizeItems(extractedItems, 'tr');
+
       const tBeforeAddItems = performance.now();
       // Fiş/fotoğraf = EKLEME → birleştir (bkz. store/inventoryStore.ts).
-      addItems(extractedItems);
+      addItems(bilingualItems);
       console.log(
         `[perf] state güncelleme (addItems): ${(performance.now() - tBeforeAddItems).toFixed(0)}ms`
       );

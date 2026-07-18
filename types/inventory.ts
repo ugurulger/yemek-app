@@ -48,6 +48,14 @@ export type InventoryCategory = (typeof INVENTORY_CATEGORIES)[number];
 export interface InventoryItem {
   id: string;
   name: string;
+  /**
+   * İki dilli gösterim adları (dil değişiminde "topyekün" takas için):
+   * tarama/ekleme hangi dilde yapıldıysa `name` o dildedir; çeviri adımı
+   * (bkz. src/i18n/inventoryI18n.ts — bilingualizeItems) karşı dili doldurur.
+   * Eski kayıtlarda bulunmayabilir — dil değişiminde backfill ile tamamlanır.
+   */
+  nameTr?: string;
+  nameEn?: string;
   qty: number;
   unit: InventoryUnit;
   emoji: string;

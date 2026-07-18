@@ -31,7 +31,9 @@ import {
   scaleServings,
 } from '@/lib/recipes/recipe-math';
 import { cardShadow, colors } from '@/lib/theme';
+import { expandInventoryForMatching, expandPantryForMatching } from '@/src/i18n/inventoryI18n';
 import { difficultyKey } from '@/src/i18n/labels';
+import { useLocalizedRecipe } from '@/src/i18n/recipeI18n';
 import { useCartStore } from '@/store/cartStore';
 import { useChefChatStore, type ChefChatMessage } from '@/store/chefChatStore';
 import { useCookbookStore } from '@/store/cookbookStore';
@@ -129,6 +131,10 @@ export default function RecipeDetailScreen() {
  */
 function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
   const { t } = useTranslation();
+  // Dil değişiminde "topyekün" takas: metinler (ad/malzeme/adım/tüyo) aktif
+  // dile yerelleştirilmiş kopyadan gösterilir; id/sayısal alanlar ve görsel
+  // cache'i ORİJİNAL kayıtla çalışmaya devam eder (bkz. src/i18n/recipeI18n.ts).
+  const displayRecipe = useLocalizedRecipe(recipe);
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const selectedServings = useRecipeStore((state) => state.selectedServings[recipe.id]);
@@ -150,17 +156,23 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
 
   const servings = selectedServings ?? recipe.servings;
 
-  /** CANLI eksikler — modelin in_inventory bayrağına değil, güncel envanter+kilere göre. */
+  /** CANLI eksikler — modelin in_inventory bayrağına değil, güncel envanter+kilere
+   * göre; adlar İKİ DİLLİ varyantlarıyla eşleştirilir (bkz. inventoryI18n). */
   const missingIngredients = useMemo(
-    () => computeMissing(recipe, inventoryItems, pantryItems),
-    [recipe, inventoryItems, pantryItems]
+    () =>
+      computeMissing(
+        displayRecipe,
+        expandInventoryForMatching(inventoryItems),
+        expandPantryForMatching(pantryItems)
+      ),
+    [displayRecipe, inventoryItems, pantryItems]
   );
   const missingNames = useMemo(
     () => new Set(missingIngredients.map((ingredient) => normalizeIngredientName(ingredient.name))),
     [missingIngredients]
   );
 
-  const scaled = useMemo(() => scaleServings(recipe, servings), [recipe, servings]);
+  const scaled = useMemo(() => scaleServings(displayRecipe, servings), [displayRecipe, servings]);
 
   const handleServingsChange = (next: number) => {
     const target = Math.max(1, next);
@@ -171,7 +183,12 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     if (hasRecipe(recipe.name)) {
       syncRecipeMissing(
         recipe.name,
-        buildCartMissingInput(recipe, target, inventoryItems, pantryItems)
+        buildCartMissingInput(
+          recipe,
+          target,
+          expandInventoryForMatching(inventoryItems),
+          expandPantryForMatching(pantryItems)
+        )
       );
     }
   };
@@ -190,7 +207,12 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     if (!hasMissing) return;
     syncRecipeMissing(
       recipe.name,
-      buildCartMissingInput(recipe, servings, inventoryItems, pantryItems)
+      buildCartMissingInput(
+        recipe,
+        servings,
+        expandInventoryForMatching(inventoryItems),
+        expandPantryForMatching(pantryItems)
+      )
     );
     showToast(t('recipeDetail.missingAddedToast'));
   };
@@ -207,7 +229,8 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     setIsAsking(true);
     shouldScrollToEndRef.current = true;
     try {
-      const reply = await askChef(recipe, history, message, llmOutputLanguage());
+      // Şefe, kullanıcının EKRANDA GÖRDÜĞÜ (yerelleştirilmiş) tarif verilir.
+      const reply = await askChef(displayRecipe, history, message, llmOutputLanguage());
       shouldScrollToEndRef.current = true;
       addMessage(recipe.id, { role: 'assistant', content: reply, createdAt: Date.now() });
     } catch {
@@ -232,8 +255,8 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
   /** Bilgi satırı parçaları — minimal muted metin, `·` ayraçlı (referans SCREEN 3). */
   const infoParts = [
     t('recipeDetail.infoKcal', { kcal: scaled.kcal }),
-    t('recipeDetail.infoMinutes', { minutes: recipe.time_min }),
-    t(difficultyKey(recipe.difficulty)),
+    t('recipeDetail.infoMinutes', { minutes: displayRecipe.time_min }),
+    t(difficultyKey(displayRecipe.difficulty)),
   ];
 
   return (
@@ -273,7 +296,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
           {/* Krem panel: üst radius 26, görselin üstüne -22 biner, padding 22px 20px 0 */}
           <View className="-mt-[22px] rounded-t-[26px] bg-cream px-5 pt-[22px]">
             <Text className="mb-3 font-serif text-[30px] leading-[33px] text-forest">
-              {recipe.name}
+              {displayRecipe.name}
             </Text>
 
             {/* Bilgi satırı — minimal: "{kcal} kcal · {dk} dk · {zorluk}" */}
@@ -390,7 +413,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
             {/* Hazırlanışı — numaralı adımlar */}
             <Text className="mb-3.5 font-serif text-[19px] text-ink">{t('recipeDetail.stepsTitle')}</Text>
             <View className="mb-[22px] gap-3.5">
-              {recipe.steps.map((step, index) => (
+              {displayRecipe.steps.map((step, index) => (
                 <View key={`${step}-${index}`} className="flex-row gap-[13px]">
                   <View className="h-[26px] w-[26px] items-center justify-center rounded-full bg-forest">
                     <Text className="font-sans-semibold text-[12px] text-white">{index + 1}</Text>
@@ -413,7 +436,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
                 </Text>
               </View>
               <Text className="font-sans text-[13.5px] leading-[21px] text-cheftip-text">
-                {recipe.chef_tip}
+                {displayRecipe.chef_tip}
               </Text>
             </View>
 

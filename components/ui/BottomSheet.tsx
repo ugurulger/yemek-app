@@ -1,7 +1,9 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   StyleSheet,
   useWindowDimensions,
@@ -179,7 +181,15 @@ export function BottomSheet({ visible, onClose, children, showHandle = true }: B
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.container}>
+      {/* Klavye düzeltmesi (kullanıcı raporu — "Add a Cookbook" isim kutusu):
+          sheet ekranın ALTINA hizalı olduğu için native Modal içinde klavye
+          açılınca içerik klavyenin ALTINDA kalıyordu — kullanıcı yazdığını
+          GÖREMİYORDU (autoFocus'lu isim girişi). KeyboardAvoidingView sheet'i
+          klavyenin üstüne iter; klavye yokken hiçbir etkisi yoktur (Android'de
+          adjustResize zaten yeterli, behavior yalnızca iOS'ta gerekir). */}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Animated.View style={[styles.backdrop, backdropStyle]}>
           <Pressable
             accessibilityLabel={t('common.closeSheetA11y')}
@@ -205,7 +215,7 @@ export function BottomSheet({ visible, onClose, children, showHandle = true }: B
             {children}
           </View>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

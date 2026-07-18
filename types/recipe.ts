@@ -97,4 +97,24 @@ export interface Recipe {
    * şemasıyla senkron — supabase/functions/generate-recipe/index.ts).
    */
   category?: 'fine-dining';
+  /**
+   * Tarif metinlerinin (name/ingredients/steps/chef_tip) üretim dili —
+   * dil değişiminde çeviri gerekip gerekmediğine buradan bakılır (bkz.
+   * src/i18n/recipeI18n.ts). Eski cache kayıtlarında yoktur → 'tr' varsayılır.
+   */
+  language?: 'tr' | 'en';
+}
+
+/**
+ * Bir tarifin ÇEVRİLEBİLİR serbest metin alanları — dil değişiminde üretilen
+ * çeviri bu şekilde saklanır (store/recipeStore.ts — translations) ve
+ * gösterimde orijinal tarifin üstüne bindirilir (localizeRecipe). Sayısal/enum
+ * alanlar (qty, kcal, category, in_inventory...) orijinalden aynen gelir.
+ * `ingredients` ve `steps` orijinal dizilerle AYNI sıra/uzunluktadır.
+ */
+export interface RecipeTexts {
+  name: string;
+  ingredients: { name: string; unit: string }[];
+  steps: string[];
+  chef_tip: string;
 }

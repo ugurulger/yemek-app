@@ -6,6 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors } from '@/lib/theme';
+import {
+  expandInventoryForMatching,
+  expandPantryForMatching,
+} from '@/src/i18n/inventoryI18n';
 import { mergeCartEntries, useCartStore } from '@/store/cartStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
@@ -81,14 +85,17 @@ export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) 
   // Bölümleme/sıralama, kart rozetleriyle AYNI kaynaktan (canlı computeMissing)
   // hesaplanır — üretim anındaki `missing_count` envanter değiştikçe eskiyebilir
   // ve rozetle çelişen bir sıra üretirdi (Faz 3 entegrasyon düzeltmesi).
-  const withLiveMissing = useMemo(
-    () =>
-      recipes.map((recipe) => ({
-        recipe,
-        liveMissing: computeMissing(recipe, inventory, pantryItems).length,
-      })),
-    [recipes, inventory, pantryItems]
-  );
+  // Envanter/kiler adları İKİ DİLLİ varyantlarıyla genişletilir (bkz.
+  // src/i18n/inventoryI18n.ts) — EN gösterilen tarifin "salt" malzemesi TR
+  // kilerdeki "Tuz" ile de eşleşsin diye.
+  const withLiveMissing = useMemo(() => {
+    const matchInventory = expandInventoryForMatching(inventory);
+    const matchPantry = expandPantryForMatching(pantryItems);
+    return recipes.map((recipe) => ({
+      recipe,
+      liveMissing: computeMissing(recipe, matchInventory, matchPantry).length,
+    }));
+  }, [recipes, inventory, pantryItems]);
 
   // İş 1: fine dining tarifleri eksik-bazlı bölümlemeye karışmaz — mevcut
   // tasarım diliyle tutarlı ayrı bir bölüm başlığı altında, listenin sonunda.

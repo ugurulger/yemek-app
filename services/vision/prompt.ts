@@ -95,6 +95,26 @@ Kurallar:
 - "reasoning": bu ürünü neden bu isimle ve bu netlikte tanımladığının TEK CÜMLELİK özeti (örn. "Etiketteki Milner yazısı net okunuyor"). Bunu "confidence"tan ÖNCE yaz.
 - "confidence" (0-100) kalibrasyonu: 95-100 = etiket/ambalaj yazısı net okunuyor VEYA ürünün şekli tartışmasız (yumurta, marul gibi); 80-94 = ürün türü netçe belli ama detay (çeşit/marka) tam seçilemiyor; 50-79 = form tahmin edilebilir ama emin değilsin; 50'nin altı = sadece tahmin.`;
 
+// İNGİLİZCE varyant — Türkçe prompt'un birebir yapısal karşılığı (kullanıcı
+// kararı: video tarama HANGİ DİLDE başlatıldıysa API çağrısı o dilde yapılır;
+// çıkarım sonrası çeviri adımı karşı dili doldurur — bkz.
+// src/i18n/inventoryI18n.ts). DİKKAT: "category"/"unit" enum DEĞERLERİ veri
+// katmanında Türkçe kalır (responseSchema dayatır, bkz. types/inventory.ts +
+// src/i18n/labels.ts felsefesi) — yalnızca ürün ADLARI İngilizce üretilir.
+export const VIDEO_INVENTORY_PROMPT_EN = `Systematically analyze the fridge video: inspect every shelf, door compartment and drawer one by one, and extract ALL products you see — do not skip small, partially visible or background items.
+
+Rules:
+- "name" must be a SPECIFIC English product name; adjective phrases are preferred: "Blue Cheese", "Cherry Tomatoes", "Red Bell Pepper". Single items stay simple: "Milk", "Lettuce", "Parsley". Do NOT put brand names into "name" — if visible on the packaging put it into "brand", otherwise leave brand null.
+- For "category" pick ONLY one of the fixed values from the schema (they are Turkish labels — that is intentional, the app's data layer is Turkish): eggs → "Şarküteri". Jarred/canned items like pickles or preserves → "Sos & Baharat".
+- Do NOT add beverages (water, soda, juice, ayran, beer, wine etc.) to the inventory — do not list them at all. Sauces, spices and cooking ingredients ARE listed. (Milk is NOT a beverage here, it is a cooking ingredient — list it.)
+- "reasoning": a ONE-SENTENCE summary of why you identified this product with this name and this certainty (e.g. "The Milner label is clearly readable"). Write it BEFORE "confidence".
+- "confidence" (0-100) calibration: 95-100 = label/packaging text clearly readable OR the product shape is unmistakable (eggs, lettuce); 80-94 = product type is clear but details (variety/brand) can't be made out; 50-79 = the form is guessable but you are not sure; below 50 = pure guess.`;
+
+/** Video → envanter prompt'u — tarama dilinde (kullanıcı kararı). */
+export function videoInventoryPrompt(language: 'tr' | 'en'): string {
+  return language === 'en' ? VIDEO_INVENTORY_PROMPT_EN : VIDEO_INVENTORY_PROMPT;
+}
+
 function generateId(): string {
   // React Native'de crypto.randomUUID her zaman mevcut olmayabilir.
   const g = globalThis as { crypto?: { randomUUID?: () => string } };

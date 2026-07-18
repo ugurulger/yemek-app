@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PhotoPlaceholder } from '@/components/ui';
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors, photoTones } from '@/lib/theme';
+import { expandInventoryForMatching, expandPantryForMatching } from '@/src/i18n/inventoryI18n';
 import { difficultyKey, nutritionTagKey } from '@/src/i18n/labels';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -53,7 +54,12 @@ export function CookbookRecipeCard({ recipe, onPress }: CookbookRecipeCardProps)
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
 
-  const liveMissingCount = computeMissing(recipe, inventoryItems, pantryItems).length;
+  // İki dilli ad varyantlarıyla eşleştirme (bkz. src/i18n/inventoryI18n.ts).
+  const liveMissingCount = computeMissing(
+    recipe,
+    expandInventoryForMatching(inventoryItems),
+    expandPantryForMatching(pantryItems)
+  ).length;
   const [tone1, tone2] = tonesForRecipe(recipe.name);
 
   return (

@@ -31,6 +31,14 @@ interface InventoryState {
   decrementQty: (id: string) => void;
   removeItem: (id: string) => void;
   confirmItem: (id: string) => void;
+  /**
+   * Dil değişimi backfill'i (bkz. src/i18n/inventoryI18n.ts): eksik nameTr/
+   * nameEn karşılıklarını toplu yazar. İçerik değişimi sayılmaz —
+   * lastUpdatedAt GÜNCELLENMEZ (yalnızca gösterim adı zenginleşir).
+   */
+  applyNameTranslations: (
+    updates: Array<{ id: string; nameTr?: string; nameEn?: string }>
+  ) => void;
 }
 
 function normalizeName(name: string): string {
@@ -93,6 +101,23 @@ export const useInventoryStore = create<InventoryState>()(
           ),
           lastUpdatedAt: Date.now(),
         })),
+      applyNameTranslations: (updates) =>
+        set((state) => {
+          const byId = new Map(updates.map((update) => [update.id, update]));
+          return {
+            items: state.items.map((item) => {
+              const update = byId.get(item.id);
+              if (!update) {
+                return item;
+              }
+              return {
+                ...item,
+                ...(update.nameTr ? { nameTr: update.nameTr } : {}),
+                ...(update.nameEn ? { nameEn: update.nameEn } : {}),
+              };
+            }),
+          };
+        }),
     }),
     {
       name: 'yemek-app-inventory',

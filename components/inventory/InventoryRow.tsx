@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { inventoryDisplayName } from '@/src/i18n/inventoryI18n';
 import type { InventoryItem } from '@/types/inventory';
 
 interface InventoryRowProps {
@@ -47,7 +48,7 @@ export default function InventoryRow({
             style={{ fontFamily: 'Outfit_600SemiBold' }}
             className="text-base text-stone-900"
           >
-            {item.name}
+            {inventoryDisplayName(item)}
           </Text>
           {item.brand && (
             <Text
