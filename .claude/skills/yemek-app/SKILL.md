@@ -1074,4 +1074,4 @@ sırasında bilinçli korunur:
 **Yeni iş = ilgili bölümü GÜNCELLE; en üste yeni blok EKLEME.** Geçersiz
 kılınan anlatı `references/HISTORY.md`'ye taşınır; SKILL.md'de yalnız
 güncel kural kalır (kural = KURAL + 1-2 satır gerekçe + gerekirse HISTORY
-pointer'ı). Hedef boyut ~15-17K token; 20K aşılırsa temizlik işi açılır.
+pointer'ı). Hedef boyut ~35K token; 40K aşılırsa temizlik işi açılır.
