@@ -548,6 +548,22 @@ interface ClaudeToolUseBlock {
   input?: unknown;
 }
 
+/** Madde 5 (gözlemlenebilirlik): her Claude çağrısının stop_reason + usage'ı
+ * hem `[rag-gen]` etiketiyle loglanır hem yanıtın `generation` alanında
+ * döndürülür (client bilinmeyen alanı yok sayar; ölçüm harness'i okur). */
+interface GenerationMeta {
+  stopReason: string | null;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+interface GenerationResult {
+  recipes: Recipe[];
+  meta: GenerationMeta;
+}
+
+const EMPTY_META: GenerationMeta = { stopReason: null, inputTokens: 0, outputTokens: 0 };
+
 interface ClaudeGenerationOptions {
   /** Üretilecek en fazla tarif sayısı (tool şemasının maxItems'ı). */
   count: number;
@@ -560,7 +576,7 @@ interface ClaudeGenerationOptions {
 async function generateWithClaude(
   input: GenerateRecipeInput,
   options: ClaudeGenerationOptions
-): Promise<Recipe[]> {
+): Promise<GenerationResult> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY tanımlı değil (supabase secrets)');
 
@@ -609,7 +625,25 @@ async function generateWithClaude(
     throw new Error(`Claude API hatası (${response.status}): ${detail.slice(0, 300)}`);
   }
 
-  const data = (await response.json()) as { content?: ClaudeToolUseBlock[] };
+  const data = (await response.json()) as {
+    content?: ClaudeToolUseBlock[];
+    stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  const meta: GenerationMeta = {
+    stopReason: data.stop_reason ?? null,
+    inputTokens: data.usage?.input_tokens ?? 0,
+    outputTokens: data.usage?.output_tokens ?? 0,
+  };
+  console.log(
+    `[rag-gen] ${options.category ?? 'normal'} üretim: stop_reason=${meta.stopReason} ` +
+      `in=${meta.inputTokens} out=${meta.outputTokens} model=${CONFIG.generationModel}`
+  );
+  if (meta.stopReason === 'max_tokens') {
+    console.warn(
+      `[rag-gen] ${options.category ?? 'normal'} üretim max_tokens sınırına takıldı — çıktı kesilmiş olabilir`
+    );
+  }
   const toolBlock = (data.content ?? []).find(
     (block) => block.type === 'tool_use' && block.name === 'submit_recipes'
   );
@@ -621,9 +655,10 @@ async function generateWithClaude(
     throw new Error('Claude yanıtında tarif bulunamadı');
   }
 
-  return rawRecipes
+  const recipes = rawRecipes
     .map((raw) => toLlmRecipe(raw, options.category))
     .filter((recipe): recipe is Recipe => recipe !== null);
+  return { recipes, meta };
 }
 
 /** Tool-use şeması tip/alanları garanti eder; burada minimal doğrulama +
@@ -760,17 +795,17 @@ Deno.serve(async (request) => {
     // İş 1b: fine dining üretimi normal akışla EŞZAMANLI başlar — kısayol
     // tetiklense de tetiklenmese de her yanıtta 2 fine dining tarifi hedeflenir.
     // Başarısızlık normal tarifleri düşürmez (graceful degradation).
-    const fineDiningPromise: Promise<Recipe[]> =
+    const fineDiningPromise: Promise<GenerationResult> =
       fineDiningMatches.length > 0
         ? generateWithClaude(input, {
             count: CONFIG.fineDiningCount,
             systemPrompt: buildFineDiningSystemPrompt(input, fineDiningMatches),
             category: 'fine-dining',
-          }).catch((error) => {
+          }).catch((error): GenerationResult => {
             console.error('[generate-recipe] fine dining üretim hatası:', error);
-            return [];
+            return { recipes: [], meta: EMPTY_META };
           })
-        : Promise.resolve([]);
+        : Promise.resolve({ recipes: [], meta: EMPTY_META });
 
     // 4) Hibrit kısayol (A5): eşik üstü benzerlik + 0 eksik → normal set için
     //    LLM'siz dönüş (fine dining tarifleri yine eklenir).
@@ -780,7 +815,8 @@ Deno.serve(async (request) => {
     const top = matches[0];
     if (top && top.similarity >= CONFIG.matchThreshold && countMissing(top, availableNames) === 0) {
       const recipe = toDatabaseRecipe(top, availableNames);
-      const fineDiningRecipes = reconcileRecipes(await fineDiningPromise, availableNames);
+      const fineDiningResult = await fineDiningPromise;
+      const fineDiningRecipes = reconcileRecipes(fineDiningResult.recipes, availableNames);
       return new Response(
         JSON.stringify({
           source: 'database',
@@ -790,6 +826,7 @@ Deno.serve(async (request) => {
             matchedTitles: matches.map((m) => m.title),
             fineDiningTitles: fineDiningMatches.map((m) => m.title),
           },
+          generation: { fineDining: fineDiningResult.meta },
         }),
         { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }
       );
@@ -801,18 +838,29 @@ Deno.serve(async (request) => {
     // (örn. kilerde Vinegar varken "Balsamic Vinegar") evde-var'a çevrilir,
     // missing_count buna göre yeniden hesaplanır — katman dağılımı client'ın
     // canlı hesabıyla tutarlı kalır.
-    const [rawRecipes, rawFineDining] = await Promise.all([
+    const [normalResult, fineDiningResult] = await Promise.all([
       generateWithClaude(input, {
         count: input.count ?? CONFIG.defaultRecipeCount,
         systemPrompt: buildSystemPrompt(input, matches),
       }),
       fineDiningPromise,
     ]);
-    if (rawRecipes.length === 0) {
+    if (normalResult.recipes.length === 0) {
       throw new Error('Tarif üretilemedi');
     }
-    const recipes = reconcileRecipes(rawRecipes, availableNames);
-    const fineDiningRecipes = reconcileRecipes(rawFineDining, availableNames);
+    const recipes = reconcileRecipes(normalResult.recipes, availableNames);
+    const fineDiningRecipes = reconcileRecipes(fineDiningResult.recipes, availableNames);
+
+    // Madde 5: mutabakat SONRASI katman dağılımı — sunucunun hedeflediği
+    // 2/2/2'nin tutup tutmadığı loglardan izlenebilsin.
+    const distribution = {
+      ready: recipes.filter((r) => r.missing_count === 0).length,
+      close: recipes.filter((r) => r.missing_count >= 1 && r.missing_count <= 2).length,
+      few: recipes.filter((r) => r.missing_count >= 3).length,
+    };
+    console.log(
+      `[rag-gen] dağılım (reconcile sonrası): ready=${distribution.ready} 1-2=${distribution.close} 3+=${distribution.few}`
+    );
 
     return new Response(
       JSON.stringify({
@@ -823,6 +871,7 @@ Deno.serve(async (request) => {
           matchedTitles: matches.map((m) => m.title),
           fineDiningTitles: fineDiningMatches.map((m) => m.title),
         },
+        generation: { normal: normalResult.meta, fineDining: fineDiningResult.meta },
       }),
       { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }
     );
