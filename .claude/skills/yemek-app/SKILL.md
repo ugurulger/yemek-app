@@ -9,6 +9,89 @@ Bu skill, AI destekli yemek uygulamasının geliştirme kurallarını içerir.
 Bu projede kod yazmadan önce bu dosyayı oku ve buradaki kararlara uy.
 Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
+> ## IG-EĞİTİM GÖRSELLERİ (2026-07-18) — CAROUSEL'E STATİK AI GÖRSELLERİ
+>
+> IG içe aktarma eğitim carousel'inin (components/import/InstagramEduSheet)
+> 3 adımı için görseller RUNTIME'da DEĞİL, tek seferlik script'le üretilir:
+> `npx tsx scripts/generate-import-tutorial-images.ts` (anahtar: .env
+> `EXPO_PUBLIC_GOOGLE_API_KEY`; model `gemini-3.1-flash-lite-image` — tarif
+> görselleriyle aynı aile; argümanla tek adım yeniden üretilebilir: `… 2`).
+> Prompt'lar script içinde `STEP_PROMPTS` sabiti — beğenilmezse düzenlenip
+> yeniden koşulur; stilize/jenerik arayüz, gerçek IG logosu YOK (telif),
+> palet forest/krem/amber, görselde yazı YOK. Çıktı
+> `assets/import-tutorial/step-{1,2,3}.png` + manifest
+> `components/import/tutorialImages.ts` require'larla YENİDEN YAZILIR.
+> Manifest başlangıçta `null` commit'lidir — Metro require'ı bundle anında
+> çözdüğü için var olmayan dosyaya require yazılamaz; null iken carousel
+> eski placeholder çizimleriyle çalışır (graceful fallback). Görseller
+> onaylanınca assets + manifest birlikte commit'lenir.
+
+> ## IG-RESUME (2026-07-18) — INSTAGRAM'I KALDIĞI YERDEN AÇMA
+>
+> İçe aktarma akışı IG'yi `instagram://app` ile açıyordu — bu, IG'yi ana
+> feed'e NAVİGE ettirip son durumu sıfırlıyordu (şikayet: "IG hep baştan
+> başlıyor"). Karar: ÇIPLAK şema `instagram://` (components/import/
+> ImportFlow.tsx) — path'siz şema iOS'ta uygulamayı yalnızca ön plana
+> getirir (resume), kullanıcı bir gönderide kaldıysa oradan devam eder.
+> Varyantlar (`instagram://app`, `instagram://feed`) ve Android hostsuz
+> şema notu kodda yorumla belgeli; IG yüklü değilse mevcut catch zinciri
+> web fallback'ine düşer. Expo Go'da şema davranışı gözlemlenemez
+> (storeLinks.ts kalıbıyla aynı sınır) — gerçek cihaz/dev build doğrulaması
+> bekliyor, `// DOĞRULA` notu ImportFlow.tsx'te.
+
+> ## ENVANTER-2DİL (2026-07-18) — TEK KAYNAK ÇİFT DİLLİ İSİM; TARİF+SEPET
+> ## TUTARLILIĞI (İş 3)
+>
+> Gözlenen hata: tarif "Mexican Pickle Peppers / Red Pepper Flakes" gibi eş
+> anlamlı/karşı dilde adlar üretip envanterdeki "Pickled Jalapenos / Chili
+> Flakes"i EKSİK sayıyordu; sepette ürün uygulama dili EN iken "taze kişniş"
+> görünüyordu. Üç parça çözüm:
+>
+> - **3a — çift dilli envanter adı:** `InventoryItem.nameTr/nameEn` (i18n
+>   oturumunda eklendi) + persist migration v1 (`store/inventoryStore.ts`:
+>   iki alan da boş eski kayıtlara `nameTr = name` yazılır) + AÇILIŞ
+>   backfill'i (`app/_layout.tsx`, hidrasyon SONRASI — eksik karşılıklar
+>   dil başına TEK toplu çağrıyla arka planda tamamlanır, hata sessiz,
+>   sonraki açılışta yeniden dener). Envanter adı çevirisi ucuz modele
+>   indirildi: `translateTexts` artık `claude-haiku-4-5` (tam tarif
+>   çevirisi `translateRecipeTexts` sonnet'te kaldı). Vision prompt/şemaları
+>   DEĞİŞMEDİ — çeviri parse SONRASI adım.
+> - **3b — üretim + eksik hesabı envanter adlarını kullanır:** prompt'lara
+>   giden envanter listesi AKTİF dilin adlarıyla gider (`simplifyInventory
+>   (inventory, language)`) ve ortak detay talimatına "envanterdeki
+>   malzemenin adını listedeki yazımıyla AYNEN kullan, eş anlamlı üretme"
+>   kuralı eklendi. Modele güvenilmez — deterministik emniyet katmanı:
+>   `lib/recipes/ingredient-match.ts` (SAF; küçük harf + aksan temizliği +
+>   tekil/çoğul toleransı + token alt-küme kuralı; name VE nameTr VE nameEn
+>   kontrol edilir; fuzzy.ts'in token mantığından uyarlandı, mağaza-özel
+>   kod taşınmadı). Her detay çağrısı SONRASI (ready-retry kararından ÖNCE)
+>   `applyInventoryReconciliation`: eşleşen malzeme in_inventory: true +
+>   adı envanterin aktif dildeki adıyla DEĞİŞTİRİLİR; missing_count/
+>   match_pct yeniden hesaplanır. RAG akışı (lib/rag/generateRecipesRag)
+>   aynı katmandan geçer. `computeMissing` de aynı `namesMatch`'i kullanır
+>   (eski ham substring `includes` kalktı — "un" ⊂ "sabun" yanlış pozitifi
+>   testle sabitlendi). KISMİ token örtüşmesi ("Red Pepper Flakes" ↔
+>   "Chili Flakes") BİLİNÇLİ eşleşmez — eş anlamlıyı önlemek prompt'un işi,
+>   lexical katman sadece yazım/dil/çoğul farklarını kapatır.
+>   `GENERATION_VERSION` v4 → v5 (eski cache atılır). Testler:
+>   tests/unit/ingredient-match.test.ts + recipe-math.test.ts senaryo
+>   testleri (70/70 geçiyor, `npx tsx --test`).
+> - **3c — sepet dile kilitlenmez:** `CartEntry/CartItemView/
+>   CartMissingInput` opsiyonel `nameTr/nameEn` taşır; kanonik `name`
+>   tarifin ÜRETİLDİĞİ dildedir (birleştirme/işaretleme anahtarı değişmedi).
+>   Karşı dil adı MEVCUT tarif çevirisinden index hizalı alınır
+>   (`buildCartMissingInput`'un `counterpart` parametresi — ekstra çeviri
+>   çağrısı KURULMADI, kullanıcı kararıyla kapsam sınırı: envanterde
+>   olmayan gerçek eksikler çevirisi yoksa üretim dilinde kalır). Render
+>   (`CartCategorySection`, `ProductMatchSheet`) aktif dile göre seçer —
+>   dil değişince sepettekiler birlikte değişir. TUTARLILIK kuralı: eksik
+>   hesabının kanonik kaynağı ORİJİNAL tariftir — detay ekranı, RecipeCard
+>   (artık yerelleştirilmiş prop yerine recipeStore'daki orijinali bulur)
+>   ve PlanDayPickerSheet, computeMissing + sepete yazmada AYNI orijinal
+>   kayıt + iki dilli genişletilmiş envanter/kiler girdisini kullanır
+>   (rozet "3 eksik" derken sepete 1 ürün yazma tutarsızlığının kök nedeni
+>   buydu: rozet çevrilmiş kopyadan, sepet orijinalden hesaplanıyordu).
+
 > ## MVP-24 (2026-07-18) — MARKET SEPETİ: AH & JUMBO FİYAT KARŞILAŞTIRMA
 >
 > Sepetteki her malzeme Albert Heijn ve Jumbo'daki en yakın ürünle
