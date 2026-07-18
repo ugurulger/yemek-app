@@ -136,7 +136,11 @@ const LAYER_VARIANTS: Record<RecipeLayerId, DetailVariant> = {
     constraint:
       'BU TARİF İÇİN ÖZEL KISIT: tarifi SADECE envanter listesindeki ve kiler listesindeki malzemelerle kur. ' +
       'ingredients içindeki HER malzeme in_inventory: true olmalı; envanterde/kilerde olmayan HİÇBİR malzeme ' +
-      'ekleme — süsleme/garnitür için bile. Envantere sığmayan bir fikir varsa tarifi basitleştir.',
+      'ekleme — süsleme/garnitür için bile. Eksik bir bileşen gerekiyorsa onu envanterdeki bir karşılıkla ' +
+      'DEĞİŞTİR, tarife ekleme. Ama "hemen yapılabilir" MİNİMAL demek değildir (kullanıcı geri bildirimi): ' +
+      'envanterdeki malzemelerden yemeğe gerçekten yakışan olabildiğince çoğunu (envanter elverdiğinde en az ' +
+      '4-5 farklı envanter malzemesi) kullanan DOLU, doyurucu bir tarif kur — 2-3 malzemeli sade omlet/makarna ' +
+      'ready tarif olarak kabul edilmez.',
   },
   closeMatch: {
     temperature: 0.7,
@@ -319,8 +323,10 @@ function buildPlanSystemPrompt(context: RecipePromptContext): string {
   `- Dağılım ZORUNLU: TAM 2 tarif "ready" (SADECE envanter + kiler malzemeleriyle, HİÇ eksiksiz yapılabilir), ` +
   'TAM 2 tarif "closeMatch" (1-2 malzeme eksik), TAM 2 tarif "fewMissing" (3-4 malzeme eksik — daha yaratıcı/iddialı ' +
   'tarifler için market payı). estimated_layer alanına bu hedefi yaz. ' +
-  '- "ready" için envantere sığan bir tarif bulmakta zorlanırsan en basit formatlara in (omlet/sahanda yumurta, ' +
-  'makarna, pilav, salata gibi) — 2 "ready" tarif üretmek ZORUNLUDUR. ' +
+  '- "ready" tarifler DOLU olsun: envanterdeki malzemelerden yemeğe yakışan olabildiğince çoğunu birleştiren ' +
+  'doyurucu tarifler planla (tek tavada zengin yemekler, fırın yemekleri gibi); 2-3 malzemeli minimal formatlar ' +
+  '(sade omlet, sade makarna) SON ÇAREDİR — yalnızca envanter gerçekten dar olduğunda kullan. 2 "ready" tarif ' +
+  'üretmek ZORUNLUDUR. ' +
   `- ${RECIPE_COUNT} tarifi BİRLİKTE, TEK seferde planla ki ÇEŞİTLİ olsunlar: aynı ana malzemeyi veya aynı ` +
   'pişirme tekniğini (örn. hepsi kavurma, hepsi fırın) tekrar tekrar kullanma; farklı öğün tiplerine yay ' +
   '(kahvaltı, ana yemek, salata, çorba, atıştırmalık gibi). ' +
