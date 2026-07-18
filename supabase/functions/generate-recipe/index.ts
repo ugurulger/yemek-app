@@ -588,9 +588,18 @@ function groupSpecs(totalCount: number, dominantToken: string | null): NormalGro
     layerRule:
       `- LAYER DISTRIBUTION (strict — count shopping ingredients per recipe before submitting): the ` +
       `first ${readyCount} recipe(s): cookable RIGHT NOW using ONLY inventory + pantry staples (every ` +
-      'ingredient in_inventory: true, zero shopping items — not even a garnish; simplify the dish ' +
-      'rather than add anything the user lacks). Any remaining recipe: exactly 1-2 shopping ' +
-      'ingredients (in_inventory: false) that genuinely improve the dish.\n',
+      'ingredient in_inventory: true, zero shopping items — not even a garnish; if an idea needs ' +
+      'something the user lacks, swap that component for an available one instead of adding it). ' +
+      'Any remaining recipe: exactly 1-2 shopping ingredients (in_inventory: false) that genuinely ' +
+      'improve the dish.\n' +
+      // Kullanıcı geri bildirimi (2026-07-18): ready tarifler 2-3 envanter
+      // malzemeli minimal yemeklere kaçıyordu — "hemen yapılabilir" basit
+      // demek değildir, eldeki malzemeyi olabildiğince kullanmalı.
+      '- READY RECIPES MUST BE SUBSTANTIAL: "cookable right now" does NOT mean minimal. Each ready ' +
+      'recipe should combine as many different inventory items as genuinely fit the dish (aim for at ' +
+      'least 5 when the inventory allows, plus pantry staples) — think loaded one-pan dishes, hearty ' +
+      'bakes, full skillet meals; a bare 2-3 ingredient omelet or plain pasta is NOT acceptable as a ' +
+      'ready recipe.\n',
     dominantRule: dominantToken
       ? `- CONCRETE CAP: the references below are dominated by "${dominantToken}" — at most 2 of your ` +
         `recipes may contain ${dominantToken}; use the references for technique, not to repeat their star.\n`
@@ -760,7 +769,9 @@ async function generateWithClaude(
             properties: {
               recipes: {
                 type: 'array',
-                minItems: 1,
+                // Tam sayı zorlanır — model grup başına eksik üretince liste
+                // 6'nın altına düşüyordu (ölçümde 7 tarif gözlendi).
+                minItems: options.count,
                 maxItems: options.count,
                 items: RECIPE_SCHEMA,
               },
