@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '@/src/i18n';
 import InventoryList from '@/components/inventory/InventoryList';
 import { LanguageSelector } from '@/components/settings/LanguageSelector';
+import { LastUpdatedLabel } from '@/components/inventory/LastUpdatedLabel';
 import { PantrySection } from '@/components/inventory/PantrySection';
 import { Card, PrimaryButton } from '@/components/ui';
 import { extractInventory, getVisionProvider, InventoryVisionError } from '@/services/vision';
@@ -216,6 +217,7 @@ function chunkPairs<T>(items: T[]): [T, T | undefined][] {
 export default function MutfagimScreen() {
   const { t } = useTranslation();
   const items = useInventoryStore((state) => state.items);
+  const inventoryLastUpdatedAt = useInventoryStore((state) => state.lastUpdatedAt);
   const addItems = useInventoryStore((state) => state.addItems);
   const replaceItems = useInventoryStore((state) => state.replaceItems);
   const incrementQty = useInventoryStore((state) => state.incrementQty);
@@ -417,6 +419,8 @@ export default function MutfagimScreen() {
             </Text>
           </View>
         </View>
+        {/* İş 2: bloğun son değişiklik tarihi — düşük görsel ağırlıklı satır. */}
+        <LastUpdatedLabel timestamp={inventoryLastUpdatedAt} className="mt-1" />
 
         {/* İki kompakt buton (referans satır 70-79): gap 8, alt margin 14;
             kamera = size 'small' primary (videocam 18 beyaz), asistan =

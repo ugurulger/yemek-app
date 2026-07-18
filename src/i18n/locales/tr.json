@@ -9,6 +9,8 @@
   "common": {
     "retry": "Tekrar dene",
     "cancel": "Vazgeç",
+    "today": "Bugün",
+    "yesterday": "Dün",
     "done": "Bitti",
     "next": "İleri",
     "goBack": "Geri dön",
@@ -29,6 +31,7 @@
     "greeting": "Merhaba 👋",
     "title": "Mutfağım",
     "fridgeTitle": "Buzdolabım",
+    "lastUpdated": "Son güncelleme: {{date}}",
     "itemCount_one": "{{count}} ürün",
     "itemCount_other": "{{count}} ürün",
     "scanWithCamera": "Kamerayla tara",

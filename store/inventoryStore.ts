@@ -7,6 +7,12 @@ import type { InventoryItem } from '@/types/inventory';
 interface InventoryState {
   items: InventoryItem[];
   /**
+   * Buzdolabım bloğunun son değişiklik zamanı (epoch ms) — her ekleme/silme/
+   * düzenlemede güncellenir, persist ile kalıcıdır. Mutfağım ekranında
+   * "Bugün/Dün/tarih" olarak gösterilir (İş 2). Hiç değişiklik yapılmamışsa null.
+   */
+  lastUpdatedAt: number | null;
+  /**
    * EKLEME modu — fiş/fotoğraf akışı için: yeni ürünler mevcut envanterle
    * birleştirilir (aynı ad+birim varsa miktarlar toplanır).
    */
@@ -35,6 +41,7 @@ export const useInventoryStore = create<InventoryState>()(
   persist(
     (set) => ({
       items: [],
+      lastUpdatedAt: null,
       addItems: (newItems) =>
         set((state) => {
           const items = [...state.items];
@@ -57,30 +64,34 @@ export const useInventoryStore = create<InventoryState>()(
             }
           }
 
-          return { items };
+          return { items, lastUpdatedAt: Date.now() };
         }),
-      replaceItems: (newItems) => set({ items: newItems }),
+      replaceItems: (newItems) => set({ items: newItems, lastUpdatedAt: Date.now() }),
       incrementQty: (id) =>
         set((state) => ({
           items: state.items.map((item) =>
             item.id === id ? { ...item, qty: item.qty + 1 } : item
           ),
+          lastUpdatedAt: Date.now(),
         })),
       decrementQty: (id) =>
         set((state) => ({
           items: state.items.map((item) =>
             item.id === id && item.qty > 1 ? { ...item, qty: item.qty - 1 } : item
           ),
+          lastUpdatedAt: Date.now(),
         })),
       removeItem: (id) =>
         set((state) => ({
           items: state.items.filter((item) => item.id !== id),
+          lastUpdatedAt: Date.now(),
         })),
       confirmItem: (id) =>
         set((state) => ({
           items: state.items.map((item) =>
             item.id === id ? { ...item, confidence: 100 } : item
           ),
+          lastUpdatedAt: Date.now(),
         })),
     }),
     {

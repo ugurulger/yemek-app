@@ -9,6 +9,8 @@
   "common": {
     "retry": "Try again",
     "cancel": "Cancel",
+    "today": "Today",
+    "yesterday": "Yesterday",
     "done": "Done",
     "next": "Next",
     "goBack": "Go back",
@@ -29,6 +31,7 @@
     "greeting": "Hello 👋",
     "title": "My Kitchen",
     "fridgeTitle": "My Fridge",
+    "lastUpdated": "Last updated: {{date}}",
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items",
     "scanWithCamera": "Scan with camera",
