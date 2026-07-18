@@ -374,7 +374,15 @@ function toDatabaseRecipe(matched: MatchedRecipe, availableNames: string[]): Rec
     steps: matched.steps,
     chef_tip: '',
     nutrition_tag: 'Dengeli',
-    image_prompt_en: matched.title,
+    // Madde 4: yalnız başlık, görsel üretiminde jenerik/yanlış yorumlanan
+    // prompt'a yol açıyordu (analysis/rag-analysis.md §5) — ilk malzemelerle
+    // zenginleştirilir. Dil uyumu: RAG hattı hep EN, korpus da EN — tutarlı.
+    image_prompt_en:
+      `${matched.title}, a home-style dish made with ` +
+      matched.ingredients
+        .slice(0, 5)
+        .map((ingredient) => ingredient.name)
+        .join(', '),
     source: 'database',
   };
 }
