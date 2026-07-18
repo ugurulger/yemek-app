@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Image, Platform, Pressable, Text, View } from 'react-native';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { colors } from '@/lib/theme';
+
+import { TUTORIAL_STEP_IMAGES } from './tutorialImages';
 
 export interface InstagramEduSheetProps {
   visible: boolean;
@@ -59,6 +61,28 @@ function ArrowButton({
 }
 
 /**
+ * Adım görseli — scripts/generate-import-tutorial-images.ts ile ÖNCEDEN
+ * üretilip assets/import-tutorial/ altına konan statik asset (runtime'da
+ * üretim YOK). Manifest (tutorialImages.ts) null iken null döner ve çağıran
+ * blok eski placeholder çizimini gösterir — görseller üretilene kadar
+ * carousel bozulmadan çalışır (graceful fallback). Dekoratif olduğu için
+ * (adım metni kartta ayrıca yazıyor) erişilebilirlikten gizlenir.
+ */
+function StepImage({ index }: { index: 0 | 1 | 2 }) {
+  if (!TUTORIAL_STEP_IMAGES) {
+    return null;
+  }
+  return (
+    <Image
+      source={TUTORIAL_STEP_IMAGES[index]}
+      resizeMode="cover"
+      accessible={false}
+      style={{ width: '100%', height: 150, borderRadius: 14 }}
+    />
+  );
+}
+
+/**
  * Instagram eğitim sheet'i — referans INSTAGRAM EDU SHEET (Mutfagim.dc.html
  * 605-665): beyaz kart içinde 3 adımlı "nasıl paylaşılır" anlatımı (igPage),
  * nokta göstergesi, 'Instagram'ı aç' CTA'sı ve 'Örnek tarifle dene' linki.
@@ -88,39 +112,43 @@ export function InstagramEduSheet({
         ]}>
         {page === 0 && (
           <>
-            {/* Kahverengi gönderi placeholder'ı + alta bindirilmiş Gönder dairesi. */}
-            <View
-              className="items-center justify-center"
-              style={{ height: 150, borderRadius: 14, backgroundColor: '#8B5E3C' }}>
-              <Text
-                style={{
-                  fontFamily: MONO_FONT,
-                  fontSize: 10,
-                  fontWeight: '500',
-                  color: 'rgba(255,255,255,0.6)',
-                }}>
-                {t('importFlow.igPostPlaceholder')}
-              </Text>
+            {TUTORIAL_STEP_IMAGES ? (
+              <StepImage index={0} />
+            ) : (
+              /* Fallback: kahverengi gönderi placeholder'ı + alta bindirilmiş Gönder dairesi. */
               <View
-                className="items-center justify-center rounded-full bg-white"
-                style={[
-                  {
-                    position: 'absolute',
-                    bottom: -14,
-                    alignSelf: 'center',
-                    width: 44,
-                    height: 44,
-                    borderWidth: 3,
-                    borderColor: colors.amber,
-                  },
-                  STEP_BADGE_SHADOW,
-                ]}>
-                <Ionicons name="paper-plane-outline" size={20} color={colors.forest} />
+                className="items-center justify-center"
+                style={{ height: 150, borderRadius: 14, backgroundColor: '#8B5E3C' }}>
+                <Text
+                  style={{
+                    fontFamily: MONO_FONT,
+                    fontSize: 10,
+                    fontWeight: '500',
+                    color: 'rgba(255,255,255,0.6)',
+                  }}>
+                  {t('importFlow.igPostPlaceholder')}
+                </Text>
+                <View
+                  className="items-center justify-center rounded-full bg-white"
+                  style={[
+                    {
+                      position: 'absolute',
+                      bottom: -14,
+                      alignSelf: 'center',
+                      width: 44,
+                      height: 44,
+                      borderWidth: 3,
+                      borderColor: colors.amber,
+                    },
+                    STEP_BADGE_SHADOW,
+                  ]}>
+                  <Ionicons name="paper-plane-outline" size={20} color={colors.forest} />
+                </View>
               </View>
-            </View>
+            )}
             <Text
               className="text-center font-sans-semibold text-[15px] text-ink"
-              style={{ marginTop: 26, marginBottom: 4 }}>
+              style={{ marginTop: TUTORIAL_STEP_IMAGES ? 20 : 26, marginBottom: 4 }}>
               <Trans
                 i18nKey="importFlow.igStep1Title"
                 components={{ hl: <Text style={{ color: colors.amber }} /> }}
@@ -134,24 +162,28 @@ export function InstagramEduSheet({
 
         {page === 1 && (
           <>
-            <View
-              className="items-center justify-end bg-sand"
-              style={{ height: 150, borderRadius: 14, paddingBottom: 16 }}>
+            {TUTORIAL_STEP_IMAGES ? (
+              <StepImage index={1} />
+            ) : (
               <View
-                className="items-center justify-center bg-white"
-                style={[
-                  {
-                    width: 52,
-                    height: 52,
-                    borderRadius: 14,
-                    borderWidth: 3,
-                    borderColor: colors.amber,
-                  },
-                  STEP_BADGE_SHADOW,
-                ]}>
-                <Ionicons name="share-outline" size={22} color={colors.forest} />
+                className="items-center justify-end bg-sand"
+                style={{ height: 150, borderRadius: 14, paddingBottom: 16 }}>
+                <View
+                  className="items-center justify-center bg-white"
+                  style={[
+                    {
+                      width: 52,
+                      height: 52,
+                      borderRadius: 14,
+                      borderWidth: 3,
+                      borderColor: colors.amber,
+                    },
+                    STEP_BADGE_SHADOW,
+                  ]}>
+                  <Ionicons name="share-outline" size={22} color={colors.forest} />
+                </View>
               </View>
-            </View>
+            )}
             <Text
               className="text-center font-sans-semibold text-[15px] text-ink"
               style={{ marginTop: 20, marginBottom: 4 }}>
@@ -168,27 +200,31 @@ export function InstagramEduSheet({
 
         {page === 2 && (
           <>
-            <View
-              className="items-center justify-center bg-sand"
-              style={{ height: 150, borderRadius: 14 }}>
+            {TUTORIAL_STEP_IMAGES ? (
+              <StepImage index={2} />
+            ) : (
               <View
-                className="items-center justify-center bg-forest"
-                style={[
-                  {
-                    width: 58,
-                    height: 58,
-                    borderRadius: 16,
-                    borderWidth: 3,
-                    borderColor: colors.amber,
-                  },
-                  STEP_BADGE_SHADOW,
-                ]}>
-                <Text style={{ fontSize: 22 }}>🍳</Text>
-                <Text className="font-sans-semibold" style={{ fontSize: 8, color: '#FFFFFF' }}>
-                  {t('tabs.myKitchen')}
-                </Text>
+                className="items-center justify-center bg-sand"
+                style={{ height: 150, borderRadius: 14 }}>
+                <View
+                  className="items-center justify-center bg-forest"
+                  style={[
+                    {
+                      width: 58,
+                      height: 58,
+                      borderRadius: 16,
+                      borderWidth: 3,
+                      borderColor: colors.amber,
+                    },
+                    STEP_BADGE_SHADOW,
+                  ]}>
+                  <Text style={{ fontSize: 22 }}>🍳</Text>
+                  <Text className="font-sans-semibold" style={{ fontSize: 8, color: '#FFFFFF' }}>
+                    {t('tabs.myKitchen')}
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
             <Text
               className="text-center font-sans-semibold text-[15px] text-ink"
               style={{ marginTop: 20, marginBottom: 4 }}>
