@@ -260,6 +260,8 @@ interface RunResult {
   durationS: number;
   source?: string;
   retrieval?: unknown;
+  /** Edge yanıtındaki generation metası (madde 5: stop_reason + usage). */
+  generation?: unknown;
   usage?: UsageTotals;
   layerDist: { ready: number; close: number; few: number };
   fineDiningCount: number;
@@ -295,6 +297,7 @@ async function runRag(inventoryKey: string, runIndex: number): Promise<RunResult
     source?: string;
     recipes?: Recipe[];
     retrieval?: unknown;
+    generation?: unknown;
     error?: string;
   };
   const durationS = (performance.now() - t0) / 1000;
@@ -329,6 +332,7 @@ async function runRag(inventoryKey: string, runIndex: number): Promise<RunResult
     durationS,
     source: data.source,
     retrieval: data.retrieval,
+    generation: data.generation,
     layerDist: layerDist(metrics),
     fineDiningCount: fineDining.length,
     recipeCount: finalList.length,
@@ -427,6 +431,9 @@ async function main(): Promise<void> {
                 (m.liveMissing > 0 ? ` (${m.liveMissingNames.join(', ')})` : '') +
                 ` | rec eksik=${m.reconciledMissing} | ${m.timeMin}dk | ${m.ingredientCount} malzeme`
             );
+          }
+          if (result.generation) {
+            console.log(`   generation: ${JSON.stringify(result.generation)}`);
           }
           if (result.usage) {
             console.log(
