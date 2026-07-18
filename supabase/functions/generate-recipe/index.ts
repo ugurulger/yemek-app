@@ -33,6 +33,9 @@ const CONFIG = {
   matchThreshold: Number(Deno.env.get('RAG_MATCH_THRESHOLD') ?? '0.8'),
   /** Retrieval'da çekilecek benzer tarif sayısı. */
   matchCount: Number(Deno.env.get('RAG_MATCH_COUNT') ?? '8'),
+  /** Madde 3: çeşitlendirme için çekilen ADAY sayısı — final matchCount'a
+   * başlık-token tavanıyla süzülür (bkz. diversifyMatches). */
+  matchCandidates: Number(Deno.env.get('RAG_MATCH_CANDIDATES') ?? '24'),
   /** Üretim modeli — ucuz model (Claude Haiku). */
   generationModel: Deno.env.get('RAG_GENERATION_MODEL') ?? 'claude-haiku-4-5',
   /** Tek çağrıda üretilecek varsayılan tarif sayısı. */
@@ -336,6 +339,49 @@ function reconcileRecipes(recipes: Recipe[], availableNames: string[]): Recipe[]
           : Math.round(((ingredients.length - missingCount) / ingredients.length) * 100),
     };
   });
+}
+
+/**
+ * Madde 3 (baseline B2 kök nedeni): HNSW en-yakın komşuları tek malzeme
+ * ailesine yığılabiliyor (somon envanterinde 8/8 somon başlığı) ve üretim
+ * prompt'taki çeşitlilik kurallarına rağmen referansları taklit ediyor.
+ * Benzerlik SIRASINI koruyarak açgözlü seçim yapar; bir başlık token'ı
+ * seçilmişlerde 2 kez göründüyse o adayı atlar (yeterli aday kalmazsa
+ * atlananlarla doldurur — seyrek sorguda referans sayısı düşmez).
+ * İLK aday her zaman seçilir → matches[0] global en-benzer kalır (hibrit
+ * kısayolun eşik kontrolü bozulmaz).
+ */
+const TITLE_STOP_TOKENS = new Set([
+  'with', 'and', 'the', 'for', 'from', 'style', 'easy', 'best', 'simple', 'quick',
+  'creamy', 'baked', 'roasted', 'grilled', 'fried', 'fresh', 'homemade', 'classic',
+  'sauce', 'recipe', 'salad', 'soup', 'pasta', 'casserole',
+]);
+
+function titleTokens(title: string): string[] {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length >= 4 && !TITLE_STOP_TOKENS.has(token));
+}
+
+function diversifyMatches(candidates: MatchedRecipe[], take: number): MatchedRecipe[] {
+  const tokenCount = new Map<string, number>();
+  const selected: MatchedRecipe[] = [];
+  for (const candidate of candidates) {
+    if (selected.length >= take) break;
+    const tokens = titleTokens(candidate.title);
+    if (selected.length > 0 && tokens.some((token) => (tokenCount.get(token) ?? 0) >= 2)) {
+      continue;
+    }
+    selected.push(candidate);
+    for (const token of tokens) tokenCount.set(token, (tokenCount.get(token) ?? 0) + 1);
+  }
+  for (const candidate of candidates) {
+    if (selected.length >= take) break;
+    if (!selected.includes(candidate)) selected.push(candidate);
+  }
+  return selected;
 }
 
 function countMissing(recipe: MatchedRecipe, availableNames: string[]): number {
@@ -804,16 +850,16 @@ Deno.serve(async (request) => {
         return null;
       }
     );
-    const [matches, fineDiningMatches] = queryEmbedding
+    const [matchCandidates, fineDiningCandidates] = queryEmbedding
       ? await Promise.all([
-          retryOnce('retrieval', () => matchRecipes(queryEmbedding, CONFIG.matchCount)).catch(
+          retryOnce('retrieval', () => matchRecipes(queryEmbedding, CONFIG.matchCandidates)).catch(
             (error) => {
               console.error('[generate-recipe] retrieval hatası — referanssız üretim:', error);
               return [] as MatchedRecipe[];
             }
           ),
           retryOnce('fine dining retrieval', () =>
-            matchRecipes(queryEmbedding, CONFIG.fineDiningMatchCount, CONFIG.fineDiningTag)
+            matchRecipes(queryEmbedding, CONFIG.fineDiningMatchCount * 2, CONFIG.fineDiningTag)
           ).catch((error) => {
             // Fine dining retrieval'ı normal akışı DÜŞÜRMEZ (örn. tag-filtresi
             // migration'ı henüz uygulanmadıysa) — loglanır, boş devam edilir.
@@ -822,6 +868,13 @@ Deno.serve(async (request) => {
           }),
         ])
       : [[] as MatchedRecipe[], [] as MatchedRecipe[]];
+    // Madde 3: aday havuzu başlık-token tavanıyla süzülür (bkz. diversifyMatches).
+    const matches = diversifyMatches(matchCandidates, CONFIG.matchCount);
+    const fineDiningMatches = diversifyMatches(fineDiningCandidates, CONFIG.fineDiningMatchCount);
+    console.log(
+      `[rag-gen] retrieval: ${matchCandidates.length} aday → ${matches.length} referans; ` +
+        `fine dining ${fineDiningCandidates.length} aday → ${fineDiningMatches.length}`
+    );
 
     // İş 1b: fine dining üretimi normal akışla EŞZAMANLI başlar — kısayol
     // tetiklense de tetiklenmese de her yanıtta 2 fine dining tarifi hedeflenir.
