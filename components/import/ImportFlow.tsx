@@ -28,8 +28,27 @@ type ImportFlowStep = 'entry' | 'cookbook' | 'menu' | 'social' | 'ig-edu' | 'ig-
 /** Launch ekranından Instagram deeplink'ine geçiş gecikmesi — referans 1900ms. */
 const IG_LAUNCH_DELAY_MS = 1900;
 
-/** Instagram deeplink'i; uygulama yüklü değilse web fallback (IMG_8480→8481). */
-const INSTAGRAM_APP_URL = 'instagram://app';
+/**
+ * Instagram'ı açan URL; uygulama yüklü değilse web fallback (IMG_8480→8481).
+ *
+ * ÇIPLAK şema ('instagram://', path YOK) bilinçli tercih: iOS'ta path'siz
+ * şema uygulamayı yalnızca ÖN PLANA getirir (resume) — kullanıcı IG'de bir
+ * gönderide kaldıysa oradan devam eder. Path'li varyantlar ise IG'yi belirli
+ * bir ekrana NAVİGE ettirip son durumu sıfırlar, bu yüzden KULLANILMAZ:
+ *   - 'instagram://app'  → ana feed'e navigasyon (eski davranış — şikayetin
+ *     kaynağı: IG hep "en baştan" açılıyordu)
+ *   - 'instagram://feed' → yine feed'e navigasyon
+ * Android notu: hostsuz 'instagram://' bazı Android sürümlerinde intent
+ * filter'a takılıp reddedilebilir — o durumda mevcut catch zinciri web
+ * fallback'ine düşer (kırılma yok); Android'de de resume istenirse ayrı
+ * bir intent yaklaşımı gerekebilir.
+ * DOĞRULA (gerçek cihazda/dev build'de, IG yüklüyken): Expo Go'da şema
+ * davranışı gözlemlenemez (bkz. lib/market/storeLinks.ts iOS notu — Expo
+ * Go'da akış web fallback'ine düşer); IG'de bir gönderi açık bırakıp
+ * uygulamadan "Instagram'ı aç" denendiğinde IG'nin o gönderiden devam
+ * ettiği cihazda teyit edilmeli.
+ */
+const INSTAGRAM_APP_URL = 'instagram://';
 const INSTAGRAM_WEB_URL = 'https://www.instagram.com';
 
 /**
