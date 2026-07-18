@@ -27,6 +27,34 @@ export interface BottomSheetProps {
 const OPEN_DURATION_MS = 300;
 const CLOSE_DURATION_MS = 240;
 
+// ---------------------------------------------------------------------------
+// Kapanış kilidi (modül seviyesi): bir sheet kapanış animasyonunu bitirmeden
+// başka bir sheet MOUNT edilmez. iOS'ta iki native Modal üst üste binerse
+// (örn. ImportFlow'un zincirleme adım geçişleri: entry → menu) UIKit alttaki
+// modal kapanırken üstüne sunulmuş yeni modalı da söker — yeni sheet hiç
+// görünmez. Kilit, yeni sheet'in Modal'ını öncekinin sökümünden SONRAYA erteler.
+// ---------------------------------------------------------------------------
+
+let closingCount = 0;
+const mountWaiters: (() => void)[] = [];
+
+function beginClosing(): void {
+  closingCount += 1;
+}
+
+function endClosing(): void {
+  closingCount = Math.max(0, closingCount - 1);
+  if (closingCount === 0) {
+    for (const waiter of mountWaiters.splice(0)) waiter();
+  }
+}
+
+/** Kapanmakta olan sheet yoksa hemen, varsa hepsi bitince çağırır. */
+function whenNoClosingSheet(callback: () => void): void {
+  if (closingCount === 0) callback();
+  else mountWaiters.push(callback);
+}
+
 /**
  * Ortak bottom sheet — TÜM sheet açılışları bu component'ten geçer (İş 3):
  * arka plan kararması sheet'in yukarı çıkış hareketiyle SENKRON kademeli
@@ -51,26 +79,60 @@ export function BottomSheet({ visible, onClose, children, showHandle = true }: B
   // Sürükleme başlangıcındaki ilerleme — hareket bu tabandan hesaplanır.
   const dragStartProgress = useRef(1);
 
+  // Kapanış animasyonu sürerken kilidin iki kez alınmasını/bırakılmasını önler.
+  const isClosingRef = useRef(false);
+
+  function handleCloseAnimationEnd(finished: boolean) {
+    if (!isClosingRef.current) return;
+    isClosingRef.current = false;
+    endClosing();
+    // Animasyon iptal edildiyse (kapanış sürerken tekrar açıldı) mounted kalır.
+    if (finished) setMounted(false);
+  }
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
-      progress.value = withTiming(1, {
-        duration: OPEN_DURATION_MS,
-        easing: Easing.out(Easing.cubic),
+      // Kapanmakta olan başka bir sheet varsa (zincirleme geçiş) Modal'ın
+      // mount'u onun sökümünden SONRAYA ertelenir — bkz. kapanış kilidi.
+      let cancelled = false;
+      whenNoClosingSheet(() => {
+        if (cancelled) return;
+        setMounted(true);
+        progress.value = withTiming(1, {
+          duration: OPEN_DURATION_MS,
+          easing: Easing.out(Easing.cubic),
+        });
       });
-    } else if (mounted) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (mounted && !isClosingRef.current) {
+      isClosingRef.current = true;
+      beginClosing();
       // Kapanış mevcut ilerlemeden devam eder (sürüklemeyle yarıda bırakılmış
-      // olabilir) — bitince Modal sökülür.
+      // olabilir) — bitince Modal sökülür ve kilit bırakılır.
       progress.value = withTiming(
         0,
         { duration: CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) },
         (finished) => {
-          if (finished) runOnJS(setMounted)(false);
+          runOnJS(handleCloseAnimationEnd)(finished === true);
         }
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // Component kapanış ortasında tamamen sökülürse (örn. ekran değişimi)
+  // kilit bırakılır — aksi halde sonraki hiçbir sheet mount olamazdı.
+  useEffect(() => {
+    return () => {
+      if (isClosingRef.current) {
+        isClosingRef.current = false;
+        endClosing();
+      }
+    };
+  }, []);
 
   // Tutamaçtan sürükleyerek kapatma. PanResponder her render'da yeniden
   // oluşturulur (useRef'e SARILMAZ) — aksi halde release handler'ı bayat
