@@ -27,6 +27,7 @@ import {
   mergeRecipeLayers,
   PANTRY_STAPLES,
 } from '../../lib/claude/generateRecipes';
+import { findInventoryMatch } from '../../lib/recipes/ingredient-match';
 import { computeMissing } from '../../lib/recipes/recipe-math';
 import { EMPTY_PREFERENCES } from '../../types/preferences';
 
@@ -147,6 +148,8 @@ interface RecipeMetric {
   kcal: number;
   nutritionTag: string;
   ingredientCount: number;
+  /** Tarifin kullandığı FARKLI envanter ürünü sayısı (ready zenginlik ölçüsü). */
+  inventoryUsed: number;
   topIngredients: string[];
   stepCount: number;
 }
@@ -167,6 +170,11 @@ function liveMissingFor(recipe: Recipe, items: InventoryItem[]): string[] {
 
 function toMetric(recipe: Recipe, items: InventoryItem[]): RecipeMetric {
   const liveNames = liveMissingFor(recipe, items);
+  const usedIds = new Set(
+    recipe.ingredients
+      .map((ingredient) => findInventoryMatch(ingredient.name, items)?.id)
+      .filter((id): id is string => typeof id === 'string')
+  );
   return {
     name: recipe.name,
     source: (recipe as { source?: string }).source,
@@ -179,6 +187,7 @@ function toMetric(recipe: Recipe, items: InventoryItem[]): RecipeMetric {
     kcal: recipe.kcal,
     nutritionTag: recipe.nutrition_tag,
     ingredientCount: recipe.ingredients.length,
+    inventoryUsed: usedIds.size,
     topIngredients: recipe.ingredients.slice(0, 5).map((i) => i.name),
     stepCount: recipe.steps.length,
   };
@@ -429,7 +438,7 @@ async function main(): Promise<void> {
             console.log(
               `   - ${m.fineDining ? '✦ ' : ''}${m.name} | live eksik=${m.liveMissing}` +
                 (m.liveMissing > 0 ? ` (${m.liveMissingNames.join(', ')})` : '') +
-                ` | rec eksik=${m.reconciledMissing} | ${m.timeMin}dk | ${m.ingredientCount} malzeme`
+                ` | rec eksik=${m.reconciledMissing} | ${m.timeMin}dk | ${m.ingredientCount} malzeme | env ${m.inventoryUsed}`
             );
           }
           if (result.generation) {
