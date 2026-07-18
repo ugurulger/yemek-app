@@ -559,11 +559,68 @@ function buildSharedRules(input: GenerateRecipeInput): string {
   return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule;
 }
 
-function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
-  const dominantToken = dominantReferenceToken(matches);
+/**
+ * Madde 3 (yapısal): normal üretim 2×3 PARALEL çağrıya bölünür (plan çağrısı
+ * YOK — plan+detay mimarisi bu session'ın kapsamı dışında). Ölçüm dersi: tek
+ * çağrıda 8/8 aynı-aileden referans bloğu, jenerik VE somut yıldız
+ * tavanlarını eziyordu (en8'de ısrarla 4/6 somon). Bölme, tavanı yapısal
+ * garanti yapar: A grubu (ready-ağırlıklı) baskın malzemeyi en fazla 2
+ * tarifte kullanabilir, B grubu (alışveriş-ağırlıklı) baskın malzemeyi HİÇ
+ * kullanamaz ve mümkünse baskın-olmayan referansları alır → toplam ≤2.
+ * MVP-14 dersiyle çelişmez: iki grup farklı katman+yıldız kısıtlarıyla
+ * YAPISAL olarak koordinedir, habersiz eş-planlama değildir.
+ */
+interface NormalGroupSpec {
+  /** Bu gruptaki tarif sayısı. */
+  count: number;
+  /** Pozisyonel katman kuralı (grubun kendi içinde). */
+  layerRule: string;
+  /** Baskın referans token'ı kuralı (somut adla). */
+  dominantRule: string;
+}
+
+function groupSpecs(totalCount: number, dominantToken: string | null): NormalGroupSpec[] {
+  const countA = Math.min(totalCount, Math.ceil(totalCount / 2));
+  const countB = totalCount - countA;
+  const readyCount = Math.min(2, countA);
+  const specA: NormalGroupSpec = {
+    count: countA,
+    layerRule:
+      `- LAYER DISTRIBUTION (strict — count shopping ingredients per recipe before submitting): the ` +
+      `first ${readyCount} recipe(s): cookable RIGHT NOW using ONLY inventory + pantry staples (every ` +
+      'ingredient in_inventory: true, zero shopping items — not even a garnish; simplify the dish ' +
+      'rather than add anything the user lacks). Any remaining recipe: exactly 1-2 shopping ' +
+      'ingredients (in_inventory: false) that genuinely improve the dish.\n',
+    dominantRule: dominantToken
+      ? `- CONCRETE CAP: the references below are dominated by "${dominantToken}" — at most 2 of your ` +
+        `recipes may contain ${dominantToken}; use the references for technique, not to repeat their star.\n`
+      : '',
+  };
+  const specB: NormalGroupSpec = {
+    count: countB,
+    layerRule:
+      '- LAYER DISTRIBUTION (strict — count shopping ingredients per recipe before submitting): the ' +
+      'first recipe: exactly 1-2 shopping ingredients (in_inventory: false). The remaining recipes: ' +
+      'exactly 3-4 shopping ingredients — more ambitious dishes where the purchases genuinely elevate ' +
+      'the result. Making a recipe fully cookable from inventory VIOLATES this distribution; the ' +
+      'shopping items must be REAL additions the user does not have.\n',
+    dominantRule: dominantToken
+      ? `- CONCRETE BAN: the reference corpus is dominated by "${dominantToken}", and another set of ` +
+        `recipes already covers it — your recipes must NOT contain ${dominantToken} at all; build them ` +
+        'around the OTHER inventory items, using the references only for technique and structure.\n'
+      : '',
+  };
+  return countB > 0 ? [specA, specB] : [specA];
+}
+
+function buildSystemPrompt(
+  input: GenerateRecipeInput,
+  matches: MatchedRecipe[],
+  spec: NormalGroupSpec
+): string {
   return (
     'You are a recipe generator for a mobile cooking app. Using the user inventory and the similar ' +
-    `reference recipes below, create ${input.count} distinct, realistic recipes.\n` +
+    `reference recipes below, create ${spec.count} distinct, realistic recipes.\n` +
     'Rules:\n' +
     `- Respond in ${input.language}: every human-readable text field (name, ingredient names, steps, chef_tip) ` +
     `must be written in ${input.language}. Schema enum fields (difficulty, category, nutrition_tag) and ` +
@@ -571,34 +628,15 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     '- Ground the recipes in the reference recipes where possible (adapt, simplify, combine), but adjust them ' +
     'to the user inventory; do not invent implausible dishes.\n' +
     '- Use inventory ingredients as the base; mark in_inventory per the inventory list.\n' +
-    '- LAYER DISTRIBUTION (strict — count shopping ingredients per recipe before submitting): ' +
-    'recipes 1-2: cookable RIGHT NOW using ONLY inventory + pantry staples (every ingredient ' +
-    'in_inventory: true, zero shopping items — not even a garnish; simplify the dish rather than add ' +
-    'anything the user lacks). Recipes 3-4: exactly 1-2 shopping ingredients ' +
-    '(in_inventory: false). Recipes 5-6: exactly 3-4 shopping ingredients — more ambitious dishes ' +
-    'where the purchases genuinely elevate the result. Shopping items must be REAL additions the user ' +
-    'does not have (see the rule about variants below); making recipes 3-6 fully cookable from ' +
-    'inventory VIOLATES this distribution — the shopping layers must exist.\n' +
+    spec.layerRule +
     '- Use metric units (g/ml) or counts for ingredient quantities; qty is for the default servings.\n' +
     '- kcal is per person; ingredient kcal values are totals for the default servings and should roughly sum ' +
     'to kcal × servings.\n' +
     '- Make the recipes DIVERSE: spread them across different meal types (breakfast, main dish, soup, ' +
     'salad, oven bake...) and different cooking techniques; no two recipes may share the same main ' +
-    'ingredient combination, and do not base every recipe on the same one or two reference recipes.\n' +
-    // Madde 3 (baseline B2): retrieval tek malzeme ailesine yığıldığında (örn.
-    // 8/8 somon referansı) üretim de tekdüzeleşiyordu — referans yığılmasına
-    // karşı açık yıldız-malzeme tavanı.
-    '- STAR INGREDIENT CAP (strict — count per star before submitting): no star ingredient may carry ' +
-    'more than 2 of the recipes, and the set must contain at least 4 DIFFERENT star ingredients. First ' +
-    'pick the star of each recipe (e.g. 1: salmon, 2: eggs, 3: salmon, 4: potatoes, 5: spinach, 6: ' +
-    'bell pepper), then write the recipes. This holds EVEN IF the reference recipes are dominated by a ' +
-    'single ingredient family — use the references for technique and structure, not to repeat their ' +
-    'star; the other inventory items (eggs, vegetables, dairy, pantry carbs...) must carry the rest.\n' +
-    (dominantToken
-      ? `- CONCRETE CAP: the references below are dominated by "${dominantToken}" — AT MOST 2 of your ` +
-        `${input.count} recipes may contain ${dominantToken} at all; the other recipes must be built ` +
-        `entirely without ${dominantToken}.\n`
-      : '') +
+    'ingredient combination or star ingredient, and do not base every recipe on the same one or two ' +
+    'reference recipes.\n' +
+    spec.dominantRule +
     '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
     'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
     'ingredients too — when available, build at least one dish around one of them (a pasta dish, a rice ' +
@@ -959,17 +997,59 @@ Deno.serve(async (request) => {
     // (örn. kilerde Vinegar varken "Balsamic Vinegar") evde-var'a çevrilir,
     // missing_count buna göre yeniden hesaplanır — katman dağılımı client'ın
     // canlı hesabıyla tutarlı kalır.
-    const [normalResult, fineDiningResult] = await Promise.all([
-      generateWithClaude(input, {
-        count: input.count ?? CONFIG.defaultRecipeCount,
-        systemPrompt: buildSystemPrompt(input, matches),
-      }),
+    const normalCount = input.count ?? CONFIG.defaultRecipeCount;
+    const dominantToken = dominantReferenceToken(matches);
+    // B grubu mümkünse baskın-olmayan referansları alır (aday havuzundan);
+    // yeterli aday yoksa aynı referanslarla devam edilir (BAN kuralı yine geçerli).
+    const nonDominantCandidates = dominantToken
+      ? matchCandidates.filter((candidate) => !titleTokens(candidate.title).includes(dominantToken))
+      : [];
+    const specs = groupSpecs(normalCount, dominantToken);
+    const groupMatches = specs.map((_, index) =>
+      index === 1 && nonDominantCandidates.length >= 3
+        ? diversifyMatches(nonDominantCandidates, CONFIG.matchCount)
+        : matches
+    );
+    const [normalSettled, fineDiningResult] = await Promise.all([
+      Promise.allSettled(
+        specs.map((spec, index) =>
+          generateWithClaude(input, {
+            count: spec.count,
+            systemPrompt: buildSystemPrompt(input, groupMatches[index], spec),
+          })
+        )
+      ),
       fineDiningPromise,
     ]);
-    if (normalResult.recipes.length === 0) {
-      throw new Error('Tarif üretilemedi');
+    // Bir grup düşerse diğeriyle devam (degrade); ikisi de düştüyse hata.
+    const normalResults = normalSettled
+      .filter((entry): entry is PromiseFulfilledResult<GenerationResult> => entry.status === 'fulfilled')
+      .map((entry) => entry.value);
+    if (normalResults.length === 0) {
+      const firstError = normalSettled.find(
+        (entry): entry is PromiseRejectedResult => entry.status === 'rejected'
+      );
+      throw firstError ? firstError.reason : new Error('Tarif üretilemedi');
     }
-    const recipes = reconcileRecipes(normalResult.recipes, availableNames);
+    if (normalResults.length < specs.length) {
+      console.warn('[rag-gen] normal üretim gruplarından biri düştü — kalanla devam ediliyor');
+    }
+    const normalMeta: GenerationMeta = {
+      stopReason: normalResults.map((result) => result.meta.stopReason ?? '?').join('/'),
+      inputTokens: normalResults.reduce((sum, result) => sum + result.meta.inputTokens, 0),
+      outputTokens: normalResults.reduce((sum, result) => sum + result.meta.outputTokens, 0),
+    };
+    // İsim bazlı tekilleştirme (client mergeRecipeLayers ile aynı ilke) —
+    // iki grup nadiren aynı adı üretirse eksik sayısı düşük olan kalır.
+    const byName = new Map<string, Recipe>();
+    for (const recipe of reconcileRecipes(normalResults.flatMap((result) => result.recipes), availableNames)) {
+      const key = recipe.name.trim().toLowerCase();
+      const existing = byName.get(key);
+      if (!existing || recipe.missing_count < existing.missing_count) {
+        byName.set(key, recipe);
+      }
+    }
+    const recipes = Array.from(byName.values());
     const fineDiningRecipes = reconcileRecipes(fineDiningResult.recipes, availableNames);
 
     // Madde 5: mutabakat SONRASI katman dağılımı — sunucunun hedeflediği
@@ -992,7 +1072,7 @@ Deno.serve(async (request) => {
           matchedTitles: matches.map((m) => m.title),
           fineDiningTitles: fineDiningMatches.map((m) => m.title),
         },
-        generation: { normal: normalResult.meta, fineDining: fineDiningResult.meta },
+        generation: { normal: normalMeta, fineDining: fineDiningResult.meta },
       }),
       { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }
     );
