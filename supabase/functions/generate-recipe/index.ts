@@ -307,18 +307,24 @@ function isAvailable(ingredientName: string, availableNames: string[]): boolean 
 }
 
 /**
- * Üretim SONRASI deterministik düzeltme (client'taki applyInventoryReconciliation
- * ile aynı ilke): envanter/kilerle eşleşen malzemeler in_inventory: true yapılır,
- * missing_count/match_pct yeniden hesaplanır — modelin bayrağına güvenilmez.
- * Böylece sunucunun katman dağılımı client'ın canlı hesabıyla AYNI dili konuşur.
+ * Üretim SONRASI deterministik düzeltme — İKİ YÖNLÜ (madde 2): in_inventory
+ * bayrağı modelden alınmaz, envanter+kiler listesine karşı namesMatch ile
+ * SIFIRDAN hesaplanır. Yükseltme (eksik sanılan ama mevcut) client'taki
+ * applyInventoryReconciliation ile aynı; ALÇALTMA (mevcut sanılan ama
+ * envanter/kilerde namesMatch karşılığı olmayan — örn. envanterde limon
+ * yokken "Lemon Juice" in_inventory: true) client'ın CANLI computeMissing
+ * hesabıyla hizalanmak için gerekli: baseline ölçümünde sunucunun 0 eksik
+ * saydığı tarifler ekranda eksikli görünüyordu (analysis/
+ * rag-tuning-baseline.md B3) ve katman hedeflemesi kayıyordu.
  */
 function reconcileRecipes(recipes: Recipe[], availableNames: string[]): Recipe[] {
   return recipes.map((recipe) => {
-    const ingredients = recipe.ingredients.map((ingredient) =>
-      !ingredient.in_inventory && isAvailable(ingredient.name, availableNames)
-        ? { ...ingredient, in_inventory: true }
-        : ingredient
-    );
+    const ingredients = recipe.ingredients.map((ingredient) => {
+      const available = isAvailable(ingredient.name, availableNames);
+      return ingredient.in_inventory === available
+        ? ingredient
+        : { ...ingredient, in_inventory: available };
+    });
     const missingCount = ingredients.filter((ingredient) => !ingredient.in_inventory).length;
     return {
       ...recipe,
@@ -484,10 +490,14 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     '- Ground the recipes in the reference recipes where possible (adapt, simplify, combine), but adjust them ' +
     'to the user inventory; do not invent implausible dishes.\n' +
     '- Use inventory ingredients as the base; mark in_inventory per the inventory list.\n' +
-    `- LAYER DISTRIBUTION (strict): exactly 2 of the ${input.count} recipes must be cookable RIGHT NOW ` +
-    'using ONLY inventory + pantry staples (every ingredient in_inventory: true). Every other recipe must ' +
-    'require 1-4 shopping ingredients (in_inventory: false) that genuinely elevate the dish — do not pad ' +
-    'recipes with unnecessary purchases, but do not force everything to be cookable now either.\n' +
+    '- LAYER DISTRIBUTION (strict — count shopping ingredients per recipe before submitting): ' +
+    'recipes 1-2: cookable RIGHT NOW using ONLY inventory + pantry staples (every ingredient ' +
+    'in_inventory: true, zero shopping items — not even a garnish; simplify the dish rather than add ' +
+    'anything the user lacks). Recipes 3-4: exactly 1-2 shopping ingredients ' +
+    '(in_inventory: false). Recipes 5-6: exactly 3-4 shopping ingredients — more ambitious dishes ' +
+    'where the purchases genuinely elevate the result. Shopping items must be REAL additions the user ' +
+    'does not have (see the rule about variants below); making recipes 3-6 fully cookable from ' +
+    'inventory VIOLATES this distribution — the shopping layers must exist.\n' +
     '- Use metric units (g/ml) or counts for ingredient quantities; qty is for the default servings.\n' +
     '- kcal is per person; ingredient kcal values are totals for the default servings and should roughly sum ' +
     'to kcal × servings.\n' +
