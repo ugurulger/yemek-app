@@ -66,6 +66,24 @@ stabil (ready 2-3, alışveriş 3-4 dolu); çeşitlilik koşu İÇİNDE hedefte.
 5. TR kullanıcı deneyimi çeviri katmanına bağımlı (RAG hep EN üretir,
    RAG-EN kararı) — çeviri gelene dek EN gösterilir.
 
+## Ek (aynı gün): ready tariflerde zenginlik düzeltmesi
+
+Kullanıcı geri bildirimi: "Hemen Yapabilirsin" tarifleri fazla basit
+kalıyordu (2-3 envanter malzemeli omlet/makarna). Her İKİ yola da
+"ready = dolu tarif" kuralı eklendi (RAG A-grubu promptu + iki aşamalı
+`LAYER_VARIANTS.ready` ve plan promptu; "en basit formatlara in" SON
+ÇARE'ye sınırlandı). Ölçüm (kullanılan FARKLI envanter ürünü, `env N`):
+
+| | Önce | Sonra |
+|---|---|---|
+| RAG ready (tr12, 12 ürün) | 3 / 4 / 5 | **7 / 4 / 5** |
+| RAG ready (en8, 8 ürün) | 4 / 3 | **4 / 5** |
+| İki aşamalı ready (tr12) | (ölçülmemişti; 8-12 toplam malzeme) | **8 / 8 / 4** (16-17 toplam malzemeli fırın/oturtma) |
+
+Ayrıca RAG tool şemasında `minItems = count` yapıldı — bir grubun 3 yerine
+2 tarif üretip listeyi 7'ye düşürdüğü gözlenmişti; artık tam sayı zorlanır.
+Birim testler 70/70.
+
 ## Tavsiye: flag açılmaya hazır mı — **ŞARTLI EVET**
 
 Ölçülen her eksende ayarlı RAG, iki aşamalı yolun bandını yakalıyor veya

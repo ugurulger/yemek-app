@@ -49,7 +49,10 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   tuning session, ölçümler: `analysis/rag-tuning-result.md`):** normal 6
 >   tarif **2×3 PARALEL grupta** üretilir (plan çağrısı YOK) — A grubu 2
 >   ready + 1 eksikli, B grubu 1×(1-2) + 2×(3-4) eksikli; pozisyonel prompt
->   kuralları. Fine dining İKİLİSİ zıt kurgulu (biri 0, diğeri 2-3 eksik) ve
+>   kuralları; tool şemasında `minItems = count` (eksik üretimle liste 6'nın
+>   altına düşmesin). Ready tarifler DOLU olmalı (envanterden ≥5 malzeme
+>   hedefi — iki aşamalı yoldaki ready-zenginlik kuralıyla aynı, bkz.
+>   "Envanter → tarif"). Fine dining İKİLİSİ zıt kurgulu (biri 0, diğeri 2-3 eksik) ve
 >   aynı yıldız malzemeyi PAYLAŞAMAZ. Dağılım prompt-yönlendirmeli, KOD
 >   ZORLAMAZ (MVP-16 ilkesi). "Prefer recipes the user can cook NOW" satırı
 >   kaldırılmıştı; tek-çağrılı üretim de aynı nedenle (4-6 ready'ye
@@ -829,7 +832,12 @@ MVP-15/16 karar anlatıları ve ölçümleri: references/HISTORY.md.
   BOZULMAZ): `ready` "SADECE envanter+kiler, HER malzeme in_inventory:
   true" + `temperature: 0.3` · `closeMatch` "en fazla 1-2 dışarıdan" +
   `0.7` · `fewMissing` "3-4 dışarıdan, yaratıcı ol" + `1.0` (Claude API'de
-  temperature 0-1).
+  temperature 0-1). **KURAL: ready DOLU olmalı (kullanıcı kararı,
+  2026-07-18):** "hemen yapılabilir" minimal demek değildir — ready kısıtı
+  ve plan promptu envanterden ≥4-5 farklı malzemeli doyurucu tarif ister;
+  "en basit formatlara in (omlet/makarna)" yönergesi SON ÇARE'ye
+  sınırlandı (ölçüm: ready env kullanımı 2-4 → 4-8). RAG A grubunda aynı
+  kuralın EN karşılığı var.
 - **Ready retry (kullanıcı kararı):** `ready` hedefli tarif eksikle
   dönerse 1 kez düzeltme çağrısı ("şu malzemeler envanterde yok: X —
   tarifi onlarsız yeniden kur"); yine eksikliyse olduğu gibi kabul edilir,
