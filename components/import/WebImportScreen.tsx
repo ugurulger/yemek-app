@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 export interface WebImportScreenProps {
   visible: boolean;
@@ -24,6 +25,7 @@ const GOOGLE_LETTERS: { letter: string; color: string }[] = [
  * gezinme barı. 'Örnek: Menemen tarifini aç' menemeni içe aktarır.
  */
 export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-white">
@@ -59,7 +61,7 @@ export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenP
           <Text
             className="font-sans-semibold text-white"
             style={{ fontSize: 20, fontStyle: 'italic' }}>
-            Mutfağım
+            {t('tabs.myKitchen')}
           </Text>
         </View>
 
@@ -73,7 +75,7 @@ export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenP
             ))}
             <Text className="font-serif text-ink" style={{ fontSize: 34 }}>
               {' '}
-              ile tarif ara
+              {t('importFlow.googleTagline')}
             </Text>
           </View>
           <View
@@ -109,7 +111,7 @@ export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenP
               elevation: 4,
             }}>
             <Text className="font-sans-semibold text-[14px] text-white">
-              Örnek: Menemen tarifini aç
+              {t('importFlow.openSampleWeb')}
             </Text>
           </Pressable>
         </View>
@@ -125,7 +127,7 @@ export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenP
             paddingBottom: 26,
           }}>
           <Text className="font-sans-semibold text-[15px] text-ink" style={{ marginBottom: 12 }}>
-            İçe aktarmak için bir tarif aç
+            {t('importFlow.webHint')}
           </Text>
           <View className="flex-row justify-center" style={{ gap: 60 }}>
             <Ionicons name="chevron-back" size={22} color="#C7CFC9" />

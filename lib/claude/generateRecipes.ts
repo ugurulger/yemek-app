@@ -63,13 +63,31 @@ export const PANTRY_STAPLES = [
 export interface RecipePromptContext {
   preferences: RecipePreferences;
   activePantryNames: string[];
+  /**
+   * LLM çıktı dili (BLOK B / B3) — tarif metinleri (ad, malzeme adları,
+   * adımlar, chef_tip) bu dilde üretilir; enum alanları (difficulty,
+   * category, nutrition_tag) şema gereği SABİT Türkçe değerlerde kalır.
+   * Varsayılan Türkçe (eski davranış).
+   */
+  outputLanguage?: string;
 }
 
 /** Bağlam verilmeden çağrılan (eski imzalı) kullanımlar için varsayılan. */
 export const DEFAULT_PROMPT_CONTEXT: RecipePromptContext = {
   preferences: EMPTY_PREFERENCES,
   activePantryNames: [...PANTRY_STAPLES],
+  outputLanguage: 'Turkish',
 };
+
+/** Dil talimatı cümlesi — hem plan hem ortak detay promptuna girer; aynı
+ * üretim akışındaki 6 çağrıda aynı olduğu için prefix cache'i bozmaz. */
+function buildLanguageSentence(context: RecipePromptContext): string {
+  const language = context.outputLanguage ?? 'Turkish';
+  return (
+    `Serbest metin alanlarını (tarif adı, malzeme adları, adımlar, chef_tip) ${language} dilinde yaz; ` +
+    'enum alanları (difficulty, category, nutrition_tag) şemadaki sabit değerlerde kalır. '
+  );
+}
 
 function normalizePantryNames(activePantryNames: string[]): string[] {
   return activePantryNames.map((name) => name.trim()).filter((name) => name.length > 0);
@@ -225,6 +243,7 @@ function buildPlanSystemPrompt(context: RecipePromptContext): string {
     `Verilen envanter listesine göre TAM ${RECIPE_COUNT} adet tarif İSMİ ve kısa bir plan öner ` +
     '(henüz tam tarif detayı değil — malzeme listesi, adımlar, kalori vb. İSTEME, sadece isim + tahmini bilgi). ' +
     pantrySentence +
+    buildLanguageSentence(context) +
     buildPreferenceText(context.preferences) +
     'Kurallar: ' +
   `- Dağılım ZORUNLU: TAM 2 tarif "ready" (SADECE envanter + kiler malzemeleriyle, HİÇ eksiksiz yapılabilir), ` +
@@ -365,6 +384,7 @@ function buildCommonDetailSystemPrompt(context: RecipePromptContext): string {
         `${pantryNames.join(', ')}. `;
   return (
     'Sana verilen tarif adına ve envanter listesine göre TEK bir tarifin tam detayını üret. ' +
+    buildLanguageSentence(context) +
     buildPreferenceText(context.preferences) +
     'Kurallar: ' +
     '- Tarifi verilen isme sadık kal: adın ima ettiği tanımlayıcı malzemeleri (örn. Menemen için domates ve ' +
@@ -663,6 +683,8 @@ export interface GenerateRecipesTwoPhaseOptions {
    * statik `PANTRY_STAPLES` yerine bu liste kullanılır.
    */
   activePantryNames: string[];
+  /** LLM çıktı dili (bkz. RecipePromptContext.outputLanguage). */
+  outputLanguage?: string;
   onPlanReady?: (plans: RecipePlan[]) => void;
   onDetailSettled?: (result: RecipeDetailResult) => void;
 }
@@ -688,6 +710,7 @@ export async function generateRecipesTwoPhase(
   const context: RecipePromptContext = {
     preferences: options.preferences,
     activePantryNames: options.activePantryNames,
+    outputLanguage: options.outputLanguage,
   };
 
   const plans = await generateRecipeNames(inventory, context);

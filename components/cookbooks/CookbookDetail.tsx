@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -44,6 +45,7 @@ interface CookbookDetailProps {
  * yönlendirmeli boş durum gösterilir (tasarım kuralı: asla sadece "boş" yazma).
  */
 export function CookbookDetail({ name, recipes, onBack, onPressRecipe }: CookbookDetailProps) {
+  const { t } = useTranslation();
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -52,7 +54,7 @@ export function CookbookDetail({ name, recipes, onBack, onPressRecipe }: Cookboo
         {/* Geri butonu — referans 398-402 */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Defter listesine dön"
+          accessibilityLabel={t('cookbooks.backToListA11y')}
           onPress={onBack}
           className="h-10 w-10 items-center justify-center rounded-full bg-white active:scale-95"
           style={BACK_SHADOW}>
@@ -88,13 +90,14 @@ export function CookbookDetail({ name, recipes, onBack, onPressRecipe }: Cookboo
 
 /** Yönlendirmeli boş durum — kullanıcıya tarifin nasıl ekleneceğini söyler. */
 function EmptyCookbook() {
+  const { t } = useTranslation();
   return (
     <View className="items-center px-8 pt-16">
       <View className="h-16 w-16 items-center justify-center rounded-full bg-white">
         <Ionicons name="book-outline" size={30} color={colors.muted} />
       </View>
       <Text className="mt-4 text-center font-sans text-[13px] leading-[19px] text-muted">
-        Bu defter henüz boş — tarif detayındaki Defterler butonuyla ekleyebilirsin.
+        {t('cookbooks.emptyBody')}
       </Text>
     </View>
   );

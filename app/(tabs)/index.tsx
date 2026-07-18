@@ -5,8 +5,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
 import { router, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
+import i18n from '@/src/i18n';
 import InventoryList from '@/components/inventory/InventoryList';
+import { LanguageSelector } from '@/components/settings/LanguageSelector';
 import { PantrySection } from '@/components/inventory/PantrySection';
 import { Card, PrimaryButton } from '@/components/ui';
 import { extractInventory, getVisionProvider, InventoryVisionError } from '@/services/vision';
@@ -53,6 +56,15 @@ const GROUP_ORDER: CategoryGroup[] = ['Süt & Peynir', 'Et & Şarküteri', 'Meyv
 // Kart başlığı: pastel tint'li yuvarlak köşeli kare rozet içinde emoji
 // (spec §1 pastel tint'ler + görsel 01) — MVP-19'un pastel ARKA PLANLI
 // CategoryColumn stilinin yerini bu beyaz kart + tint rozet stili aldı.
+// Görüntüleme grubu → çeviri anahtarı (kategori değerleri veri olarak Türkçe
+// kalır — bkz. types/inventory.ts; yalnızca GÖSTERİM çevrilir).
+const GROUP_LABEL_KEYS: Record<CategoryGroup, string> = {
+  'Süt & Peynir': 'categories.dairy',
+  'Et & Şarküteri': 'categories.meatDeli',
+  'Meyve & Sebze': 'categories.produce',
+  Diğer: 'categories.other',
+};
+
 const GROUP_META: Record<CategoryGroup, { emoji: string; tint: string }> = {
   'Süt & Peynir': { emoji: '🧀', tint: colors.tintSut },
   'Et & Şarküteri': { emoji: '🥩', tint: colors.tintEt },
@@ -84,11 +96,11 @@ function resolveVideoMimeType(uri: string, mimeType?: string): string {
 function confirmInventoryReplace(): Promise<boolean> {
   return new Promise((resolve) => {
     Alert.alert(
-      'Envanter yenilenecek',
-      'Mevcut envanter yeni taramayla değiştirilecek, onaylıyor musun?',
+      i18n.t('inventory.replaceAlert.title'),
+      i18n.t('inventory.replaceAlert.body'),
       [
-        { text: 'Vazgeç', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Değiştir', style: 'destructive', onPress: () => resolve(true) },
+        { text: i18n.t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+        { text: i18n.t('inventory.replaceAlert.confirm'), style: 'destructive', onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) }
     );
@@ -124,6 +136,7 @@ function ProductRow({
   item: InventoryItem;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View className="flex-row items-center py-1.5">
       <View className="flex-1">
@@ -138,7 +151,7 @@ function ProductRow({
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${item.name} ürününü sil`}
+        accessibilityLabel={t('inventory.deleteItemA11y', { name: item.name })}
         onPress={() => onDelete(item.id)}
         hitSlop={8}
         className="ml-2 active:scale-95">
@@ -161,6 +174,7 @@ function CategoryCard({
   onDelete: (id: string) => void;
 }) {
   const meta = GROUP_META[group];
+  const { t } = useTranslation();
   return (
     // Birebir referans (satır 82-86): radius 22, padding 14/14/8, başlık
     // satırı gap 7 + mb 9, emoji kutusu 28×28 radius 9, emoji 15px,
@@ -176,7 +190,7 @@ function CategoryCard({
         <Text
           numberOfLines={1}
           className="ml-[7px] flex-1 font-sans-semibold text-[12.5px] text-ink">
-          {group}
+          {t(GROUP_LABEL_KEYS[group])}
         </Text>
       </View>
       {groupItems.map((item) => (
@@ -200,6 +214,7 @@ function chunkPairs<T>(items: T[]): [T, T | undefined][] {
 }
 
 export default function MutfagimScreen() {
+  const { t } = useTranslation();
   const items = useInventoryStore((state) => state.items);
   const addItems = useInventoryStore((state) => state.addItems);
   const replaceItems = useInventoryStore((state) => state.replaceItems);
@@ -275,7 +290,7 @@ export default function MutfagimScreen() {
         // (örn. Claude seçiliyse) eski kare-tabanlı akış kullanılır.
         const frames = await extractVideoFramesAsBase64(uri);
         if (frames.length === 0) {
-          throw new InventoryVisionError('Video işlenemedi, tekrar deneyin.');
+          throw new InventoryVisionError(t('errors.videoProcessing'));
         }
         extractedItems = await extractInventory(frames, { onObservation: setObservationText });
       }
@@ -290,9 +305,11 @@ export default function MutfagimScreen() {
         `[perf] TOPLAM (seçimden envanterin state'e yazılmasına): ${(performance.now() - tPickStart).toFixed(0)}ms`
       );
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Bir şeyler ters gitti, tekrar deneyin.';
-      setErrorMessage(message);
+      // Vision hata mesajları (services/vision) Türkçe — ekranda çevrilmiş
+      // genel mesaj gösterilir, orijinali console'a düşer (ekran sınırı
+      // kararı; services Node eval script'lerinden de import ediliyor).
+      console.warn('[inventory] video analiz hatası:', error);
+      setErrorMessage(t('errors.analysisFailed'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -307,7 +324,7 @@ export default function MutfagimScreen() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setErrorMessage('Galeriye erişim izni gerekli.');
+      setErrorMessage(t('errors.galleryPermission'));
       return;
     }
 
@@ -348,9 +365,8 @@ export default function MutfagimScreen() {
         `[perf] TOPLAM (seçimden envanterin state'e yazılmasına): ${(performance.now() - tPickStart).toFixed(0)}ms`
       );
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Bir şeyler ters gitti, tekrar deneyin.';
-      setErrorMessage(message);
+      console.warn('[inventory] fotoğraf analiz hatası:', error);
+      setErrorMessage(t('errors.analysisFailed'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -375,22 +391,30 @@ export default function MutfagimScreen() {
             8px 20px 120px; selamlama 400 13px #8A9088 ls .3; h1 Newsreader
             500 34px #1F4A3D, üstten 2px. Görseldeki "Elif" adı
             kişiselleştirme — isim yok. */}
-        <View className="mb-1.5 pt-2">
-          <Text className="font-sans text-[13px] text-muted" style={{ letterSpacing: 0.3 }}>
-            Merhaba 👋
-          </Text>
-          <Text className="mt-[2px] font-serif text-[34px] leading-[40px] text-forest">
-            Mutfağım
-          </Text>
+        <View className="mb-1.5 flex-row items-start justify-between pt-2">
+          <View>
+            <Text className="font-sans text-[13px] text-muted" style={{ letterSpacing: 0.3 }}>
+              {t('inventory.greeting')}
+            </Text>
+            <Text className="mt-[2px] font-serif text-[34px] leading-[40px] text-forest">
+              {t('inventory.title')}
+            </Text>
+          </View>
+          {/* Dil seçici (EN/TR) — Blok B "ayarlar" gereksinimi, kompakt pill. */}
+          <View className="pt-1">
+            <LanguageSelector />
+          </View>
         </View>
 
         {/* "Buzdolabım" bölüm başlığı + sayaç pili — birebir referans
             (satır 66-69): margin 20 üst 12 alt, gap 8; başlık Newsreader
             500 20px #23302B; pil 600 11px #8A9088 bg sand 3×9 radius 20. */}
         <View className="mt-5 flex-row items-center gap-2">
-          <Text className="font-serif text-[20px] text-ink">Buzdolabım</Text>
+          <Text className="font-serif text-[20px] text-ink">{t('inventory.fridgeTitle')}</Text>
           <View className="rounded-[20px] bg-sand px-[9px] py-[3px]">
-            <Text className="font-sans-semibold text-[11px] text-muted">{items.length} ürün</Text>
+            <Text className="font-sans-semibold text-[11px] text-muted">
+              {t('inventory.itemCount', { count: items.length })}
+            </Text>
           </View>
         </View>
 
@@ -402,7 +426,7 @@ export default function MutfagimScreen() {
           <View className="flex-1">
             <PrimaryButton
               size="small"
-              label="Kamerayla tara"
+              label={t('inventory.scanWithCamera')}
               disabled={isAnalyzing}
               icon={<Ionicons name="videocam" size={18} color="white" />}
               onPress={() => router.push(CAMERA_ROUTE)}
@@ -412,7 +436,7 @@ export default function MutfagimScreen() {
             <PrimaryButton
               size="small"
               variant="light"
-              label="Asistanla ekle"
+              label={t('inventory.addWithAssistant')}
               disabled={isAnalyzing}
               icon={<Text className="text-[13px] text-forest">✦</Text>}
               onPress={() => router.push(ASSISTANT_ROUTE)}
@@ -424,18 +448,20 @@ export default function MutfagimScreen() {
             ikincil text-link — muted 11.5px stilinde. */}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Fiş veya fotoğraf yükle"
+          accessibilityLabel={t('inventory.uploadReceiptA11y')}
           onPress={handlePickAndAnalyze}
           disabled={isAnalyzing}
           className="mt-2.5 flex-row items-center self-start active:scale-95">
           <Ionicons name="images-outline" size={13} color={colors.muted} />
-          <Text className="ml-1.5 font-sans text-[11.5px] text-muted">Fiş/fotoğraf yükle</Text>
+          <Text className="ml-1.5 font-sans text-[11.5px] text-muted">
+            {t('inventory.uploadReceipt')}
+          </Text>
         </Pressable>
 
         {isAnalyzing && (
           <Card className="mt-3 flex-row items-center px-4 py-3">
             <ActivityIndicator color={colors.forest} size="small" />
-            <Text className="ml-3 font-sans text-sm text-body">Buzdolabı analiz ediliyor…</Text>
+            <Text className="ml-3 font-sans text-sm text-body">{t('inventory.analyzing')}</Text>
           </Card>
         )}
 
@@ -446,7 +472,7 @@ export default function MutfagimScreen() {
               accessibilityRole="button"
               onPress={handlePickAndAnalyze}
               className="mt-2 self-start active:scale-95">
-              <Text className="font-sans-medium text-sm text-forest">Tekrar dene</Text>
+              <Text className="font-sans-medium text-sm text-forest">{t('common.retry')}</Text>
             </Pressable>
           </Card>
         )}
@@ -466,11 +492,11 @@ export default function MutfagimScreen() {
         {uncertainItems.length > 0 && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Emin olunamayan ürünleri gözden geçir"
+            accessibilityLabel={t('inventory.reviewUncertainA11y')}
             onPress={() => setIsUncertainModalVisible(true)}
             className="mt-4 flex-row items-center justify-between rounded-2xl bg-amber-soft px-4 py-3 active:scale-95">
             <Text className="flex-1 font-sans-semibold text-sm text-amber-text">
-              ⚠️ {uncertainItems.length} ürün kontrol bekliyor
+              {t('inventory.uncertainWaiting', { count: uncertainItems.length })}
             </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.amberText} />
           </Pressable>
@@ -503,9 +529,9 @@ export default function MutfagimScreen() {
         ) : (
           <Card className="mt-3 items-center px-6 py-8">
             <Text className="text-4xl">🧺</Text>
-            <Text className="mt-3 font-serif text-lg text-ink">Buzdolabın henüz boş</Text>
+            <Text className="mt-3 font-serif text-lg text-ink">{t('inventory.emptyTitle')}</Text>
             <Text className="mt-1.5 text-center font-sans text-sm text-muted">
-              Kamerayla tarayarak buzdolabını tanıt ya da fiş/fotoğraf yükle.
+              {t('inventory.emptyBody')}
             </Text>
           </Card>
         )}
@@ -524,7 +550,7 @@ export default function MutfagimScreen() {
         onRequestClose={() => setIsUncertainModalVisible(false)}>
         <SafeAreaView className="flex-1 bg-white">
           <View className="flex-row items-center justify-between px-5 pb-2 pt-4">
-            <Text className="font-serif text-lg text-ink">Emin olunamayan ürünler</Text>
+            <Text className="font-serif text-lg text-ink">{t('inventory.uncertainModalTitle')}</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => setIsUncertainModalVisible(false)}

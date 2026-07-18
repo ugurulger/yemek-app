@@ -14,6 +14,8 @@ import { Text, TextInput, View } from 'react-native';
 import 'react-native-reanimated';
 
 import '../global.css';
+// i18n init'i (dil algılama + kayıtlı seçim) her şeyden önce yüklenir.
+import '@/src/i18n';
 import { ToastHost } from '@/components/ui';
 
 // Tasarım piksel-sabit bir referanstan (design/reference/Mutfagim.dc.html)

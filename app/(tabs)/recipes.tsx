@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import PreferencesScreen from '@/components/recipes/PreferencesScreen';
@@ -19,6 +20,7 @@ import {
   type RecipeLayerId,
 } from '@/lib/claude/generateRecipes';
 import { generateRecipesRag, RAG_ENABLED } from '@/lib/rag/generateRecipesRag';
+import { llmOutputLanguage } from '@/src/i18n';
 import { cardShadow, colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
@@ -59,6 +61,7 @@ function shoppingSortKey(slot: RecipeSlotState): number {
 }
 
 export default function TariflerScreen() {
+  const { t } = useTranslation();
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const recipes = useRecipeStore((state) => state.recipes);
@@ -99,6 +102,8 @@ export default function TariflerScreen() {
         // bkz. services/contracts.ts, GenerateRecipesOptions).
         preferences,
         activePantryNames,
+        // Çıktı dili aktif uygulama dilinden (BLOK B / B3).
+        outputLanguage: llmOutputLanguage(),
         // Aşama 1 (isim/plan) döner dönmez 6 slot oluşturulur — her biri
         // isim + tahmini katmanla birlikte "detay yükleniyor" durumunda başlar.
         onPlanReady: (plans) => {
@@ -131,11 +136,12 @@ export default function TariflerScreen() {
       });
       setRecipes(merged, fingerprint);
     } catch (error) {
-      const message =
-        error instanceof RecipeGenerationError || error instanceof Error
-          ? error.message
-          : 'Bir şeyler ters gitti, tekrar deneyin.';
-      setErrorMessage(message);
+      // Domain hata mesajları (lib/claude) Türkçe teknik metinler — UI tam
+      // yerelleşsin diye ekranda genel çevrilmiş mesaj gösterilir, orijinali
+      // console'a düşer (lib modülleri Node script'lerinden de kullanıldığı
+      // için i18n lib'e SOKULMAZ — ekran sınırı kararı, BLOK B).
+      console.warn('[recipes] üretim hatası:', error);
+      setErrorMessage(t('errors.recipeGenerationFailed'));
     } finally {
       setIsGenerating(false);
     }
@@ -147,7 +153,11 @@ export default function TariflerScreen() {
 
     setSlots((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'loading' } : s)));
     try {
-      const { recipe, layer } = await generateRecipeDetail(slot.name, inventoryItems, slot.estimatedLayer);
+      const { recipe, layer } = await generateRecipeDetail(slot.name, inventoryItems, slot.estimatedLayer, {
+        preferences,
+        activePantryNames,
+        outputLanguage: llmOutputLanguage(),
+      });
       const nextSlots = slots.map((s, i) =>
         i === index ? { ...s, status: 'done' as const, recipe, actualLayer: layer } : s
       );
@@ -183,13 +193,13 @@ export default function TariflerScreen() {
   const sections: RecipeDisplaySection[] = [
     {
       key: 'ready',
-      title: 'Hemen Yapabilirsin',
+      title: t('recipes.sectionReady'),
       prominent: true,
       slots: cardSlots.filter((_, i) => layerForSlot(slots[i]) === 'ready'),
     },
     {
       key: 'shopping',
-      title: 'Küçük Bir Alışverişle',
+      title: t('recipes.sectionShopping'),
       prominent: false,
       slots: cardSlots
         .map((cardSlot, i) => ({ cardSlot, slot: slots[i] }))
@@ -215,7 +225,7 @@ export default function TariflerScreen() {
             accessibilityRole="button"
             onPress={handleGenerateRecipes}
             className="mt-2 self-start active:scale-95">
-            <Text className="font-sans-medium text-sm text-forest">Tekrar dene</Text>
+            <Text className="font-sans-medium text-sm text-forest">{t('common.retry')}</Text>
           </Pressable>
         </View>
       )}
@@ -225,10 +235,10 @@ export default function TariflerScreen() {
           <View className="w-full items-center rounded-2xl bg-white p-8" style={cardShadow}>
             <Text className="text-5xl">🍲</Text>
             <Text className="mt-4 text-center font-serif text-[21px] text-ink">
-              Bugün ne pişsin?
+              {t('recipes.emptyTitle')}
             </Text>
             <Text className="mt-2 text-center font-sans text-sm text-muted">
-              Mutfağım sayfasından malzeme ekledikçe burada tarif önerileri belirecek.
+              {t('recipes.emptyBody')}
             </Text>
           </View>
         </View>
@@ -242,16 +252,16 @@ export default function TariflerScreen() {
           <View className="flex-row items-start justify-between px-5 pt-2">
             <View>
               <Text className="font-sans text-[13px] text-muted" style={{ letterSpacing: 0.3 }}>
-                Malzemelerine göre
+                {t('recipes.eyebrow')}
               </Text>
               <Text className="mt-0.5 font-serif text-[34px] leading-[40px] text-forest">
-                Tarifler
+                {t('recipes.title')}
               </Text>
             </View>
             {!isGenerating && (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Tercihlere dönüp tarifleri yeniden oluştur"
+                accessibilityLabel={t('recipes.refreshA11y')}
                 onPress={() => setShowPreferences(true)}
                 className="h-[46px] w-[46px] items-center justify-center rounded-full bg-white active:scale-95"
                 style={REFRESH_SHADOW}>

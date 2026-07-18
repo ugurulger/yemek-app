@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -40,6 +41,7 @@ export interface ProductMatchSheetProps {
  * düzeltme olarak cache'e yazılır — feedback loop.
  */
 export default function ProductMatchSheet({ visible, onClose, item, match, onSelect }: ProductMatchSheetProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Partial<Record<StoreId, StoreProduct[]>> | null>(null);
@@ -84,7 +86,7 @@ export default function ProductMatchSheet({ visible, onClose, item, match, onSel
     <BottomSheet visible={visible} onClose={onClose}>
       <Text className="mb-1 font-serif text-[22px] text-forest">{item.name}</Text>
       <Text className="mb-3 font-sans text-[12.5px] text-muted">
-        {formatQty(item.qty)} {item.unit} · Eşleşen ürünü kontrol et, gerekirse değiştir.
+        {formatQty(item.qty)} {item.unit} · {t('market.matchSheetHint')}
       </Text>
 
       <ScrollView style={{ maxHeight: 430 }} showsVerticalScrollIndicator={false}>
@@ -104,7 +106,7 @@ export default function ProductMatchSheet({ visible, onClose, item, match, onSel
               ) : (
                 <View className="rounded-[15px] bg-white px-4 py-3.5" style={ROW_SHADOW}>
                   <Text className="font-sans-medium text-[12.5px] text-muted">
-                    Uygun ürün bulunamadı — aşağıdan arayıp seçebilirsin.
+                    {t('market.noMatchFound')}
                   </Text>
                 </View>
               )}
@@ -131,7 +133,7 @@ export default function ProductMatchSheet({ visible, onClose, item, match, onSel
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={runSearch}
-          placeholder="Farklı ürün ara (Hollandaca)…"
+          placeholder={t('market.searchPlaceholder')}
           placeholderTextColor={colors.muted2}
           returnKeyType="search"
           className="flex-1 rounded-xl bg-white px-3.5 py-2.5 font-sans text-[13px] text-ink"
@@ -139,7 +141,7 @@ export default function ProductMatchSheet({ visible, onClose, item, match, onSel
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Ürün ara"
+          accessibilityLabel={t('market.searchA11y')}
           onPress={runSearch}
           className="h-10 w-10 items-center justify-center rounded-xl bg-forest active:scale-[0.96]">
           {searching ? (
@@ -161,11 +163,16 @@ interface ProductRowProps {
 }
 
 function ProductRow({ product, selected = false, storeMatch, onPress }: ProductRowProps) {
+  const { t } = useTranslation();
   const lowConfidence = storeMatch ? storeMatch.confidence < LOW_CONFIDENCE_THRESHOLD : false;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={selected ? `Seçili ürün: ${product.name}` : `${product.name} ürününü seç`}
+      accessibilityLabel={
+        selected
+          ? t('market.selectedProductA11y', { name: product.name })
+          : t('market.selectProductA11y', { name: product.name })
+      }
       disabled={!onPress}
       onPress={onPress}
       className={`flex-row items-center gap-3 rounded-[15px] px-3 py-2.5 active:scale-[0.98] ${
@@ -196,7 +203,7 @@ function ProductRow({ product, selected = false, storeMatch, onPress }: ProductR
           <View className="mt-1 flex-row items-center gap-1">
             <Ionicons name="alert-circle-outline" size={11} color="#F5C88A" />
             <Text className="font-sans-medium text-[9.5px] text-white/80">
-              Eşleşmeyi kontrol et — emin değiliz
+              {t('market.lowConfidenceNote')}
             </Text>
           </View>
         ) : null}

@@ -1,4 +1,5 @@
 import { Image, Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import type { Cookbook } from '@/types/cookbook';
@@ -57,10 +58,11 @@ function CollageRecipeTile({ recipe }: { recipe: Recipe }) {
  * (400 12 muted). Kapak, defterin ilk 3 tarifinin thumbnail'ını gösterir.
  */
 export function CookbookCard({ cookbook, recipes, onPress }: CookbookCardProps) {
+  const { t } = useTranslation();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${cookbook.name} defterini aç`}
+      accessibilityLabel={t('cookbooks.openA11y', { name: cookbook.name })}
       onPress={onPress}
       className="active:scale-95">
       <View
@@ -79,7 +81,7 @@ export function CookbookCard({ cookbook, recipes, onPress }: CookbookCardProps) 
         {cookbook.name}
       </Text>
       <Text className="mx-[2px] mt-[1px] font-sans text-[12px] text-muted">
-        {recipes.length} tarif
+        {t('cookbooks.recipeCount', { count: recipes.length })}
       </Text>
     </Pressable>
   );

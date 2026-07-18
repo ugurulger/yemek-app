@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { colors } from '@/lib/theme';
@@ -29,19 +30,20 @@ const ROW_SHADOW = {
  * dil bizim sheet iskeletimize (BottomSheet + beyaz satırlar) uyarlanır.
  */
 export function AddEntrySheet({ visible, onClose, onAddRecipe, onAddCookbook }: AddEntrySheetProps) {
+  const { t } = useTranslation();
   const rows = [
     {
       key: 'recipe',
       icon: 'newspaper-outline' as const,
-      label: 'Add a Recipe',
-      sub: 'Import from anywhere',
+      label: t('importFlow.addRecipe'),
+      sub: t('importFlow.addRecipeSub'),
       onPress: onAddRecipe,
     },
     {
       key: 'cookbook',
       icon: 'bookmark-outline' as const,
-      label: 'Add a Cookbook',
-      sub: 'Tariflerin için yeni bir defter',
+      label: t('importFlow.addCookbook'),
+      sub: t('importFlow.addCookbookSub'),
       onPress: onAddCookbook,
     },
   ];

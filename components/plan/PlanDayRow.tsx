@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -19,12 +20,13 @@ interface PlanDayRowProps {
  * dikey gap 9 ile öğün kartları.
  */
 export default function PlanDayRow({ day, entries, onPressEntry, onRemoveEntry }: PlanDayRowProps) {
+  const { t } = useTranslation();
   return (
     <View className="flex-row gap-[14px]">
       {/* Sol sütun — gün kısaltması + nokta. */}
       <View className="w-10 flex-none items-center pt-[2px]">
         <Text className="font-sans-semibold text-[12px] uppercase tracking-[0.5px] text-forest">
-          {day}
+          {t(`data.day.${day}`)}
         </Text>
         <View className="mt-2 h-2 w-2 rounded-full bg-[#DDE4DE]" />
       </View>
@@ -40,7 +42,7 @@ export default function PlanDayRow({ day, entries, onPressEntry, onRemoveEntry }
               borderColor: 'rgba(31,74,61,0.2)',
             }}>
             <Ionicons name="add" size={15} color="#A2ABA4" />
-            <Text className="font-sans-medium text-[12.5px] text-[#A2ABA4]">Plan boş</Text>
+            <Text className="font-sans-medium text-[12.5px] text-[#A2ABA4]">{t('plan.emptyDay')}</Text>
           </View>
         ) : (
           <View className="gap-[9px]">

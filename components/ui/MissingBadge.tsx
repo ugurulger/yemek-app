@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 export interface MissingBadgeProps {
   count?: number;
@@ -21,10 +22,11 @@ const AMBER_SHADOW = {
 
 /** Amber eksik rozeti — birebir referans değerleriyle. */
 export function MissingBadge({ count, variant = 'card' }: MissingBadgeProps) {
+  const { t } = useTranslation();
   if (variant === 'micro') {
     return (
       <View className="self-start rounded-[20px] bg-amber-soft px-[9px] py-[3px]">
-        <Text className="font-sans-semibold text-[10px] text-amber-text">eksik</Text>
+        <Text className="font-sans-semibold text-[10px] text-amber-text">{t('recipes.missingMicro')}</Text>
       </View>
     );
   }
@@ -35,7 +37,7 @@ export function MissingBadge({ count, variant = 'card' }: MissingBadgeProps) {
       className={`self-start rounded-[20px] bg-amber ${isHero ? 'px-3 py-[6px]' : 'px-[9px] py-1'}`}
       style={AMBER_SHADOW}>
       <Text className={`font-sans-semibold text-white ${isHero ? 'text-[11px]' : 'text-[10px]'}`}>
-        {count} eksik
+        {t('recipes.missingCount', { count })}
       </Text>
     </View>
   );

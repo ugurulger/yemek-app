@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { Recipe } from '@/types/recipe';
 import RecipeCard, { CARD_IMAGE_HEIGHT } from './RecipeCard';
@@ -30,6 +31,7 @@ interface RecipeLayerSectionsProps {
 
 /** Yüklenemeyen slot için grid hücresiyle aynı boyutta hata kartı. */
 function SlotErrorCard({ slot }: { slot: RecipeCardSlot }) {
+  const { t } = useTranslation();
   return (
     <View
       className="w-full items-center justify-center rounded-[20px] bg-white px-3"
@@ -37,10 +39,12 @@ function SlotErrorCard({ slot }: { slot: RecipeCardSlot }) {
       <Text
         className="text-center font-sans text-xs text-red-500"
         numberOfLines={2}>
-        {slot.name ? `"${slot.name}" yüklenemedi` : 'Tarif yüklenemedi'}
+        {slot.name
+          ? t('recipes.slotLoadFailedNamed', { name: slot.name })
+          : t('recipes.slotLoadFailed')}
       </Text>
       <Pressable accessibilityRole="button" onPress={slot.onRetry} className="mt-2 active:scale-95">
-        <Text className="font-sans-medium text-xs text-forest">Tekrar dene</Text>
+        <Text className="font-sans-medium text-xs text-forest">{t('common.retry')}</Text>
       </Pressable>
     </View>
   );

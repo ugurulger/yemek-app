@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import type { InventoryItem } from '@/types/inventory';
 
@@ -19,6 +20,7 @@ export default function InventoryRow({
   onDelete,
   onConfirm,
 }: InventoryRowProps) {
+  const { t } = useTranslation();
   const isAtMin = item.qty <= 1;
 
   const formattedQty = Number.isInteger(item.qty)
@@ -67,19 +69,19 @@ export default function InventoryRow({
           {onConfirm ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${item.name} ürününü envantere ekle`}
+              accessibilityLabel={t('inventory.confirmItemA11y', { name: item.name })}
               onPress={() => onConfirm(item.id)}
               className="rounded-2xl bg-emerald-900 px-3 py-2 active:scale-95"
             >
               <Text style={{ fontFamily: 'Outfit_500Medium' }} className="text-xs text-white">
-                Envantere ekle
+                {t('inventory.confirmItem')}
               </Text>
             </Pressable>
           ) : (
             <>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${item.name} miktarını azalt`}
+                accessibilityLabel={t('inventory.decreaseQtyA11y', { name: item.name })}
                 disabled={isAtMin}
                 onPress={() => onDecrement(item.id)}
                 className={`h-8 w-8 items-center justify-center rounded-full bg-emerald-900 active:scale-95 ${
@@ -98,7 +100,7 @@ export default function InventoryRow({
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${item.name} miktarını artır`}
+                accessibilityLabel={t('inventory.increaseQtyA11y', { name: item.name })}
                 onPress={() => onIncrement(item.id)}
                 className="h-8 w-8 items-center justify-center rounded-full bg-emerald-900 active:scale-95"
               >
@@ -109,7 +111,7 @@ export default function InventoryRow({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${item.name} ürününü sil`}
+            accessibilityLabel={t('inventory.deleteItemA11y', { name: item.name })}
             onPress={() => onDelete(item.id)}
             className="ml-3 h-8 w-8 items-center justify-center rounded-full active:scale-95"
           >

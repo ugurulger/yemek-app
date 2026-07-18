@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { colors, cardShadow } from '@/lib/theme';
@@ -29,11 +30,14 @@ export function AddRecipeMenuSheet({
   onWeb,
   onPhoto,
 }: AddRecipeMenuSheetProps) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text className="mb-[3px] text-center font-serif text-[22px] text-forest">Tarif Ekle</Text>
+      <Text className="mb-[3px] text-center font-serif text-[22px] text-forest">
+        {t('importFlow.menuTitle')}
+      </Text>
       <Text className="mb-[18px] text-center font-sans text-[12.5px] text-muted">
-        Nereden içe aktarmak istersin?
+        {t('importFlow.menuSubtitle')}
       </Text>
 
       {/* Büyük buton: Sosyal medyadan aktar — referans 542-553. */}
@@ -54,7 +58,7 @@ export function AddRecipeMenuSheet({
           />
         </View>
         <View className="flex-1">
-          <Text className="font-sans-semibold text-[15px] text-ink">Sosyal medyadan aktar</Text>
+          <Text className="font-sans-semibold text-[15px] text-ink">{t('importFlow.fromSocial')}</Text>
           <Text className="mt-0.5 font-sans text-[12px] text-muted">
             Instagram · TikTok · Facebook
           </Text>
@@ -73,8 +77,8 @@ export function AddRecipeMenuSheet({
             style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: colors.softGreenBg }}>
             <Ionicons name="link-outline" size={22} color={colors.softGreenText} />
           </View>
-          <Text className="font-sans-semibold text-[14px] text-ink">Web sitesinden</Text>
-          <Text className="mt-0.5 font-sans text-[11px] text-muted">Bağlantı yapıştır</Text>
+          <Text className="font-sans-semibold text-[14px] text-ink">{t('importFlow.fromWeb')}</Text>
+          <Text className="mt-0.5 font-sans text-[11px] text-muted">{t('importFlow.fromWebHint')}</Text>
         </Pressable>
         <Pressable
           onPress={onPhoto}
@@ -85,8 +89,8 @@ export function AddRecipeMenuSheet({
             style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: '#F4ECCB' }}>
             <Ionicons name="image-outline" size={22} color="#9A7B1F" />
           </View>
-          <Text className="font-sans-semibold text-[14px] text-ink">Fotoğraftan</Text>
-          <Text className="mt-0.5 font-sans text-[11px] text-muted">Kitap · ekran görüntüsü</Text>
+          <Text className="font-sans-semibold text-[14px] text-ink">{t('importFlow.fromPhoto')}</Text>
+          <Text className="mt-0.5 font-sans text-[11px] text-muted">{t('importFlow.fromPhotoHint')}</Text>
         </Pressable>
       </View>
     </BottomSheet>

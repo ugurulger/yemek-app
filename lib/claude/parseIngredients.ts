@@ -12,10 +12,12 @@ const MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 1024;
 const SUBMIT_INGREDIENTS_TOOL = 'submit_ingredients';
 
-const SYSTEM_PROMPT =
-  'Kullanıcının serbest Türkçe metninden mutfak envanterine eklenecek malzemeleri çıkar ' +
+/** Çıktı (name) dili parametrik — kategori/birim enum'ları sabit kalır (B3). */
+function buildSystemPrompt(outputLanguage: string): string {
+  return (
+  'Kullanıcının serbest metninden mutfak envanterine eklenecek malzemeleri çıkar ' +
   '(örn. "süt, 4 domates, yarım kilo kıyma"). Kurallar: ' +
-  '- name: jenerik Türkçe malzeme adı (marka adı yazma, "Arla süt" değil "süt"; baş harfi büyük: "Süt", "Domates"). ' +
+  `- name: jenerik malzeme adı, ${outputLanguage} dilinde (marka adı yazma, "Arla süt" değil "süt"; baş harfi büyük: "Süt", "Domates"). ` +
   '- qty: metinde geçen miktar; sözel miktarları sayıya çevir ("yarım kilo" → 0.5 kg, "bir düzine" → 12 adet); ' +
   'miktar belirtilmemişse 1. ' +
   '- unit: SADECE sabit listeden bir birim; metindeki birimi en yakın olana eşle ("kilo" → "kg", "litre" → "l"), ' +
@@ -26,7 +28,9 @@ const SYSTEM_PROMPT =
   'peynirler → "Peynir"; KURU bakliyat ve tahıllar (nohut, mercimek, pirinç, bulgur, makarna...) → "Bakliyat & Tahıl"; ' +
   'soslar, baharatlar, yağlar, turşu/konserve → "Sos & Baharat". Emin değilsen "Diğer" seç. ' +
   '- Malzeme olmayan ifadeleri (selamlaşma, soru, alakasız kelimeler) listeye ALMA; metinde hiç malzeme yoksa ' +
-  'BOŞ liste gönder. Aynı malzemeyi iki kez listeleme.';
+  'BOŞ liste gönder. Aynı malzemeyi iki kez listeleme.'
+  );
+}
 
 const SUBMIT_INGREDIENTS_SCHEMA = {
   type: 'object',
@@ -101,7 +105,10 @@ function toParsedIngredient(raw: unknown, index: number, batchId: number): Parse
  * structured output (markdown/JSON.parse YOK — tarif üretimiyle aynı prensip).
  * Hiç malzeme bulunamazsa anlaşılır Türkçe mesajlı Error fırlatır.
  */
-export async function parseIngredients(text: string): Promise<ParsedIngredient[]> {
+export async function parseIngredients(
+  text: string,
+  options?: { outputLanguage?: string }
+): Promise<ParsedIngredient[]> {
   const trimmed = text.trim();
   if (trimmed.length === 0) {
     throw new Error('Malzeme bulunamadı — biraz daha açık yazar mısın?');
@@ -110,7 +117,7 @@ export async function parseIngredients(text: string): Promise<ParsedIngredient[]
   const toolInput = await callClaudeForToolInput({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(options?.outputLanguage ?? 'Turkish'),
     messages: [{ role: 'user', content: trimmed }],
     tools: [
       {

@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
@@ -38,6 +39,7 @@ export default function PlanDayPickerSheet({
   recipe,
   servings,
 }: PlanDayPickerSheetProps) {
+  const { t } = useTranslation();
   const plan = usePlanStore((state) => state.plan);
   const addToPlan = usePlanStore((state) => state.addToPlan);
   const inventoryItems = useInventoryStore((state) => state.items);
@@ -61,18 +63,18 @@ export default function PlanDayPickerSheet({
     const missing = buildCartMissingInput(recipe, servings, inventoryItems, pantryItems);
     if (missing.length > 0) {
       syncRecipeMissing(recipe.name, missing);
-      showToast('Plana eklendi · eksikler markete yazıldı');
+      showToast(t('plan.addedWithMissingToast'));
     } else {
-      showToast('Plana eklendi');
+      showToast(t('plan.addedToast'));
     }
     onClose();
   };
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text className="mb-1 font-serif text-[22px] text-forest">Hangi güne?</Text>
+      <Text className="mb-1 font-serif text-[22px] text-forest">{t('plan.pickerTitle')}</Text>
       <Text className="mb-[18px] font-sans text-[13px] text-muted">
-        Tarifi haftalık planına ekle
+        {t('plan.pickerSubtitle')}
       </Text>
 
       <View className="gap-[9px]">
@@ -80,13 +82,13 @@ export default function PlanDayPickerSheet({
           <Pressable
             key={day}
             accessibilityRole="button"
-            accessibilityLabel={`Tarifi ${day} gününe ekle`}
+            accessibilityLabel={t('plan.addToDayA11y', { day: t(`data.day.${day}`) })}
             onPress={() => handleSelectDay(day)}
             className="flex-row items-center justify-between rounded-[15px] bg-white px-4 py-3.5 active:scale-[0.98]"
             style={ROW_SHADOW}>
-            <Text className="font-sans-semibold text-[14px] text-ink">{day}</Text>
+            <Text className="font-sans-semibold text-[14px] text-ink">{t(`data.day.${day}`)}</Text>
             <Text className="font-sans-medium text-[11px] text-muted">
-              {plan[day].length} öğün planlı
+              {t('plan.mealsPlanned', { count: plan[day].length })}
             </Text>
           </Pressable>
         ))}

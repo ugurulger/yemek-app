@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BottomSheet, PrimaryButton } from '@/components/ui';
 import { colors } from '@/lib/theme';
@@ -19,6 +20,7 @@ export interface CreateCookbookSheetProps {
  * defter Kayıtlı sekmesindeki Defterlerim grid'ine düşer (cookbookStore).
  */
 export function CreateCookbookSheet({ visible, onClose, onBack }: CreateCookbookSheetProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
 
   // Sheet kapanınca taslak sıfırlanır (bir sonraki açılış temiz başlasın).
@@ -31,7 +33,7 @@ export function CreateCookbookSheet({ visible, onClose, onBack }: CreateCookbook
   const handleCreate = () => {
     if (!canCreate) return;
     useCookbookStore.getState().createCookbook(name);
-    showToast(`"${name.trim()}" defteri oluşturuldu`);
+    showToast(t('cookbooks.createdToast', { name: name.trim() }));
     onClose();
   };
 
@@ -40,12 +42,12 @@ export function CreateCookbookSheet({ visible, onClose, onBack }: CreateCookbook
       <View className="mb-4 flex-row items-center gap-3">
         <Pressable
           onPress={onBack}
-          accessibilityLabel="Geri"
+          accessibilityLabel={t('common.backA11y')}
           className="items-center justify-center rounded-full bg-sand active:scale-95"
           style={{ width: 34, height: 34 }}>
           <Ionicons name="chevron-back" size={17} color={colors.forest} />
         </Pressable>
-        <Text className="font-serif text-[20px] text-ink">Add a Cookbook</Text>
+        <Text className="font-serif text-[20px] text-ink">{t('importFlow.addCookbook')}</Text>
       </View>
 
       <View
@@ -54,19 +56,19 @@ export function CreateCookbookSheet({ visible, onClose, onBack }: CreateCookbook
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Defter adı — örn. Tatlılar"
+          placeholder={t('cookbooks.namePlaceholder')}
           placeholderTextColor={colors.muted2}
           className="py-3 font-sans text-[15px] text-ink"
           returnKeyType="done"
           onSubmitEditing={handleCreate}
-          accessibilityLabel="Defter adı"
+          accessibilityLabel={t('cookbooks.nameA11y')}
           autoFocus
         />
       </View>
 
       <PrimaryButton
         size="cta"
-        label="Defteri oluştur"
+        label={t('cookbooks.createButton')}
         onPress={handleCreate}
         disabled={!canCreate}
       />

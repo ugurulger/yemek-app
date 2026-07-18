@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { colors } from '@/lib/theme';
@@ -35,6 +36,7 @@ export function SocialPlatformSheet({
   onBack,
   onPickPlatform,
 }: SocialPlatformSheetProps) {
+  const { t } = useTranslation();
   // Yalnız Instagram implemente (kullanıcı kararı) — diğerleri market
   // lansmanından sonra; listede görünür ama "Coming soon" ile disabled.
   const rows: { key: string; label: string; square: React.ReactNode; enabled: boolean }[] = [
@@ -71,12 +73,12 @@ export function SocialPlatformSheet({
       <View className="mb-4 flex-row items-center gap-3">
         <Pressable
           onPress={onBack}
-          accessibilityLabel="Geri"
+          accessibilityLabel={t('common.backA11y')}
           className="items-center justify-center rounded-full bg-sand active:scale-95"
           style={{ width: 34, height: 34 }}>
           <Ionicons name="chevron-back" size={17} color={colors.forest} />
         </Pressable>
-        <Text className="font-serif text-[20px] text-ink">Sosyal medyadan aktar</Text>
+        <Text className="font-serif text-[20px] text-ink">{t('importFlow.fromSocial')}</Text>
       </View>
 
       <View style={{ gap: 11 }}>
@@ -84,7 +86,9 @@ export function SocialPlatformSheet({
           <Pressable
             key={row.key}
             accessibilityRole="button"
-            accessibilityLabel={row.enabled ? row.label : `${row.label} — yakında`}
+            accessibilityLabel={
+              row.enabled ? row.label : t('importFlow.platformSoonA11y', { platform: row.label })
+            }
             accessibilityState={{ disabled: !row.enabled }}
             disabled={!row.enabled}
             onPress={onPickPlatform}
@@ -98,7 +102,9 @@ export function SocialPlatformSheet({
               <Ionicons name="chevron-forward" size={17} color="#C7CFC9" />
             ) : (
               <View className="rounded-full bg-sand px-2.5 py-1">
-                <Text className="font-sans-semibold text-[10.5px] text-muted">Coming soon</Text>
+                <Text className="font-sans-semibold text-[10.5px] text-muted">
+                  {t('importFlow.comingSoon')}
+                </Text>
               </View>
             )}
           </Pressable>

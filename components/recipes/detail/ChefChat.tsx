@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { ChefChatMessage } from '@/store/chefChatStore';
 
@@ -10,11 +11,11 @@ export interface ChefChatProps {
   onPressExample?: (text: string) => void;
 }
 
-/** Sohbet boşken gösterilen örnek soru chip'leri. */
-const EXAMPLE_QUESTIONS = [
-  'Kremam yok, ne kullanabilirim?',
-  'Daha hafif olur mu?',
-  'Kaç kişilik?',
+/** Sohbet boşken gösterilen örnek soru chip'lerinin çeviri anahtarları. */
+const EXAMPLE_QUESTION_KEYS = [
+  'chef.example1',
+  'chef.example2',
+  'chef.example3',
 ] as const;
 
 /** Şef balonu gölgesi — referans: 0 2px 8px -4px rgba(31,74,61,.14). */
@@ -35,6 +36,7 @@ const CHEF_BUBBLE_SHADOW = {
  * (bkz. app/recipe/[id].tsx).
  */
 export default function ChefChat({ messages, isTyping, onPressExample }: ChefChatProps) {
+  const { t } = useTranslation();
   return (
     <View>
       <View className="mb-3 flex-row items-center gap-2">
@@ -42,9 +44,9 @@ export default function ChefChat({ messages, isTyping, onPressExample }: ChefCha
           <Text className="text-[14px] text-white">✦</Text>
         </View>
         <View>
-          <Text className="font-serif text-[15px] text-ink">Şefe Sor</Text>
+          <Text className="font-serif text-[15px] text-ink">{t('chef.title')}</Text>
           <Text className="font-sans text-[11px] text-muted">
-            Malzeme değişimi ve tarif soruları
+            {t('chef.subtitle')}
           </Text>
         </View>
       </View>
@@ -52,17 +54,20 @@ export default function ChefChat({ messages, isTyping, onPressExample }: ChefCha
       {/* Örnek soru chip'leri — SADECE sohbet geçmişi boşken */}
       {messages.length === 0 && !isTyping && onPressExample && (
         <View className="mb-3.5 flex-row flex-wrap gap-2">
-          {EXAMPLE_QUESTIONS.map((question) => (
+          {EXAMPLE_QUESTION_KEYS.map((questionKey) => {
+            const question = t(questionKey);
+            return (
             <Pressable
-              key={question}
+              key={questionKey}
               accessibilityRole="button"
-              accessibilityLabel={`Şefe sor: ${question}`}
+              accessibilityLabel={t('chef.exampleA11y', { question })}
               onPress={() => onPressExample(question)}
               className="rounded-[20px] bg-white px-3 py-2 active:scale-95"
               style={{ borderWidth: 1, borderColor: 'rgba(31,74,61,0.22)' }}>
               <Text className="font-sans-medium text-[12px] text-muted">{question}</Text>
             </Pressable>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -93,7 +98,7 @@ export default function ChefChat({ messages, isTyping, onPressExample }: ChefCha
               className="self-start rounded-[18px] rounded-bl-[4px] bg-white px-3.5 py-[11px]"
               style={CHEF_BUBBLE_SHADOW}>
               <Text className="font-sans text-[13.5px] italic leading-[19.5px] text-muted">
-                Şef yazıyor...
+                {t('chef.typing')}
               </Text>
             </View>
           )}

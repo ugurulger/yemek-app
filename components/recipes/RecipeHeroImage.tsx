@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { PhotoPlaceholder } from '@/components/ui';
 import { photoTones } from '@/lib/theme';
@@ -31,6 +32,7 @@ function tonesForRecipe(name: string): readonly [string, string] {
  * bulunamadığında erken return yapıyor, hook koşulsuz çağrılamıyor.
  */
 export default function RecipeHeroImage({ recipe }: { recipe: Recipe }) {
+  const { t } = useTranslation();
   const { uri: imageUri } = useRecipeImage(recipe, 'original');
 
   if (imageUri) {
@@ -50,7 +52,7 @@ export default function RecipeHeroImage({ recipe }: { recipe: Recipe }) {
     <PhotoPlaceholder
       tone1={tone1}
       tone2={tone2}
-      label={`${recipe.name.toLocaleLowerCase('tr-TR')} fotoğrafı`}
+      label={t('recipes.photoA11y', { name: recipe.name })}
       className="w-full"
       style={{ height: HERO_HEIGHT }}
     />

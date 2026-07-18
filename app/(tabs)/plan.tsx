@@ -2,6 +2,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import PlanDayRow from '@/components/plan/PlanDayRow';
 import { useCartStore } from '@/store/cartStore';
@@ -15,6 +16,7 @@ import { countPlannedMeals, PLAN_DAYS, usePlanStore, type PlanDay } from '@/stor
  * aynı: 7 gün de "Plan boş" kutusuyla görünür).
  */
 export default function PlanScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const plan = usePlanStore((state) => state.plan);
   const removeFromPlan = usePlanStore((state) => state.removeFromPlan);
@@ -51,9 +53,9 @@ export default function PlanScreen() {
             (letterSpacing .3) + h1 500 34px Newsreader forest. */}
         <View className="px-5 pt-2">
           <Text className="font-sans text-[13px] tracking-[0.3px] text-muted">
-            Bu hafta · {totalMeals} öğün planlı
+            {t('plan.subtitle', { count: totalMeals })}
           </Text>
-          <Text className="mt-[2px] font-serif text-[34px] text-forest">Planlama</Text>
+          <Text className="mt-[2px] font-serif text-[34px] text-forest">{t('plan.title')}</Text>
         </View>
 
         {/* Gün listesi — dikey gap 16, mt 22. */}

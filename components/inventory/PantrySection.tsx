@@ -1,9 +1,11 @@
 import { router, type Href } from 'expo-router';
 import { Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Card, Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { colors } from '@/lib/theme';
+import { pantryCategoryKey, pantryItemKey } from '@/src/i18n/labels';
 import { usePantryStore } from '@/store/pantryStore';
 import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from '@/types/pantry';
 
@@ -18,6 +20,7 @@ const PANTRY_ASSISTANT_ROUTE = '/capture/assistant?mode=pantry' as Href;
  * kompakt Chip'ler (aktif = evde var, dokununca toggle). Kartlar 2 sütun.
  */
 export function PantrySection() {
+  const { t } = useTranslation();
   const items = usePantryStore((state) => state.items);
   const toggleItem = usePantryStore((state) => state.toggleItem);
 
@@ -37,10 +40,10 @@ export function PantrySection() {
     // lh 1.35, ev ikonu 13, gap 6, alt margin 12; grid gap 9.
     <View className="mt-6">
       <View className="flex-row items-center justify-between">
-        <Text className="font-serif text-[20px] text-ink">Temel Malzemeler</Text>
+        <Text className="font-serif text-[20px] text-ink">{t('pantry.title')}</Text>
         <PrimaryButton
           size="pill"
-          label="Asistanla ekle"
+          label={t('inventory.addWithAssistant')}
           icon={<Text className="text-[11px] text-white">✦</Text>}
           onPress={() => router.push(PANTRY_ASSISTANT_ROUTE)}
         />
@@ -52,7 +55,7 @@ export function PantrySection() {
         <Text
           className="ml-1.5 flex-1 font-sans text-[11.5px] text-muted"
           style={{ lineHeight: 15.5 }}>
-          Evinde hep var sayıyoruz — olmayana dokunup çıkar
+          {t('pantry.hint')}
         </Text>
       </View>
 
@@ -91,6 +94,7 @@ function PantryCategoryCard({
   items: PantryItem[];
   onToggle: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     // Birebir referans (satır 112-118): radius 16 (Card varsayılanı 18 —
     // style prop'u ile ezilir), padding 11/11/8, kategori etiketi 600 10px
@@ -103,13 +107,13 @@ function PantryCategoryCard({
     // (basis:auto) doğal ölçüm + satırdaki uzun kartla eşit yükseklik verir.
     <Card className="grow px-[11px] pb-2 pt-[11px]" style={{ borderRadius: 16 }}>
       <SectionLabel size="sm" className="text-muted2">
-        {category}
+        {t(pantryCategoryKey(category))}
       </SectionLabel>
       <View className="mt-2 flex-row flex-wrap gap-1.5">
         {items.map((item) => (
           <Chip
             key={item.id}
-            label={item.name}
+            label={t(pantryItemKey(item.name))}
             selected={item.active}
             onPress={() => onToggle(item.id)}
             size="compact"

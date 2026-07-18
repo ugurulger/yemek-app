@@ -11,6 +11,7 @@
  * gösterim callback'leri (onPlanReady/onDetailSettled) kullanılmaz; ekran
  * genel iskelet kartlarında bekleyip sonucu tek seferde basar.
  */
+import { llmOutputLanguage } from '@/src/i18n';
 import { PREFERENCE_SECTIONS } from '@/types/preferences';
 
 import { mergeRecipeLayers, RecipeGenerationError } from '@/lib/claude/generateRecipes';
@@ -21,13 +22,6 @@ import type { Recipe } from '@/types/recipe';
 
 /** Feature flag (A6): mevcut akış varsayılan — RAG bilinçli olarak açılmalı. */
 export const RAG_ENABLED = process.env.EXPO_PUBLIC_USE_RAG === 'true';
-
-/**
- * LLM çıktı dili. Uygulama şu an Türkçe; i18n dönüşümünde (BLOK B) bu değer
- * aktif uygulama dilinden okunacak. Edge function'ın kendi varsayılanı
- * English'tir — client mevcut UI diliyle tutarlı olsun diye açıkça yollar.
- */
-const OUTPUT_LANGUAGE = 'Turkish';
 
 const RECIPE_COUNT = 6;
 
@@ -78,7 +72,9 @@ export async function generateRecipesRag(
         preferences: flattenPreferences(options.preferences),
         pantry: options.activePantryNames,
         servings: options.servings,
-        language: OUTPUT_LANGUAGE,
+        // Çıktı dili aktif uygulama dilinden (BLOK B / B3); edge function
+        // varsayılanı English'tir — client açıkça yollar.
+        language: llmOutputLanguage(),
         count: RECIPE_COUNT,
       }),
     });

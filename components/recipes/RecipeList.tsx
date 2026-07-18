@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -39,12 +40,15 @@ export function RecipeSectionHeader({
   count?: number;
   first?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <View className={`flex-row items-baseline gap-2 ${first ? 'mt-6' : 'mt-7'} mb-3`}>
       <Text className="font-serif text-[21px] text-ink">{title}</Text>
       {count !== undefined && (
         <View className="rounded-[20px] bg-softgreen-bg px-[9px] py-[3px]">
-          <Text className="font-sans-semibold text-[11px] text-softgreen-text">{count} tarif</Text>
+          <Text className="font-sans-semibold text-[11px] text-softgreen-text">
+            {t('recipes.sectionCount', { count })}
+          </Text>
         </View>
       )}
     </View>
@@ -68,6 +72,7 @@ export function chunkPairs<T>(items: readonly T[]): [T, T | null][] {
  * gör · N ürün" butonu bulunur.
  */
 export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) {
+  const { t } = useTranslation();
   const inventory = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const cartEntries = useCartStore((state) => state.entries);
@@ -105,10 +110,10 @@ export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) 
 
   const sections: RecipeSection[] = [];
   if (ready.length > 0) {
-    sections.push({ title: 'Hemen Yapabilirsin', data: ready, count: ready.length });
+    sections.push({ title: t('recipes.sectionReady'), data: ready, count: ready.length });
   }
   if (withShopping.length > 0) {
-    sections.push({ title: 'Küçük Bir Alışverişle', data: withShopping });
+    sections.push({ title: t('recipes.sectionShopping'), data: withShopping });
   }
 
   return (
@@ -147,7 +152,7 @@ export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) 
           className="mt-[22px] w-full flex-row items-center justify-center rounded-2xl bg-sand p-3.5 active:scale-95">
           <Ionicons name="cart-outline" size={17} color={colors.forest} />
           <Text className="ml-2 font-sans-semibold text-[13px] text-forest">
-            Market sepetini gör · {cartCount} ürün
+            {t('recipes.viewCart', { count: cartCount })}
           </Text>
         </Pressable>
       )}

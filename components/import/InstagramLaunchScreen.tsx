@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Modal, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 export interface InstagramLaunchScreenProps {
   visible: boolean;
@@ -40,6 +41,7 @@ function PulseDot({ delay }: { delay: number }) {
  * serif başlık. Feed'e geçiş zamanlayıcısı host'ta (ImportFlow) yaşar.
  */
 export function InstagramLaunchScreen({ visible, onClose }: InstagramLaunchScreenProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 items-center justify-center bg-white" style={{ gap: 18 }}>
@@ -48,7 +50,7 @@ export function InstagramLaunchScreen({ visible, onClose }: InstagramLaunchScree
           <PulseDot delay={200} />
           <PulseDot delay={400} />
         </View>
-        <Text className="font-serif text-[17px] text-ink">Instagram açılıyor…</Text>
+        <Text className="font-serif text-[17px] text-ink">{t('importFlow.igOpening')}</Text>
       </View>
     </Modal>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Chip, SectionLabel } from '@/components/ui';
@@ -36,6 +37,7 @@ const CTA_SHADOW = {
  * (kalıcı) ve üretim parmak izine girer.
  */
 export default function PreferencesScreen({ onNext }: PreferencesScreenProps) {
+  const { t } = useTranslation();
   const preferences = useRecipeStore((state) => state.preferences);
   const setPreferences = useRecipeStore((state) => state.setPreferences);
 
@@ -54,24 +56,26 @@ export default function PreferencesScreen({ onNext }: PreferencesScreenProps) {
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 176 }}
         showsVerticalScrollIndicator={false}>
         <Text className="font-sans text-[13px] text-muted" style={{ letterSpacing: 0.3 }}>
-          Birkaç tercih, daha isabetli tarifler
+          {t('preferences.eyebrow')}
         </Text>
         <Text className="mb-[5px] mt-[3px] font-serif text-[31px] leading-[35px] text-forest">
-          Nasıl bir tarif istersin?
+          {t('preferences.title')}
         </Text>
         <Text className="mb-6 font-sans text-[12.5px] text-muted">
-          İstediğini seç ya da boş bırak — farketmez.
+          {t('preferences.hint')}
         </Text>
 
         <View className="gap-[22px]">
           {PREFERENCE_SECTIONS.map((section) => (
             <View key={section.id}>
-              <SectionLabel className="mb-[11px]">{section.title}</SectionLabel>
+              <SectionLabel className="mb-[11px]">
+                {t(`preferences.sections.${section.id}`)}
+              </SectionLabel>
               <View className="flex-row flex-wrap gap-2">
                 {section.options.map((option) => (
                   <Chip
                     key={option}
-                    label={option}
+                    label={t(`preferences.options.${option}`)}
                     selected={preferences[section.id].includes(option)}
                     onPress={() => toggleOption(section.id, option)}
                   />
@@ -90,7 +94,7 @@ export default function PreferencesScreen({ onNext }: PreferencesScreenProps) {
           onPress={onNext}
           className="w-full flex-row items-center justify-center rounded-[18px] bg-forest p-4 active:scale-95"
           style={CTA_SHADOW}>
-          <Text className="font-sans-semibold text-[15px] text-white">İleri</Text>
+          <Text className="font-sans-semibold text-[15px] text-white">{t('common.next')}</Text>
           <View className="ml-[9px]">
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </View>

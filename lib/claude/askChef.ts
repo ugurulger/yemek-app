@@ -9,7 +9,7 @@ const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 
 const CHEF_INSTRUCTIONS =
-  'Türkçe konuşan deneyimli bir şefsin. Kurallar: ' +
+  'Deneyimli bir şefsin. Kurallar: ' +
   '- YALNIZCA aşağıda verilen tarif bağlamında yanıt ver; tarifle ilgisiz konularda kibarca tarife dön. ' +
   '- Malzeme değişimi/ikamesi önerirken etkilenen miktarları da güncelle. ' +
   '- Kısa ve pratik yanıtla — uzun teori değil, mutfakta hemen uygulanabilir öneri. ' +
@@ -56,12 +56,17 @@ function formatRecipeContext(recipe: Recipe): string {
 export async function askChef(
   recipe: Recipe,
   history: ChefChatMessage[],
-  message: string
+  message: string,
+  // Çıktı dili aktif uygulama dilinden gelir (BLOK B / B3) — çağıran ekran
+  // llmOutputLanguage() geçirir; varsayılan Türkçe (eski davranış).
+  outputLanguage: string = 'Turkish'
 ): Promise<string> {
   const system: ClaudeSystemBlock[] = [
     {
+      // Dil talimatı cache'li bloğun İÇİNDE: aynı sohbet aynı dilde sürdüğü
+      // sürece prefix cache tutar; dil değişirse cache haklı olarak tazelenir.
       type: 'text',
-      text: `${CHEF_INSTRUCTIONS}\n\n${formatRecipeContext(recipe)}`,
+      text: `${CHEF_INSTRUCTIONS} - Yanıt dilin: ${outputLanguage}.\n\n${formatRecipeContext(recipe)}`,
       cache_control: { type: 'ephemeral' },
     },
   ];

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, Pressable, Text, View } from 'react-native';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { BottomSheet } from '@/components/ui';
 import { colors } from '@/lib/theme';
@@ -45,10 +46,11 @@ function ArrowButton({
   direction: 'back' | 'forward';
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel={direction === 'back' ? 'Önceki adım' : 'Sonraki adım'}
+      accessibilityLabel={direction === 'back' ? t('importFlow.prevStepA11y') : t('importFlow.nextStepA11y')}
       className="items-center justify-center rounded-full bg-sand active:scale-95"
       style={{ width: 30, height: 30 }}>
       <Ionicons name={direction === 'back' ? 'chevron-back' : 'chevron-forward'} size={15} color={colors.forest} />
@@ -70,10 +72,11 @@ export function InstagramEduSheet({
   onLaunch,
   onImportSample,
 }: InstagramEduSheetProps) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text className="mb-4 text-center font-serif text-[21px] text-ink">
-        Instagram'dan içe aktar
+        {t('importFlow.igTitle')}
       </Text>
 
       {/* Adım kartı — referans 613: radius 20, minHeight 270. */}
@@ -96,7 +99,7 @@ export function InstagramEduSheet({
                   fontWeight: '500',
                   color: 'rgba(255,255,255,0.6)',
                 }}>
-                tarif gönderisi
+                {t('importFlow.igPostPlaceholder')}
               </Text>
               <View
                 className="items-center justify-center rounded-full bg-white"
@@ -118,10 +121,13 @@ export function InstagramEduSheet({
             <Text
               className="text-center font-sans-semibold text-[15px] text-ink"
               style={{ marginTop: 26, marginBottom: 4 }}>
-              1. Gönderide <Text style={{ color: colors.amber }}>Gönder</Text>'e dokun
+              <Trans
+                i18nKey="importFlow.igStep1Title"
+                components={{ hl: <Text style={{ color: colors.amber }} /> }}
+              />
             </Text>
             <Text className="text-center font-sans text-[12.5px] text-muted">
-              Beğendiğin tarif gönderisini aç
+              {t('importFlow.igStep1Body')}
             </Text>
           </>
         )}
@@ -149,10 +155,13 @@ export function InstagramEduSheet({
             <Text
               className="text-center font-sans-semibold text-[15px] text-ink"
               style={{ marginTop: 20, marginBottom: 4 }}>
-              2. <Text style={{ color: colors.amber }}>Paylaş</Text> menüsünü aç
+              <Trans
+                i18nKey="importFlow.igStep2Title"
+                components={{ hl: <Text style={{ color: colors.amber }} /> }}
+              />
             </Text>
             <Text className="text-center font-sans text-[12.5px] text-muted">
-              Sistemin paylaş sayfası açılır
+              {t('importFlow.igStep2Body')}
             </Text>
           </>
         )}
@@ -176,17 +185,20 @@ export function InstagramEduSheet({
                 ]}>
                 <Text style={{ fontSize: 22 }}>🍳</Text>
                 <Text className="font-sans-semibold" style={{ fontSize: 8, color: '#FFFFFF' }}>
-                  Mutfağım
+                  {t('tabs.myKitchen')}
                 </Text>
               </View>
             </View>
             <Text
               className="text-center font-sans-semibold text-[15px] text-ink"
               style={{ marginTop: 20, marginBottom: 4 }}>
-              3. <Text style={{ color: colors.forest }}>Mutfağım</Text>'ı seç
+              <Trans
+                i18nKey="importFlow.igStep3Title"
+                components={{ hl: <Text style={{ color: colors.forest }} /> }}
+              />
             </Text>
             <Text className="text-center font-sans text-[12.5px] text-muted">
-              Tarif otomatik olarak aktarılır
+              {t('importFlow.igStep3Body')}
             </Text>
           </>
         )}
@@ -229,13 +241,13 @@ export function InstagramEduSheet({
           shadowRadius: 7,
           elevation: 4,
         }}>
-        <Text className="font-sans-semibold text-[15px] text-white">Instagram'ı aç</Text>
+        <Text className="font-sans-semibold text-[15px] text-white">{t('importFlow.openInstagram')}</Text>
       </Pressable>
       <Pressable
         onPress={onImportSample}
         className="w-full items-center active:opacity-70"
         style={{ paddingTop: 12, paddingBottom: 2 }}>
-        <Text className="font-sans-semibold text-[13px] text-forest">Örnek tarifle dene</Text>
+        <Text className="font-sans-semibold text-[13px] text-forest">{t('importFlow.trySample')}</Text>
       </Pressable>
     </BottomSheet>
   );

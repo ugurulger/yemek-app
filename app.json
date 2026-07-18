@@ -10,7 +10,11 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["appie", "jumbo", "instagram"]
+        "LSApplicationQueriesSchemes": [
+          "appie",
+          "jumbo",
+          "instagram"
+        ]
       }
     },
     "android": {
@@ -52,7 +56,8 @@
           "microphonePermission": "Video kaydı sırasında mikrofona erişim izni gerekiyor.",
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

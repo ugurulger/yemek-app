@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Image, Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { MissingBadge, PhotoPlaceholder } from '@/components/ui';
 import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors, photoTones } from '@/lib/theme';
+import { difficultyKey, nutritionTagKey } from '@/src/i18n/labels';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import { useCartStore } from '@/store/cartStore';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -56,6 +58,7 @@ function tonesForRecipe(name: string): readonly [string, string] {
  * animasyonunu oynar (opacity 0→1 + translateY 6→0, 300ms ease, bir kez).
  */
 export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
+  const { t } = useTranslation();
   // Lazy: görsel hazır değilse uri null döner (placeholder gösterilir) ve
   // üretim arka plandaki sıralı kuyruğa eklenir — bkz. services/images/
   const { uri: imageUri } = useRecipeImage(recipe, 'thumbnail');
@@ -108,7 +111,7 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
       }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${recipe.name} tarifini aç`}
+        accessibilityLabel={t('recipes.openRecipeA11y', { name: recipe.name })}
         onPress={() => onPress(recipe.id)}
         className="active:scale-95">
         <View
@@ -125,7 +128,7 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
             <PhotoPlaceholder
               tone1={tone1}
               tone2={tone2}
-              label={`${recipe.name.toLocaleLowerCase('tr-TR')} fotoğrafı`}
+              label={t('recipes.photoA11y', { name: recipe.name })}
               className="h-full w-full"
             />
           )}
@@ -136,7 +139,7 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
             className="absolute right-2 top-2 rounded-[20px] px-2 py-[3px]"
             style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}>
             <Text className="font-sans-semibold text-[9.5px] text-body">
-              {recipe.kcal} kcal/kişi
+              {t('recipes.kcalPerPerson', { kcal: recipe.kcal })}
             </Text>
           </View>
 
@@ -147,13 +150,13 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
             className="absolute inset-x-0 bottom-0 flex-row items-center gap-1 px-[9px] py-[7px]"
             style={{ backgroundColor: colors.photoStripBg }}>
             <Text className="font-sans-semibold text-[8.5px] text-white" numberOfLines={1}>
-              {recipe.time_min} dk
+              {t('recipeDetail.infoMinutes', { minutes: recipe.time_min })}
             </Text>
             <Text className="font-sans-semibold text-[8.5px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
               ·
             </Text>
             <Text className="font-sans-semibold text-[8.5px] text-white" numberOfLines={1}>
-              {recipe.difficulty}
+              {t(difficultyKey(recipe.difficulty))}
             </Text>
             <Text className="font-sans-semibold text-[8.5px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
               ·
@@ -161,7 +164,7 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
             <Text
               className="flex-shrink font-sans-semibold text-[8.5px] text-white"
               numberOfLines={1}>
-              {recipe.nutrition_tag}
+              {t(nutritionTagKey(recipe.nutrition_tag))}
             </Text>
           </View>
         </View>
@@ -178,8 +181,8 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
           accessibilityRole="button"
           accessibilityLabel={
             inCart
-              ? `${recipe.name} eksiklerini sepetten çıkar`
-              : `${recipe.name} için ${liveMissingCount} eksik malzemeyi sepete ekle`
+              ? t('recipes.removeFromCartA11y', { name: recipe.name })
+              : t('recipes.addMissingToCartA11y', { name: recipe.name, count: liveMissingCount })
           }
           onPress={handleBadgePress}
           hitSlop={6}
@@ -188,7 +191,7 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
             // "Sepette" durumu — kart-rozet tipografisi (600 10px, 4×9,
             // radius 20) forest dolguyla.
             <View className="rounded-[20px] bg-forest px-[9px] py-1">
-              <Text className="font-sans-semibold text-[10px] text-white">Sepette</Text>
+              <Text className="font-sans-semibold text-[10px] text-white">{t('recipes.inCartBadge')}</Text>
             </View>
           ) : (
             <MissingBadge count={liveMissingCount} variant="card" />

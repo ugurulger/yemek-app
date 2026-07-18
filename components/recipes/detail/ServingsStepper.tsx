@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '@/lib/theme';
@@ -24,6 +25,7 @@ const STEPPER_SHADOW = {
  * daire bg forest ikon beyaz.
  */
 export default function ServingsStepper({ servings, onChange }: ServingsStepperProps) {
+  const { t } = useTranslation();
   const canDecrease = servings > 1;
 
   return (
@@ -32,7 +34,7 @@ export default function ServingsStepper({ servings, onChange }: ServingsStepperP
       style={STEPPER_SHADOW}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Kişi sayısını azalt"
+        accessibilityLabel={t('recipeDetail.servingsDecreaseA11y')}
         disabled={!canDecrease}
         onPress={() => onChange(servings - 1)}
         className={`h-[30px] w-[30px] items-center justify-center rounded-full bg-pillbg active:scale-95 ${
@@ -43,11 +45,11 @@ export default function ServingsStepper({ servings, onChange }: ServingsStepperP
       <Text
         className="text-center font-sans-semibold text-[13px] text-ink"
         style={{ minWidth: 56 }}>
-        {servings} kişilik
+        {t('recipeDetail.servingsLabel', { count: servings })}
       </Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Kişi sayısını artır"
+        accessibilityLabel={t('recipeDetail.servingsIncreaseA11y')}
         onPress={() => onChange(servings + 1)}
         className="h-[30px] w-[30px] items-center justify-center rounded-full bg-forest active:scale-95">
         <Ionicons name="add" size={15} color="white" />

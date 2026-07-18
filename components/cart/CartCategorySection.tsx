@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -84,9 +85,12 @@ interface CartItemRowProps {
  * jesti satır gövdesinde kalır, bu şerit AYRI pressable).
  */
 function PriceStrip({ matchView, onPressDetails }: { matchView: CartMatchView; onPressDetails?: () => void }) {
+  const { t } = useTranslation();
   const { match, loading, lowConfidence } = matchView;
   if (loading) {
-    return <Text className="mt-[3px] font-sans text-[9.5px] text-muted">Fiyatlar alınıyor…</Text>;
+    return (
+      <Text className="mt-[3px] font-sans text-[9.5px] text-muted">{t('market.pricesLoading')}</Text>
+    );
   }
   if (!match) {
     return null;
@@ -101,7 +105,7 @@ function PriceStrip({ matchView, onPressDetails }: { matchView: CartMatchView; o
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Ürün eşleşmesini gör ve değiştir"
+      accessibilityLabel={t('market.matchDetailsA11y')}
       onPress={onPressDetails}
       hitSlop={6}
       className="mt-[3px] flex-row items-center gap-[5px] active:opacity-60">
@@ -134,9 +138,12 @@ function PriceStrip({ matchView, onPressDetails }: { matchView: CartMatchView; o
  * ad 500 12.5px (nameStyle, 915); miktar 600 10.5px; tarif etiketi 9.5px.
  */
 function CartItemRow({ item, onToggle, matchView, onPressDetails }: CartItemRowProps) {
+  const { t } = useTranslation();
   // 2'den fazla kaynak tarif tek pill'e katlanır: "3 tarif".
   const pills =
-    item.recipeNames.length > 2 ? [`${item.recipeNames.length} tarif`] : item.recipeNames;
+    item.recipeNames.length > 2
+      ? [t('market.recipePill', { count: item.recipeNames.length })]
+      : item.recipeNames;
 
   return (
     <Pressable

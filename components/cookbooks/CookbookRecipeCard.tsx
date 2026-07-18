@@ -1,8 +1,10 @@
 import { Image, Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { PhotoPlaceholder } from '@/components/ui';
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors, photoTones } from '@/lib/theme';
+import { difficultyKey, nutritionTagKey } from '@/src/i18n/labels';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
@@ -46,6 +48,7 @@ interface CookbookRecipeCardProps {
  * `missing_count` bayat olabilir.
  */
 export function CookbookRecipeCard({ recipe, onPress }: CookbookRecipeCardProps) {
+  const { t } = useTranslation();
   const { uri: imageUri } = useRecipeImage(recipe, 'thumbnail');
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
@@ -56,7 +59,7 @@ export function CookbookRecipeCard({ recipe, onPress }: CookbookRecipeCardProps)
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${recipe.name} tarifini aç`}
+      accessibilityLabel={t('recipes.openRecipeA11y', { name: recipe.name })}
       onPress={() => onPress(recipe.id)}
       className="active:scale-95">
       <View className="overflow-hidden rounded-[14px]" style={[{ height: 86 }, MINI_SHADOW]}>
@@ -96,7 +99,8 @@ export function CookbookRecipeCard({ recipe, onPress }: CookbookRecipeCardProps)
           className="absolute inset-x-0 bottom-0 px-[6px] py-[5px]"
           style={{ backgroundColor: colors.photoStripBg }}>
           <Text className="font-sans-semibold text-[7.5px] text-white" numberOfLines={1}>
-            {recipe.time_min}dk · {recipe.difficulty}
+            {t('recipeDetail.infoMinutesShort', { minutes: recipe.time_min })} ·{' '}
+            {t(difficultyKey(recipe.difficulty))}
           </Text>
         </View>
       </View>
@@ -108,7 +112,7 @@ export function CookbookRecipeCard({ recipe, onPress }: CookbookRecipeCardProps)
         {recipe.name}
       </Text>
       <Text className="mx-[1px] mt-[2px] font-sans-semibold text-[8px] text-muted2" numberOfLines={1}>
-        {recipe.nutrition_tag} · {recipe.kcal} kcal/kişi
+        {t(nutritionTagKey(recipe.nutrition_tag))} · {t('recipes.kcalPerPerson', { kcal: recipe.kcal })}
       </Text>
     </Pressable>
   );

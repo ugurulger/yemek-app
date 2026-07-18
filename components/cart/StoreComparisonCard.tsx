@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -23,10 +24,11 @@ export interface StoreComparisonCardProps {
  * alt notta belirtilir. Yüklenirken iskelet, hata durumunda "Tekrar dene".
  */
 export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: StoreComparisonCardProps) {
+  const { t } = useTranslation();
   if (status === 'loading' || status === 'idle') {
     return (
       <View className="mx-5 mb-4 rounded-2xl bg-white p-4" style={cardShadow}>
-        <Text className="font-sans-medium text-[11px] text-muted">Fiyatlar karşılaştırılıyor…</Text>
+        <Text className="font-sans-medium text-[11px] text-muted">{t('market.comparingPrices')}</Text>
         <View className="mt-3 flex-row gap-3">
           {[0, 1].map((i) => (
             <View key={i} className="flex-1 gap-2">
@@ -43,15 +45,15 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
   if (status === 'error') {
     return (
       <View className="mx-5 mb-4 rounded-2xl bg-white p-4" style={cardShadow}>
-        <Text className="font-sans-medium text-[12.5px] text-ink">Fiyatlar şu an alınamıyor</Text>
+        <Text className="font-sans-medium text-[12.5px] text-ink">{t('market.pricesUnavailable')}</Text>
         <Text className="mt-1 font-sans text-[11px] text-muted">
-          Mağaza servislerine ulaşılamadı. Sepetin yine de kullanılabilir.
+          {t('market.pricesUnavailableBody')}
         </Text>
         <Pressable
           accessibilityRole="button"
           onPress={onRetry}
           className="mt-3 items-center rounded-xl bg-cream px-4 py-2 active:opacity-70">
-          <Text className="font-sans-semibold text-[12px] text-forest">Tekrar dene</Text>
+          <Text className="font-sans-semibold text-[12px] text-forest">{t('common.retry')}</Text>
         </Pressable>
       </View>
     );
@@ -77,7 +79,9 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
                 </Text>
                 {isCheapest ? (
                   <View className="rounded-full bg-softgreen-bg px-[7px] py-[1px]">
-                    <Text className="font-sans-semibold text-[9px] text-softgreen-text">En uygun</Text>
+                    <Text className="font-sans-semibold text-[9px] text-softgreen-text">
+                      {t('market.cheapestBadge')}
+                    </Text>
                   </View>
                 ) : null}
               </View>
@@ -86,14 +90,16 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${STORE_NAMES[storeTotals.storeId]} mağazasından al`}
+                accessibilityLabel={t('market.buyFromStoreA11y', {
+                  store: STORE_NAMES[storeTotals.storeId],
+                })}
                 onPress={() => onPressStore(storeTotals.storeId)}
                 className={`mt-2 flex-row items-center justify-center gap-1 rounded-xl px-3 py-2 active:scale-[0.98] ${
                   isCheapest ? 'bg-forest' : 'bg-cream'
                 }`}>
                 <Text
                   className={`font-sans-semibold text-[11.5px] ${isCheapest ? 'text-white' : 'text-forest'}`}>
-                  Bu mağazadan al
+                  {t('market.buyFromStore')}
                 </Text>
                 <Ionicons
                   name="open-outline"
@@ -107,7 +113,7 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
       </View>
       {missingTotal > 0 ? (
         <Text className="mt-3 font-sans text-[10.5px] text-muted">
-          {missingTotal} ürün için fiyat alınamadı — toplamlar eksik ürünleri içermez.
+          {t('market.missingPriceNote', { count: missingTotal })}
         </Text>
       ) : null}
     </View>

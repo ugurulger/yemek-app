@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { CookbookCard } from '@/components/cookbooks/CookbookCard';
 import { CookbookDetail } from '@/components/cookbooks/CookbookDetail';
@@ -49,6 +50,7 @@ function chunkPairs(views: CookbookView[]): [CookbookView, CookbookView | undefi
  * (ImportFlow) açar. Sekmeden ayrılınca açık defter/akış/arama sıfırlanır.
  */
 export default function SavedScreen() {
+  const { t } = useTranslation();
   const cookbooks = useCookbookStore((state) => state.cookbooks);
 
   const [openCookbookId, setOpenCookbookId] = useState<string | null>(null);
@@ -130,20 +132,20 @@ export default function SavedScreen() {
                 <Text
                   className="font-sans text-[13px] text-muted"
                   style={{ letterSpacing: 0.3 }}>
-                  {totalRecipes} tarif · {cookbooks.length} defter
+                  {t('saved.subtitle', { recipes: totalRecipes, cookbooks: cookbooks.length })}
                 </Text>
-                <Text className="mt-[2px] font-serif text-[34px] text-forest">Defterlerim</Text>
+                <Text className="mt-[2px] font-serif text-[34px] text-forest">{t('saved.title')}</Text>
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Defterleri sırala"
+                accessibilityLabel={t('saved.sortA11y')}
                 onPress={() => setSortMode((mode) => (mode === 'name' ? 'count' : 'name'))}
                 className="mt-2 flex-row items-center gap-[6px] rounded-[20px] border bg-white px-3 py-2 active:scale-95"
                 style={{ borderColor: colors.chipBorderSm }}>
                 <Ionicons name="swap-vertical" size={14} color={colors.forest} />
                 {/* Etiket aktif ölçütü söyler — dokununca değişir (görsel geri bildirim). */}
                 <Text className="font-sans-semibold text-[12px] text-forest">
-                  {sortMode === 'name' ? 'Ada göre' : 'Tarif sayısı'}
+                  {sortMode === 'name' ? t('saved.sortByName') : t('saved.sortByCount')}
                 </Text>
               </Pressable>
             </View>
@@ -156,7 +158,7 @@ export default function SavedScreen() {
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Tarif ara"
+                placeholder={t('saved.searchPlaceholder')}
                 placeholderTextColor="#A2ABA4"
                 className="flex-1 p-0 font-sans text-[14px] text-ink"
                 autoCorrect={false}
@@ -167,7 +169,7 @@ export default function SavedScreen() {
             {/* Defter grid'i — referans 442: 2 sütun, gap 16. */}
             {sortedViews.length === 0 ? (
               <Text className="mt-6 text-center font-sans text-[13px] text-muted">
-                Aramanla eşleşen defter yok — başka bir tarif adı dene.
+                {t('saved.searchEmpty')}
               </Text>
             ) : (
               <View className="gap-4">
@@ -202,7 +204,7 @@ export default function SavedScreen() {
       {/* FAB — referans 456-459: 58×58 yuvarlak forest, beyaz plus; import akışını açar. */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Tarif ekle"
+        accessibilityLabel={t('saved.addRecipeA11y')}
         onPress={() => setImportVisible(true)}
         className="absolute bottom-6 right-5 h-[58px] w-[58px] items-center justify-center rounded-full bg-forest active:scale-95"
         style={FAB_SHADOW}>

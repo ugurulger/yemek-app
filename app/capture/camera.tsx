@@ -5,7 +5,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
+import i18n from '@/src/i18n';
 import { RecordProgressRing } from '@/components/capture/RecordProgressRing';
 import { PrimaryButton } from '@/components/ui';
 import { useCaptureStore } from '@/store/captureStore';
@@ -89,7 +91,7 @@ function CameraWebBackdrop() {
             color: 'rgba(255,255,255,0.25)',
             letterSpacing: 1,
           }}>
-          canlı kamera görünümü
+          {i18n.t('camera.liveViewLabel')}
         </Text>
       </View>
     </View>
@@ -103,6 +105,7 @@ function CameraWebBackdrop() {
  * analizi Mutfağım ekranı başlatır.
  */
 export default function CameraCaptureScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const setPendingVideo = useCaptureStore((state) => state.setPendingVideo);
   // mode=recipe: "+" Tarif Ekle akışının "Fotoğraftan" girişi — envanter
@@ -135,7 +138,7 @@ export default function CameraCaptureScreen() {
     if (isRecipeMode) {
       // Tarif modu: fotoğraftan tarif çıkarımı henüz yok — envanter
       // analizini yanlışlıkla başlatmamak için köprüye video BIRAKILMAZ.
-      showToast('Fotoğraftan tarif aktarımı yakında');
+      showToast(t('camera.photoRecipeSoon'));
       router.back();
       return;
     }
@@ -181,9 +184,9 @@ export default function CameraCaptureScreen() {
         finishWithVideo(video.uri, guessVideoMimeType(video.uri));
         return;
       }
-      Alert.alert('Kayıt alınamadı', 'Video kaydedilemedi — biraz daha uzun basılı tutmayı dene.');
+      Alert.alert(t('camera.recordFailedTitle'), t('camera.recordFailedTooShort'));
     } catch {
-      Alert.alert('Kayıt alınamadı', 'Video kaydı sırasında bir sorun oluştu. Tekrar dene.');
+      Alert.alert(t('camera.recordFailedTitle'), t('camera.recordFailedGeneric'));
     } finally {
       setIsRecording(false);
       stopCountdown();
@@ -206,7 +209,7 @@ export default function CameraCaptureScreen() {
   async function handlePickFromGallery() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('İzin gerekli', 'Galeriden video seçmek için galeri erişim izni gerekli.');
+      Alert.alert(t('camera.permissionNeededTitle'), t('camera.galleryPermissionBody'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -253,13 +256,12 @@ export default function CameraCaptureScreen() {
           <View className="flex-1 items-center justify-center px-8">
             <Ionicons name="videocam-outline" size={40} color="#96A199" />
             <Text className="mt-4 text-center font-serif text-xl text-white">
-              Kamera izni gerekli
+              {t('camera.cameraPermissionTitle')}
             </Text>
             <Text className="mt-2 mb-6 text-center font-sans text-sm text-muted2">
-              Buzdolabını videoyla taramak için kamera ve mikrofon erişimine ihtiyacımız var.
-              Kayıtlar yalnızca envanterini çıkarmak için kullanılır.
+              {t('camera.cameraPermissionBody')}
             </Text>
-            <PrimaryButton label="İzin ver" onPress={handleRequestPermissions} />
+            <PrimaryButton label={t('camera.grantPermission')} onPress={handleRequestPermissions} />
           </View>
         </SafeAreaView>
       );
@@ -298,7 +300,9 @@ export default function CameraCaptureScreen() {
           kayıttayken kalan saniye geri sayımı. */}
       <View pointerEvents="none" style={{ position: 'absolute', top: 60, left: 0, right: 0 }}>
         <Text className="text-center font-sans-medium text-[14px] text-white">
-          {isRecording ? `${remainingSeconds} sn` : 'Kaydetmek için basılı tut'}
+          {isRecording
+            ? t('camera.remainingSeconds', { count: remainingSeconds })
+            : t('camera.holdToRecord')}
         </Text>
       </View>
 

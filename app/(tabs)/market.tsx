@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -9,6 +10,7 @@ import ProductMatchSheet from '@/components/cart/ProductMatchSheet';
 import { StoreComparisonCard } from '@/components/cart/StoreComparisonCard';
 import { PrimaryButton } from '@/components/ui';
 import { openStore } from '@/lib/market/storeLinks';
+import { ingredientCategoryKey } from '@/src/i18n/labels';
 import { useCartMatches } from '@/lib/market/useCartMatches';
 import { colors } from '@/lib/theme';
 import type { StoreId, StoreProduct } from '@/services/stores/types';
@@ -56,6 +58,7 @@ function distributeColumns(sections: CartSection[]): [CartSection[], CartSection
 
 /** Market Sepeti — spec §6, görsel 11-market-sepeti.png. */
 export default function MarketScreen() {
+  const { t } = useTranslation();
   const entries = useCartStore((state) => state.entries);
   const checkedKeys = useCartStore((state) => state.checkedKeys);
   const toggleChecked = useCartStore((state) => state.toggleChecked);
@@ -83,13 +86,13 @@ export default function MarketScreen() {
   const handleSelectAlternative = (storeId: StoreId, product: StoreProduct) => {
     if (detailKey) {
       applyCorrection(detailKey, storeId, product);
-      showToast('Eşleşme güncellendi');
+      showToast(t('market.matchUpdated'));
     }
   };
 
   const handlePressStore = (storeId: StoreId) => {
     // Yalnızca yönlendirme — karşı uygulamanın sepeti doldurulmaz (kapsam kararı).
-    void openStore(storeId).catch(() => showToast('Mağaza açılamadı'));
+    void openStore(storeId).catch(() => showToast(t('market.storeOpenFailed')));
   };
 
   return (
@@ -97,10 +100,10 @@ export default function MarketScreen() {
       {/* Başlık — referans 336-337: h1 500 34px Newsreader, margin 6 üst 2 alt;
           alt metin 400 13px, mb 22 (boşken de başlık aynı kalır). */}
       <View className="px-5 pt-2">
-        <Text className="mb-[2px] mt-[6px] font-serif text-[34px] text-forest">Market Sepeti</Text>
+        <Text className="mb-[2px] mt-[6px] font-serif text-[34px] text-forest">{t('market.title')}</Text>
         {!isEmpty ? (
           <Text className="mb-[22px] font-sans text-[13px] text-muted">
-            Seçtiğin tariflerdeki eksik malzemeler · {items.length} ürün
+            {t('market.subtitle', { count: items.length })}
           </Text>
         ) : null}
       </View>
@@ -117,7 +120,7 @@ export default function MarketScreen() {
               <View className="mx-5 mb-3 flex-row items-center gap-2 rounded-xl bg-amber-soft px-3.5 py-2.5">
                 <Ionicons name="warning-outline" size={14} color={colors.amberText} />
                 <Text className="flex-1 font-sans-medium text-[11px] text-amber-text">
-                  {downStores.join(' ve ')} fiyatları şu an alınamıyor
+                  {t('market.storesDown', { stores: downStores.join(t('common.joinAnd')) })}
                 </Text>
               </View>
             ) : null}
@@ -136,7 +139,7 @@ export default function MarketScreen() {
                 {leftColumn.map((section) => (
                   <CartCategorySection
                     key={section.category}
-                    title={section.category}
+                    title={t(ingredientCategoryKey(section.category))}
                     items={section.items}
                     onToggle={toggleChecked}
                     matchesByKey={byKey}
@@ -148,7 +151,7 @@ export default function MarketScreen() {
                 {rightColumn.map((section) => (
                   <CartCategorySection
                     key={section.category}
-                    title={section.category}
+                    title={t(ingredientCategoryKey(section.category))}
                     items={section.items}
                     onToggle={toggleChecked}
                     matchesByKey={byKey}
@@ -164,10 +167,10 @@ export default function MarketScreen() {
               "Listeyi temizle" (işlev kararı korunuyor). */}
           <View className="px-5 pb-3 pt-2">
             {allChecked ? (
-              <PrimaryButton label="Listeyi temizle" variant="light" size="cta" onPress={clearCart} />
+              <PrimaryButton label={t('market.clearList')} variant="light" size="cta" onPress={clearCart} />
             ) : (
               <PrimaryButton
-                label={`Tümünü tamamla · ${checkedCount}/${items.length}`}
+                label={t('market.completeAll', { checked: checkedCount, total: items.length })}
                 size="cta"
                 onPress={completeAll}
               />
@@ -189,15 +192,15 @@ export default function MarketScreen() {
 
 /** Boş durum — yönlendirmeli (spec: asla sadece "Liste boş" yazma). */
 function EmptyCart() {
+  const { t } = useTranslation();
   return (
     <View className="flex-1 items-center justify-center px-10 pb-16">
       <View className="h-16 w-16 items-center justify-center rounded-full bg-white">
         <Ionicons name="cart-outline" size={30} color={colors.muted} />
       </View>
-      <Text className="mt-4 font-serif text-[24px] text-ink">Sepetin boş</Text>
+      <Text className="mt-4 font-serif text-[24px] text-ink">{t('market.emptyTitle')}</Text>
       <Text className="mt-2 text-center font-sans text-[13px] leading-[19px] text-muted">
-        Tarifler sayfasında bir tarifin &apos;eksik&apos; rozetine dokunarak eksik malzemeleri
-        buraya ekleyebilirsin.
+        {t('market.emptyBody')}
       </Text>
     </View>
   );

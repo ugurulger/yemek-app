@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { askChef } from '@/lib/claude/askChef';
+import { llmOutputLanguage } from '@/src/i18n';
 import ChefChat from '@/components/recipes/detail/ChefChat';
 import CookbookPickerSheet from '@/components/recipes/detail/CookbookPickerSheet';
 import IngredientRow from '@/components/recipes/detail/IngredientRow';
@@ -29,6 +31,7 @@ import {
   scaleServings,
 } from '@/lib/recipes/recipe-math';
 import { cardShadow, colors } from '@/lib/theme';
+import { difficultyKey } from '@/src/i18n/labels';
 import { useCartStore } from '@/store/cartStore';
 import { useChefChatStore, type ChefChatMessage } from '@/store/chefChatStore';
 import { useCookbookStore } from '@/store/cookbookStore';
@@ -75,6 +78,7 @@ const INPUT_BAR_STYLE = {
 } as const;
 
 export default function RecipeDetailScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   // Hem üretilmiş hem içe aktarılmış tariflerde arar (defterden açılanlar dahil).
   const recipe = useRecipeById(id);
@@ -85,7 +89,7 @@ export default function RecipeDetailScreen() {
         <View className="px-5 pt-4">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Geri git"
+            accessibilityLabel={t('common.backA11y')}
             onPress={() => router.back()}
             className="h-11 w-11 items-center justify-center rounded-full bg-white active:scale-95"
             style={cardShadow}>
@@ -97,18 +101,18 @@ export default function RecipeDetailScreen() {
           <Card className="w-full items-center p-8">
             <Text className="text-5xl">🔍</Text>
             <Text className="mt-4 text-center font-serif text-[21px] text-ink">
-              Tarif bulunamadı
+              {t('recipeDetail.notFoundTitle')}
             </Text>
             <Text className="mt-2 text-center font-sans text-[13px] text-muted">
-              Bu tarif artık mevcut değil ya da kaldırılmış olabilir.
+              {t('recipeDetail.notFoundBody')}
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri dön"
+              accessibilityLabel={t('common.goBack')}
               onPress={() => router.back()}
               className="mt-5 flex-row items-center rounded-2xl bg-forest px-5 py-3 active:scale-95">
               <Ionicons name="chevron-back" size={18} color="white" />
-              <Text className="ml-2 font-sans-medium text-[13px] text-white">Geri dön</Text>
+              <Text className="ml-2 font-sans-medium text-[13px] text-white">{t('common.goBack')}</Text>
             </Pressable>
           </Card>
         </View>
@@ -124,6 +128,7 @@ export default function RecipeDetailScreen() {
  * return yapıyor, hook'lar burada koşulsuz çağrılabilsin diye.
  */
 function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
+  const { t } = useTranslation();
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
   const selectedServings = useRecipeStore((state) => state.selectedServings[recipe.id]);
@@ -187,7 +192,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
       recipe.name,
       buildCartMissingInput(recipe, servings, inventoryItems, pantryItems)
     );
-    showToast('Eksik malzemeler markete eklendi');
+    showToast(t('recipeDetail.missingAddedToast'));
   };
 
   const canSend = draft.trim().length > 0 && !isAsking;
@@ -202,14 +207,14 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     setIsAsking(true);
     shouldScrollToEndRef.current = true;
     try {
-      const reply = await askChef(recipe, history, message);
+      const reply = await askChef(recipe, history, message, llmOutputLanguage());
       shouldScrollToEndRef.current = true;
       addMessage(recipe.id, { role: 'assistant', content: reply, createdAt: Date.now() });
     } catch {
       shouldScrollToEndRef.current = true;
       addMessage(recipe.id, {
         role: 'assistant',
-        content: 'Şu an yanıt veremedim — bir dakika sonra tekrar sorar mısın?',
+        content: t('chef.errorReply'),
         createdAt: Date.now(),
       });
     } finally {
@@ -219,13 +224,17 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
 
   // Besin değerleri kişi sayısıyla ÖLÇEKLİ gösterilir (malzemelerle aynı çarpan).
   const macroPills = [
-    { label: `Protein ${scaled.macros.protein}g`, dot: colors.macroProtein },
-    { label: `Karb ${scaled.macros.karb}g`, dot: colors.macroKarb },
-    { label: `Yağ ${scaled.macros.yag}g`, dot: colors.macroYag },
+    { label: t('recipeDetail.macroProtein', { grams: scaled.macros.protein }), dot: colors.macroProtein },
+    { label: t('recipeDetail.macroCarb', { grams: scaled.macros.karb }), dot: colors.macroKarb },
+    { label: t('recipeDetail.macroFat', { grams: scaled.macros.yag }), dot: colors.macroYag },
   ];
 
   /** Bilgi satırı parçaları — minimal muted metin, `·` ayraçlı (referans SCREEN 3). */
-  const infoParts = [`${scaled.kcal} kcal`, `${recipe.time_min} dk`, recipe.difficulty];
+  const infoParts = [
+    t('recipeDetail.infoKcal', { kcal: scaled.kcal }),
+    t('recipeDetail.infoMinutes', { minutes: recipe.time_min }),
+    t(difficultyKey(recipe.difficulty)),
+  ];
 
   return (
     <SafeAreaView className="flex-1 bg-cream" edges={['top', 'bottom']}>
@@ -248,7 +257,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
             <RecipeHeroImage recipe={recipe} />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Geri git"
+              accessibilityLabel={t('common.backA11y')}
               onPress={() => router.back()}
               className="absolute left-4 top-3 h-10 w-10 items-center justify-center rounded-full active:scale-95"
               style={BACK_BUTTON_STYLE}>
@@ -283,7 +292,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
             <View className="mb-6 flex-row justify-between">
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Tarifi deftere ekle"
+                accessibilityLabel={t('recipeDetail.saveA11y')}
                 onPress={() => setCookbookSheetVisible(true)}
                 className="w-[70px] items-center active:scale-95">
                 <View
@@ -296,12 +305,12 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
                   />
                 </View>
                 <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">
-                  Defterler
+                  {t('recipeDetail.actionCookbooks')}
                 </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Tarifi haftalık plana ekle"
+                accessibilityLabel={t('recipeDetail.planA11y')}
                 onPress={() => setPlanSheetVisible(true)}
                 className="w-[70px] items-center active:scale-95">
                 <View
@@ -309,12 +318,14 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
                   style={ACTION_CIRCLE_STYLE}>
                   <Ionicons name="calendar-outline" size={21} color={colors.forest} />
                 </View>
-                <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">Plan</Text>
+                <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">
+                  {t('recipeDetail.actionPlan')}
+                </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
-                  hasMissing ? 'Eksik malzemeleri markete ekle' : 'Eksik malzeme yok'
+                  hasMissing ? t('recipeDetail.marketA11y') : t('recipeDetail.noMissingA11y')
                 }
                 accessibilityState={{ disabled: !hasMissing }}
                 disabled={!hasMissing}
@@ -325,19 +336,23 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
                   style={ACTION_CIRCLE_STYLE}>
                   <Ionicons name="cart-outline" size={21} color={colors.forest} />
                 </View>
-                <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">Market</Text>
+                <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">
+                  {t('recipeDetail.actionMarket')}
+                </Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Tarifi paylaş"
-                onPress={() => showToast('Paylaşım sayfası açılıyor…')}
+                accessibilityLabel={t('recipeDetail.shareA11y')}
+                onPress={() => showToast(t('recipeDetail.shareToast'))}
                 className="w-[70px] items-center active:scale-95">
                 <View
                   className="h-[52px] w-[52px] items-center justify-center rounded-full"
                   style={ACTION_CIRCLE_STYLE}>
                   <Ionicons name="share-outline" size={21} color={colors.forest} />
                 </View>
-                <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">Paylaş</Text>
+                <Text className="mt-[7px] font-sans-semibold text-[11px] text-body">
+                  {t('recipeDetail.actionShare')}
+                </Text>
               </Pressable>
             </View>
 
@@ -358,7 +373,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
 
             {/* Malzemeler + kişi sayısı stepper'ı */}
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="font-serif text-[19px] text-ink">Malzemeler</Text>
+              <Text className="font-serif text-[19px] text-ink">{t('recipeDetail.ingredientsTitle')}</Text>
               <ServingsStepper servings={servings} onChange={handleServingsChange} />
             </View>
             <View className="mb-6 rounded-[20px] bg-white px-4 py-1.5" style={cardShadow}>
@@ -373,7 +388,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
             </View>
 
             {/* Hazırlanışı — numaralı adımlar */}
-            <Text className="mb-3.5 font-serif text-[19px] text-ink">Hazırlanışı</Text>
+            <Text className="mb-3.5 font-serif text-[19px] text-ink">{t('recipeDetail.stepsTitle')}</Text>
             <View className="mb-[22px] gap-3.5">
               {recipe.steps.map((step, index) => (
                 <View key={`${step}-${index}`} className="flex-row gap-[13px]">
@@ -394,7 +409,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
                 <Text
                   className="font-sans-semibold text-[13px] uppercase text-cheftip-title"
                   style={{ letterSpacing: 0.5 }}>
-                  Şef Tüyosu
+                  {t('recipeDetail.chefTipTitle')}
                 </Text>
               </View>
               <Text className="font-sans text-[13.5px] leading-[21px] text-cheftip-text">
@@ -415,7 +430,7 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
             <TextInput
               value={draft}
               onChangeText={setDraft}
-              placeholder="Şefe bir şey sor…"
+              placeholder={t('chef.inputPlaceholder')}
               placeholderTextColor={colors.muted2}
               className="flex-1 py-1 font-sans text-[14px] text-ink"
               returnKeyType="send"
@@ -428,11 +443,11 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
               onFocus={() => {
                 setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
               }}
-              accessibilityLabel="Şefe soru yaz"
+              accessibilityLabel={t('chef.inputA11y')}
             />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Soruyu şefe gönder"
+              accessibilityLabel={t('chef.sendA11y')}
               disabled={!canSend}
               onPress={() => handleSend()}
               className={`h-10 w-10 items-center justify-center rounded-full bg-forest active:scale-95 ${

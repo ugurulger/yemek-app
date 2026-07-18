@@ -13,8 +13,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { parseIngredients, type ParsedIngredient } from '@/lib/claude/parseIngredients';
+import { llmOutputLanguage } from '@/src/i18n';
 import { Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -52,6 +54,7 @@ function chipLabel(item: InventoryItem): string {
  * malzemelere ayrıştırılır; mikrofon MVP'de pasiftir (Alert).
  */
 export default function AssistantAddScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const targetMode: 'inventory' | 'pantry' = mode === 'pantry' ? 'pantry' : 'inventory';
@@ -75,11 +78,15 @@ export default function AssistantAddScreen() {
     }
     setIsParsing(true);
     try {
-      const items = await parseIngredients(query);
+      // Malzeme adları aktif uygulama dilinde üretilir (BLOK B / B3).
+      const items = await parseIngredients(query, { outputLanguage: llmOutputLanguage() });
       setParsedItems(items);
       // Hepsi başta seçili gelir; kullanıcı dokunarak çıkarır.
       setSelectedIds(new Set(items.map((item) => item.id)));
       setText('');
+    } catch (error) {
+      console.warn('[assistant] ayrıştırma hatası:', error);
+      Alert.alert(t('assistant.parseFailedTitle'), t('assistant.parseFailedBody'));
     } finally {
       setIsParsing(false);
     }
@@ -135,7 +142,7 @@ export default function AssistantAddScreen() {
   }
 
   function handleMicPress() {
-    Alert.alert('Sesli giriş yakında', 'Şimdilik yazarak ekleyebilirsin.');
+    Alert.alert(t('assistant.voiceSoonTitle'), t('assistant.voiceSoonBody'));
   }
 
   return (
@@ -152,7 +159,7 @@ export default function AssistantAddScreen() {
             style={CLOSE_SHADOW}>
             <Ionicons name="close" size={20} color={colors.forest} />
           </Pressable>
-          <Text className="font-serif text-[22px] text-forest">Asistanla Ekle</Text>
+          <Text className="font-serif text-[22px] text-forest">{t('assistant.title')}</Text>
         </View>
 
         {isDone ? (
@@ -162,10 +169,10 @@ export default function AssistantAddScreen() {
               <Ionicons name="checkmark" size={30} color={colors.forest} />
             </View>
             <Text className="mt-4 font-serif text-xl text-ink">
-              {selectedCount > 1 ? `${selectedCount} malzeme eklendi` : 'Malzeme eklendi'}
+              {t('assistant.addedTitle', { count: selectedCount })}
             </Text>
             <Text className="mt-1 font-sans text-sm text-muted">
-              {targetMode === 'pantry' ? 'Temel malzemelerine eklendi.' : 'Mutfağına eklendi.'}
+              {targetMode === 'pantry' ? t('assistant.addedToPantry') : t('assistant.addedToKitchen')}
             </Text>
           </View>
         ) : (
@@ -181,9 +188,9 @@ export default function AssistantAddScreen() {
                 <View className="mb-[14px] h-[54px] w-[54px] items-center justify-center rounded-2xl bg-softgreen-bg">
                   <Text className="text-[22px] text-forest">✦</Text>
                 </View>
-                <Text className="font-serif text-[21px] text-forest">Ne eklemek istersin?</Text>
+                <Text className="font-serif text-[21px] text-forest">{t('assistant.prompt')}</Text>
                 <Text className="mt-[5px] font-sans text-[12.5px] text-muted">
-                  Yazarak ekle ya da mikrofona dokun
+                  {t('assistant.promptHint')}
                 </Text>
               </View>
 
@@ -198,7 +205,7 @@ export default function AssistantAddScreen() {
                   onChangeText={setText}
                   onSubmitEditing={handleParse}
                   editable={!isParsing}
-                  placeholder="süt, 4 domates, kaşar…"
+                  placeholder={t('assistant.inputPlaceholder')}
                   placeholderTextColor={colors.muted2}
                   returnKeyType="done"
                   className="flex-1 py-1 font-sans text-[15px] text-ink"
@@ -216,7 +223,7 @@ export default function AssistantAddScreen() {
               {isParsing ? (
                 <View className="flex-row items-center justify-center gap-2 pt-4">
                   <ActivityIndicator size="small" color={colors.forest} />
-                  <Text className="font-sans text-xs text-muted">Malzemeler ayrıştırılıyor…</Text>
+                  <Text className="font-sans text-xs text-muted">{t('assistant.parsing')}</Text>
                 </View>
               ) : null}
 
@@ -225,7 +232,7 @@ export default function AssistantAddScreen() {
                   contentContainerClassName="px-5 pt-[18px] pb-4"
                   keyboardShouldPersistTaps="handled">
                   <SectionLabel className="mb-[14px] text-center">
-                    AI&apos;ın tanıdıkları · seç ve ekle
+                    {t('assistant.recognizedLabel')}
                   </SectionLabel>
                   <View className="flex-row flex-wrap justify-center gap-[9px]">
                     {parsedItems.map((item) => (
@@ -248,7 +255,9 @@ export default function AssistantAddScreen() {
                 <PrimaryButton
                   size="cta"
                   label={
-                    selectedCount > 0 ? `${selectedCount} malzemeyi ekle` : 'En az bir malzeme seç'
+                    selectedCount > 0
+                      ? t('assistant.addSelected', { count: selectedCount })
+                      : t('assistant.selectAtLeastOne')
                   }
                   onPress={handleAdd}
                   disabled={selectedCount === 0}

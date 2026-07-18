@@ -174,6 +174,30 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   anahtarlar `.env` `EXPO_PUBLIC_*` (mevcut düzen korundu). "Mimari"
 >   bölümündeki Supabase/TanStack satırları hedef mimaridir, mevcut durum değil.
 
+> ## ⚠️ i18n (2026-07-18) — ÇOK DİLLİ UYGULAMA (BLOK B)
+>
+> Uygulama artık **i18next + react-i18next + expo-localization** ile çok
+> dilli (EN/TR). Kurulum: `src/i18n/` (dil algılama = cihaz dili, fallback
+> **İngilizce**, kullanıcının manuel seçimi AsyncStorage'da; dil seçici
+> Mutfağım başlığının sağındaki EN/TR pill'i). Çeviriler:
+> `src/i18n/locales/tr.json` + `en.json`.
+>
+> - **KURAL: Yeni UI metinleri ASLA hardcode edilmez; her yeni metin
+>   tr.json + en.json'a anlamlı bir anahtar olarak eklenir ve t() ile
+>   kullanılır.** (Alert/placeholder/accessibilityLabel/toast dahil.)
+> - Veri-enum DEĞERLERİ (difficulty "Kolay/Orta/Zor", kategori adları,
+>   nutrition_tag, kiler adları, PLAN_DAYS...) veri/şema olarak Türkçe
+>   KALIR — yalnızca GÖSTERİM `src/i18n/labels.ts` eşlemeleriyle çevrilir.
+> - `lib/` ve `services/` modülleri i18n IMPORT ETMEZ (Node eval/test
+>   script'leri kırılır) — domain hata mesajları ekran sınırında genel
+>   çevrilmiş mesaja çevrilir (orijinal console'a loglanır).
+> - **LLM çıktı dili parametrik (B3):** tarif üretimi
+>   (`RecipePromptContext.outputLanguage`), Şefe Sor (`askChef` 4. parametre),
+>   asistanla ekleme (`parseIngredients` options) ve RAG edge function
+>   (`language` alanı) çıktı dilini `llmOutputLanguage()`'dan (src/i18n)
+>   alır — aktif uygulama dili LLM çıktısına yansır; enum/şema alanları
+>   sabit Türkçe kalır.
+
 ## Mimari
 
 - **Framework:** React Native + Expo (managed workflow, TypeScript)
@@ -1394,6 +1418,10 @@ boyutu/süresi ve model seçimi.
   göz önüne alınarak, ekleme kararı o redesign'dan sonraya bırakıldı.
 
 ## Çalışma kuralları
+
+- **i18n:** Yeni UI metinleri asla hardcode edilmez; her yeni metin
+  `src/i18n/locales/tr.json` + `en.json`'a anahtar olarak eklenir ve `t()`
+  ile kullanılır (bkz. üstteki "i18n (2026-07-18)" bloğu).
 
 - Her sayfa ayrı görev olarak geliştirilir; sayfa bitince `npx expo start`
   ile test edilebilir durumda bırak.

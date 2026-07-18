@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -36,11 +37,12 @@ function toneForRecipe(name: string): string {
  * KARDEŞ Pressable'dır, kart içinde onun genişliği kadar boşluk bırakılır.
  */
 export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCardProps) {
+  const { t } = useTranslation();
   return (
     <View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${entry.name} tarifini aç`}
+        accessibilityLabel={t('recipes.openRecipeA11y', { name: entry.name })}
         onPress={onPress}
         className="flex-row items-center gap-[11px] rounded-2xl bg-white p-[9px] active:scale-95"
         style={cardShadow}>
@@ -58,10 +60,13 @@ export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCar
           <View className="mt-[3px] flex-row items-center gap-[7px]">
             {/* Öğün chip'i — 600 10px #5C6B60, bg #EFF3EC (pillbg), radius 20. */}
             <View className="rounded-[20px] bg-pillbg px-2 py-[2px]">
-              <Text className="font-sans-semibold text-[10px] text-[#5C6B60]">{entry.meal}</Text>
+              <Text className="font-sans-semibold text-[10px] text-[#5C6B60]">
+                {t(`data.meal.${entry.meal}`, { defaultValue: entry.meal })}
+              </Text>
             </View>
             <Text className="font-sans-medium text-[10.5px] text-qtymuted" numberOfLines={1}>
-              {entry.servings} kişilik · {entry.kcal} kcal
+              {t('recipeDetail.servingsLabel', { count: entry.servings })} ·{' '}
+              {t('recipeDetail.infoKcal', { kcal: entry.kcal })}
             </Text>
           </View>
         </View>
@@ -73,7 +78,7 @@ export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCar
       {/* Sağda X silme butonu — karta dokunmayı tetiklemez (kardeş eleman). */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${entry.name} öğününü plandan çıkar`}
+        accessibilityLabel={t('plan.removeEntryA11y', { name: entry.name })}
         onPress={onRemove}
         hitSlop={8}
         className="absolute bottom-0 right-[9px] top-0 justify-center p-[6px] active:scale-90">
