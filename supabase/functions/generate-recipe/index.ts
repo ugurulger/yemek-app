@@ -512,6 +512,13 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     '- Make the recipes DIVERSE: spread them across different meal types (breakfast, main dish, soup, ' +
     'salad, oven bake...) and different cooking techniques; no two recipes may share the same main ' +
     'ingredient combination, and do not base every recipe on the same one or two reference recipes.\n' +
+    // Madde 3 (baseline B2): retrieval tek malzeme ailesine yığıldığında (örn.
+    // 8/8 somon referansı) üretim de tekdüzeleşiyordu — referans yığılmasına
+    // karşı açık yıldız-malzeme tavanı.
+    '- STAR INGREDIENT CAP (strict): at most 2 of the recipes may feature the same primary protein or ' +
+    'star ingredient, EVEN IF the reference recipes are dominated by a single ingredient family — use ' +
+    'the references for technique and structure, not to repeat their star. The remaining recipes must ' +
+    'star OTHER inventory items (eggs, vegetables, dairy, pantry carbs...).\n' +
     '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
     'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
     'ingredients too — when available, build at least one dish around one of them (a pasta dish, a rice ' +
@@ -543,6 +550,8 @@ function buildFineDiningSystemPrompt(input: GenerateRecipeInput, matches: Matche
     '- Fine dining style is essential: elegant dish names, technique-driven steps (searing, deglazing, ' +
     'emulsifying, resting...), sauce/texture contrast, and a final PLATING step describing how to present ' +
     'the dish beautifully (composition, garnish, sauce placement).\n' +
+    '- The two recipes must NOT share the same primary protein or star ingredient, even if the reference ' +
+    'recipes all feature one — build the second dish around a different inventory item.\n' +
     '- Ground the recipes in the reference recipes where possible (adapt, refine, elevate), but base the ' +
     'ingredients on the user inventory; mark missing ingredients in_inventory: false exactly like the ' +
     'normal flow. Do not invent implausible dishes.\n' +
@@ -607,7 +616,9 @@ async function generateWithClaude(
     },
     body: JSON.stringify({
       model: CONFIG.generationModel,
-      max_tokens: 8192,
+      // Madde 3: 6 tarif tek çıktıda ~7.6K token'a ulaşıyor (ölçüldü) — 8192
+      // bütçe kesilme sınırındaydı; kullanılmayan pay maliyet doğurmaz.
+      max_tokens: 12288,
       system: options.systemPrompt,
       messages: [
         {
