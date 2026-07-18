@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Card, Chip, PrimaryButton, SectionLabel } from '@/components/ui';
+import { LastUpdatedLabel } from '@/components/inventory/LastUpdatedLabel';
 import { colors } from '@/lib/theme';
 import { pantryCategoryKey, pantryItemKey } from '@/src/i18n/labels';
 import { usePantryStore } from '@/store/pantryStore';
@@ -22,6 +23,7 @@ const PANTRY_ASSISTANT_ROUTE = '/capture/assistant?mode=pantry' as Href;
 export function PantrySection() {
   const { t } = useTranslation();
   const items = usePantryStore((state) => state.items);
+  const lastUpdatedAt = usePantryStore((state) => state.lastUpdatedAt);
   const toggleItem = usePantryStore((state) => state.toggleItem);
 
   const byCategory = new Map<PantryCategory, PantryItem[]>();
@@ -48,6 +50,8 @@ export function PantrySection() {
           onPress={() => router.push(PANTRY_ASSISTANT_ROUTE)}
         />
       </View>
+      {/* İş 2: bloğun son değişiklik tarihi — düşük görsel ağırlıklı satır. */}
+      <LastUpdatedLabel timestamp={lastUpdatedAt} className="mt-1" />
 
       {/* mb-[3px] + satırların mt-[9px]'i = referanstaki 12px alt margin. */}
       <View className="mb-[3px] mt-2 flex-row items-center">

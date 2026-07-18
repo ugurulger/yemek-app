@@ -12,6 +12,12 @@ import { DEFAULT_PANTRY_ITEMS, type PantryItem } from '@/types/pantry';
  */
 interface PantryState {
   items: PantryItem[];
+  /**
+   * Temel Malzemeler bloğunun son değişiklik zamanı (epoch ms) — her toggle/
+   * ekleme/silmede güncellenir, persist ile kalıcıdır. Mutfağım ekranında
+   * "Bugün/Dün/tarih" olarak gösterilir (İş 2). Hiç değişiklik yapılmamışsa null.
+   */
+  lastUpdatedAt: number | null;
   toggleItem: (id: string) => void;
   /** Aynı ad (normalize) zaten varsa eklemez, pasifse aktifleştirir. */
   addItems: (items: Omit<PantryItem, 'id'>[]) => void;
@@ -30,11 +36,13 @@ export const usePantryStore = create<PantryState>()(
   persist(
     (set) => ({
       items: seedDefaults(),
+      lastUpdatedAt: null,
       toggleItem: (id) =>
         set((state) => ({
           items: state.items.map((item) =>
             item.id === id ? { ...item, active: !item.active } : item
           ),
+          lastUpdatedAt: Date.now(),
         })),
       addItems: (newItems) =>
         set((state) => {
@@ -49,10 +57,13 @@ export const usePantryStore = create<PantryState>()(
               items.push({ ...newItem, id: `pantry-${Date.now()}-${items.length}` });
             }
           }
-          return { items };
+          return { items, lastUpdatedAt: Date.now() };
         }),
       removeItem: (id) =>
-        set((state) => ({ items: state.items.filter((item) => item.id !== id) })),
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== id),
+          lastUpdatedAt: Date.now(),
+        })),
     }),
     {
       name: 'yemek-app-pantry',

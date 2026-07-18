@@ -100,5 +100,9 @@ export async function generateRecipesRag(
 
   // Edge function uygulamanın Recipe şemasını döndürür; isim bazlı
   // tekilleştirme + missing_count artan sıralama mevcut akışla aynı.
-  return mergeRecipeLayers([data.recipes]);
+  // Fine dining tarifleri (İş 1: category === 'fine-dining') bu sıralamaya
+  // KARIŞTIRILMAZ — kendi bölümlerinde, listenin sonunda gösterilirler.
+  const fineDining = data.recipes.filter((recipe) => recipe.category === 'fine-dining');
+  const normal = data.recipes.filter((recipe) => recipe.category !== 'fine-dining');
+  return [...mergeRecipeLayers([normal]), ...fineDining];
 }

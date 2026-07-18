@@ -90,6 +90,12 @@ export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) 
     [recipes, inventory, pantryItems]
   );
 
+  // İş 1: fine dining tarifleri eksik-bazlı bölümlemeye karışmaz — mevcut
+  // tasarım diliyle tutarlı ayrı bir bölüm başlığı altında, listenin sonunda.
+  const fineDining = withLiveMissing
+    .filter((entry) => entry.recipe.category === 'fine-dining')
+    .map((entry) => entry.recipe);
+
   // Sepetteki birleşik (malzeme bazında tekilleşmiş) ürün sayısı.
   const cartCount = useMemo(
     () => mergeCartEntries(cartEntries, checkedKeys).length,
@@ -100,10 +106,11 @@ export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) 
     return null;
   }
 
-  const ready = withLiveMissing
+  const standard = withLiveMissing.filter((entry) => entry.recipe.category !== 'fine-dining');
+  const ready = standard
     .filter((entry) => entry.liveMissing === 0)
     .map((entry) => entry.recipe);
-  const withShopping = withLiveMissing
+  const withShopping = standard
     .filter((entry) => entry.liveMissing > 0)
     .sort((a, b) => a.liveMissing - b.liveMissing)
     .map((entry) => entry.recipe);
@@ -114,6 +121,9 @@ export default function RecipeList({ recipes, onPressRecipe }: RecipeListProps) 
   }
   if (withShopping.length > 0) {
     sections.push({ title: t('recipes.sectionShopping'), data: withShopping });
+  }
+  if (fineDining.length > 0) {
+    sections.push({ title: t('recipes.sectionFineDining'), data: fineDining });
   }
 
   return (

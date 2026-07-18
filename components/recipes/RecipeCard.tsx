@@ -143,6 +143,16 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
             </Text>
           </View>
 
+          {/* İş 1: fine dining rozeti — kcal pilinin altında, aynı pil
+              tipografisiyle koyu forest dolgu (kcal piliyle karışmasın). */}
+          {recipe.category === 'fine-dining' && (
+            <View className="absolute right-2 top-8 rounded-[20px] bg-forest px-2 py-[3px]">
+              <Text className="font-sans-semibold text-[9.5px] text-white">
+                ✦ {t('recipes.fineDiningBadge')}
+              </Text>
+            </View>
+          )}
+
           {/* Alt kenar: koyu bilgi şeridi — padding 7×9, 600 8.5px beyaz,
               ayraç noktaları rgba(255,255,255,.55), gap 4. (Referanstaki
               gradient yerine düz photoStripBg — kabul edilen yaklaşım.) */}
