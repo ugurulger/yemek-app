@@ -88,88 +88,63 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   makarna/pirinç varken hiç makarnalı/pirinçli tarif çıkmıyordu —
 >   retrieval sorgusunda kiler hiç yoktu, prompt da kileri bastırıyordu).
 
-> ## IG-EĞİTİM GÖRSELLERİ (2026-07-18) — CAROUSEL'E STATİK AI GÖRSELLERİ
+> ## IG-EĞİTİM GÖRSELLERİ (2026-07-18)
 >
-> IG içe aktarma eğitim carousel'inin (components/import/InstagramEduSheet)
-> 3 adımı için görseller RUNTIME'da DEĞİL, tek seferlik script'le üretilir:
-> `npx tsx scripts/generate-import-tutorial-images.ts` (anahtar: .env
-> `EXPO_PUBLIC_GOOGLE_API_KEY`; model `gemini-3.1-flash-lite-image` — tarif
-> görselleriyle aynı aile; argümanla tek adım yeniden üretilebilir: `… 2`).
-> Prompt'lar script içinde `STEP_PROMPTS` sabiti — beğenilmezse düzenlenip
-> yeniden koşulur; stilize/jenerik arayüz, gerçek IG logosu YOK (telif),
-> palet forest/krem/amber, görselde yazı YOK. Çıktı
-> `assets/import-tutorial/step-{1,2,3}.png` + manifest
-> `components/import/tutorialImages.ts` require'larla YENİDEN YAZILIR.
-> Manifest başlangıçta `null` commit'lidir — Metro require'ı bundle anında
-> çözdüğü için var olmayan dosyaya require yazılamaz; null iken carousel
-> eski placeholder çizimleriyle çalışır (graceful fallback). Görseller
-> onaylanınca assets + manifest birlikte commit'lenir.
+> - **KURAL: IG eğitim carousel'inin (`components/import/InstagramEduSheet`)
+>   görselleri RUNTIME'da üretilmez** — tek seferlik script: `npx tsx
+>   scripts/generate-import-tutorial-images.ts [adım]` (.env
+>   `EXPO_PUBLIC_GOOGLE_API_KEY`, model `gemini-3.1-flash-lite-image`;
+>   prompt'lar script içindeki `STEP_PROMPTS`, beğenilmezse düzenlenip
+>   yeniden koşulur). İçerik: stilize/jenerik arayüz, gerçek IG logosu YOK
+>   (telif), palet forest/krem/amber, görselde yazı YOK.
+> - **KURAL: manifest (`components/import/tutorialImages.ts`) başlangıçta
+>   `null` commit'lidir; var olmayan dosyaya require YAZILMAZ** — Metro
+>   require'ı bundle anında çözer, dosya yokken bundle kırılır. `null` iken
+>   carousel placeholder çizimleriyle çalışır (graceful fallback). Script,
+>   PNG'leri (`assets/import-tutorial/step-{1,2,3}.png`) + manifest'i
+>   birlikte yazar; onaylanınca birlikte commit'lenir.
 
-> ## IG-RESUME (2026-07-18) — INSTAGRAM'I KALDIĞI YERDEN AÇMA
+> ## IG-RESUME (2026-07-18)
 >
-> İçe aktarma akışı IG'yi `instagram://app` ile açıyordu — bu, IG'yi ana
-> feed'e NAVİGE ettirip son durumu sıfırlıyordu (şikayet: "IG hep baştan
-> başlıyor"). Karar: ÇIPLAK şema `instagram://` (components/import/
-> ImportFlow.tsx) — path'siz şema iOS'ta uygulamayı yalnızca ön plana
-> getirir (resume), kullanıcı bir gönderide kaldıysa oradan devam eder.
-> Varyantlar (`instagram://app`, `instagram://feed`) ve Android hostsuz
-> şema notu kodda yorumla belgeli; IG yüklü değilse mevcut catch zinciri
-> web fallback'ine düşer. Expo Go'da şema davranışı gözlemlenemez
-> (storeLinks.ts kalıbıyla aynı sınır) — gerçek cihaz/dev build doğrulaması
-> bekliyor, `// DOĞRULA` notu ImportFlow.tsx'te.
+> **KURAL: Instagram ÇIPLAK şemayla açılır — `instagram://`, path YOK
+> (`components/import/ImportFlow.tsx`).** `instagram://app`/`instagram://feed`
+> IG'yi ana feed'e navige edip son durumu sıfırlar (kullanıcı şikayetiydi);
+> path'siz şema iOS'ta uygulamayı yalnızca ön plana getirir (resume). IG
+> yüklü değilse catch zinciri web fallback'ine düşer. Expo Go'da şema
+> davranışı gözlemlenemez — gerçek cihaz doğrulaması bekliyor (`// DOĞRULA`
+> ve varyant notları kodda yorumla).
 
-> ## ENVANTER-2DİL (2026-07-18) — TEK KAYNAK ÇİFT DİLLİ İSİM; TARİF+SEPET
-> ## TUTARLILIĞI (İş 3)
+> ## ENVANTER-2DİL (2026-07-18) — TEK KAYNAK ÇİFT DİLLİ İSİM
 >
-> Gözlenen hata: tarif "Mexican Pickle Peppers / Red Pepper Flakes" gibi eş
-> anlamlı/karşı dilde adlar üretip envanterdeki "Pickled Jalapenos / Chili
-> Flakes"i EKSİK sayıyordu; sepette ürün uygulama dili EN iken "taze kişniş"
-> görünüyordu. Üç parça çözüm:
+> Kök sorun: tarif eş anlamlı/karşı dilde ad üretince envanterdeki ürün
+> yanlışlıkla "eksik" sayılıyordu; sepette adlar uygulama diline uymuyordu.
+> Kararlar (üretim/eşleştirme kuralları "Envanter → tarif" bölümüne
+> gömülüdür — "İki dillilik + deterministik mutabakat" maddesi; cache
+> sürümü "Tarif önbelleği"nde, v5):
 >
-> - **3a — çift dilli envanter adı:** `InventoryItem.nameTr/nameEn` (i18n
->   oturumunda eklendi) + persist migration v1 (`store/inventoryStore.ts`:
->   iki alan da boş eski kayıtlara `nameTr = name` yazılır) + AÇILIŞ
->   backfill'i (`app/_layout.tsx`, hidrasyon SONRASI — eksik karşılıklar
->   dil başına TEK toplu çağrıyla arka planda tamamlanır, hata sessiz,
->   sonraki açılışta yeniden dener). Envanter adı çevirisi ucuz modele
->   indirildi: `translateTexts` artık `claude-haiku-4-5` (tam tarif
->   çevirisi `translateRecipeTexts` sonnet'te kaldı). Vision prompt/şemaları
->   DEĞİŞMEDİ — çeviri parse SONRASI adım.
-> - **3b — üretim + eksik hesabı envanter adlarını kullanır:** prompt'lara
->   giden envanter listesi AKTİF dilin adlarıyla gider (`simplifyInventory
->   (inventory, language)`) ve ortak detay talimatına "envanterdeki
->   malzemenin adını listedeki yazımıyla AYNEN kullan, eş anlamlı üretme"
->   kuralı eklendi. Modele güvenilmez — deterministik emniyet katmanı:
->   `lib/recipes/ingredient-match.ts` (SAF; küçük harf + aksan temizliği +
->   tekil/çoğul toleransı + token alt-küme kuralı; name VE nameTr VE nameEn
->   kontrol edilir; fuzzy.ts'in token mantığından uyarlandı, mağaza-özel
->   kod taşınmadı). Her detay çağrısı SONRASI (ready-retry kararından ÖNCE)
->   `applyInventoryReconciliation`: eşleşen malzeme in_inventory: true +
->   adı envanterin aktif dildeki adıyla DEĞİŞTİRİLİR; missing_count/
->   match_pct yeniden hesaplanır. RAG akışı (lib/rag/generateRecipesRag)
->   aynı katmandan geçer. `computeMissing` de aynı `namesMatch`'i kullanır
->   (eski ham substring `includes` kalktı — "un" ⊂ "sabun" yanlış pozitifi
->   testle sabitlendi). KISMİ token örtüşmesi ("Red Pepper Flakes" ↔
->   "Chili Flakes") BİLİNÇLİ eşleşmez — eş anlamlıyı önlemek prompt'un işi,
->   lexical katman sadece yazım/dil/çoğul farklarını kapatır.
->   `GENERATION_VERSION` v4 → v5 (eski cache atılır). Testler:
->   tests/unit/ingredient-match.test.ts + recipe-math.test.ts senaryo
->   testleri (70/70 geçiyor, `npx tsx --test`).
-> - **3c — sepet dile kilitlenmez:** `CartEntry/CartItemView/
->   CartMissingInput` opsiyonel `nameTr/nameEn` taşır; kanonik `name`
->   tarifin ÜRETİLDİĞİ dildedir (birleştirme/işaretleme anahtarı değişmedi).
->   Karşı dil adı MEVCUT tarif çevirisinden index hizalı alınır
->   (`buildCartMissingInput`'un `counterpart` parametresi — ekstra çeviri
->   çağrısı KURULMADI, kullanıcı kararıyla kapsam sınırı: envanterde
->   olmayan gerçek eksikler çevirisi yoksa üretim dilinde kalır). Render
->   (`CartCategorySection`, `ProductMatchSheet`) aktif dile göre seçer —
->   dil değişince sepettekiler birlikte değişir. TUTARLILIK kuralı: eksik
->   hesabının kanonik kaynağı ORİJİNAL tariftir — detay ekranı, RecipeCard
->   (artık yerelleştirilmiş prop yerine recipeStore'daki orijinali bulur)
->   ve PlanDayPickerSheet, computeMissing + sepete yazmada AYNI orijinal
->   kayıt + iki dilli genişletilmiş envanter/kiler girdisini kullanır
->   (rozet "3 eksik" derken sepete 1 ürün yazma tutarsızlığının kök nedeni
->   buydu: rozet çevrilmiş kopyadan, sepet orijinalden hesaplanıyordu).
+> - **KURAL: `InventoryItem`/`PantryItem` adları çift dilli** (`nameTr`/
+>   `nameEn`; persist migration eski kayda `nameTr = name` yazar). Eksik
+>   karşılıklar arka planda backfill edilir (`app/_layout.tsx` hidrasyon
+>   sonrası + dil değişimi + asistan ekleme; dil başına TEK toplu çağrı,
+>   hata sessiz, sonraki açılışta yeniden dener). Envanter adı çevirisi
+>   `translateTexts` = `claude-haiku-4-5` (ucuz); TAM tarif çevirisi
+>   `translateRecipeTexts` sonnet'te. Vision prompt/şemaları DEĞİŞMEDİ —
+>   çeviri parse SONRASI adımdır.
+> - **KURAL: sepet dile kilitlenmez ama kanonik `name` tarifin ÜRETİLDİĞİ
+>   dildedir** (birleştirme/işaretleme anahtarı) — `CartEntry`/görünümler
+>   opsiyonel `nameTr/nameEn` taşır, render aktif dile göre seçer. Karşı
+>   dil adı MEVCUT tarif çevirisinden index hizalı alınır
+>   (`buildCartMissingInput` `counterpart` — ekstra çeviri çağrısı
+>   KURULMADI, bilinçli kapsam sınırı: çevirisi olmayan eksik üretim
+>   dilinde kalır).
+> - **KURAL: eksik hesabının kanonik kaynağı ORİJİNAL tariftir** — detay
+>   ekranı, RecipeCard (yerelleştirilmiş prop yerine recipeStore'daki
+>   orijinali bulur) ve PlanDayPickerSheet, `computeMissing` + sepete
+>   yazmada AYNI orijinal kayıt + iki dilli genişletilmiş envanter/kiler
+>   girdisini kullanır. (Rozet çevrilmiş kopyadan, sepet orijinalden
+>   hesaplanınca "rozet 3 eksik / sepete 1 ürün" tutarsızlığı doğmuştu.)
+> - Testler: `tests/unit/ingredient-match.test.ts` + `recipe-math.test.ts`
+>   (`npx tsx --test`, 70/70).
 
 > ## MVP-24 (2026-07-18) — MARKET SEPETİ: AH & JUMBO FİYAT KARŞILAŞTIRMA
 >
@@ -199,9 +174,9 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   (`MatchCache` arayüzü) — eval scripti Node'da dosya cache'iyle, app
 >   zustand adaptörüyle çalışır; ileride Supabase drop-in. Canlı eval
 >   (`npx tsx tests/match-eval/run-eval.ts`): %95 doğruluk (hedef ≥%85),
->   sıcak koşu 0.033 LLM/malzeme (hedef <0.2). "Eşleşme yok" sonucu
->   BİLEREK cache'lenmez (sortiman düzelince kendini onarır; koşu başına
->   birkaç yüz token'lık tekrar maliyeti kabul edildi).
+>   sıcak koşu 0.033 LLM/malzeme (hedef <0.2). **KURAL: "eşleşme yok"
+>   sonucu BİLEREK cache'lenmez** — sortiman düzelince kendini onarır;
+>   koşu başına birkaç yüz token'lık tekrar maliyeti kabul edildi.
 > - **Store'lar:** `matchCacheStore` (`yemek-app-match-cache`, kalıcı;
 >   kullanıcı düzeltmesi source:'user'/güven 100 — otomatik eşleşme
 >   EZMEZ, ürün sortimandan düşmedikçe), `storePriceStore`
@@ -334,9 +309,9 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 > - **Şefe Sor:** `lib/claude/askChef.ts` (claude-sonnet-4-6, tarif system
 >   bloğunda cache'li, geçmiş `store/chefChatStore.ts`'te recipeId bazlı,
 >   markdown YASAK — düz metin talimatı).
-> - **Metro düzeltmesi:** zustand v5 ESM'i web bundle'ını `import.meta` ile
->   kırıyordu; `metro.config.js`'te `unstable_conditionNames`'ten "import"
->   çıkarıldı (native davranış değişmedi).
+> - **KURAL: `metro.config.js` `unstable_conditionNames`'ten "import"
+>   ÇIKARILDI — geri EKLEME:** zustand v5 ESM'i web bundle'ını
+>   `import.meta` ile kırar (native davranış değişmedi).
 > - **Mikrofon (sesli giriş) MVP DIŞI** (buton var, "yakında" uyarısı verir);
 >   kamera ilerleme halkası saf View'la (yeni paket YOK, react-native-svg yok).
 > - Supabase durumu (2026-07-18'de güncellendi): KISMEN kurulu — yalnız
@@ -734,21 +709,18 @@ tarafında garanti ettiği için parser kırılganlığı sınıfça ortadan kal
 
 #### Store modları: tam tarama vs ekleme (MVP-12)
 
-`store/inventoryStore.ts` iki mod sunar; hangisinin kullanılacağına
-`app/(tabs)/index.tsx` analiz akışında karar verir:
+`store/inventoryStore.ts` iki mod sunar; seçimi `app/(tabs)/index.tsx`
+analiz akışında yapılır:
 
-- **Video analizi = TAM TARAMA (`replaceItems`):** analiz başarıyla
-  tamamlanınca mevcut envanter yeni listeyle DEĞİŞTİRİLİR — miktar toplama
-  yok. Kök neden: video buzdolabının o anki TAM halini gösterir; eski
-  birikimli `addItems` davranışı aynı videonun ikinci analizinde miktarları
-  katlıyordu (2 süt → 4 süt). Kullanıcının elle eklediği/düzenlediği
-  kayıtlar da yenilenir — BİLİNÇLİ olarak basit tutuldu, karmaşık
-  birleştirme mantığı KURULMADI. Değiştirmeden önce `Alert` ile onay
-  istenir ("Mevcut envanter yeni taramayla değiştirilecek, onaylıyor
-  musun?") — onay, 40+ saniyelik analiz boşa gitmesin diye API çağrısından
-  ÖNCE sorulur; envanter zaten boşsa sorulmaz.
-- **Fiş/fotoğraf akışı = EKLEME (`addItems`):** mevcut davranış korundu —
-  aynı ad+birim varsa miktarlar toplanır, yoksa yeni kayıt eklenir.
+- **KURAL: video analizi = TAM TARAMA (`replaceItems`)** — envanter yeni
+  listeyle DEĞİŞTİRİLİR, miktar toplama yok. Video dolabın o anki TAM
+  halini gösterir; birikimli `addItems` aynı videonun ikinci analizinde
+  miktarları katlıyordu (2 süt → 4 süt). Elle eklenen kayıtlar da
+  yenilenir — BİLİNÇLİ basit tutuldu, birleştirme mantığı kurulmadı.
+- **KURAL: değiştirme onayı (`Alert`) API çağrısından ÖNCE sorulur** —
+  40+ saniyelik analiz boşa gitmesin; envanter zaten boşsa sorulmaz.
+- **Fiş/fotoğraf akışı = EKLEME (`addItems`):** aynı ad+birim varsa
+  miktarlar toplanır, yoksa yeni kayıt.
 
 > **Varyans gerçeği (MVP-12 ölçümünün dersi):** temperature 0.2 ile bile
 > koşudan koşuya ürün listesi doğal olarak oynar (isimlendirme + düşük
@@ -858,6 +830,25 @@ malzeme sayısı) × 100)`, `missing_count` = `in_inventory: false` sayısı.
 `image_prompt_en` görsel üretimi içindir (bkz. "Tarif görselleri"): tool
 şemasında zorunlu (Claude tarif üretirken doldurur, ekstra LLM çağrısı
 YOK) ama TS tipinde opsiyonel (eski cache'lerle uyum).
+
+**İki dillilik + deterministik mutabakat (ENVANTER-2DİL kuralları):**
+- Prompt'lara giden envanter listesi AKTİF dilin adlarıyla gider
+  (`simplifyInventory(inventory, language)`); ortak detay talimatında
+  "envanterdeki malzemenin adını listedeki yazımıyla AYNEN kullan, eş
+  anlamlı üretme" kuralı vardır.
+- **KURAL: modelin `in_inventory` işaretlemesine tek başına güvenilmez** —
+  her detay çağrısı SONRASI (ready-retry kararından ÖNCE)
+  `applyInventoryReconciliation` koşar: `lib/recipes/ingredient-match.ts`
+  `namesMatch` (SAF modül; küçük harf + aksan temizliği + tekil/çoğul
+  toleransı + token alt-küme kuralı; `name` VE `nameTr` VE `nameEn`
+  kontrol edilir) eşleşen malzemeyi `in_inventory: true` yapar + adını
+  envanterin aktif dildeki adıyla değiştirir; `missing_count`/`match_pct`
+  yeniden hesaplanır. RAG akışı da aynı katmandan geçer.
+- **KURAL: `computeMissing` aynı `namesMatch`'i kullanır** — ham substring
+  `includes` YASAK ("un" ⊂ "sabun" yanlış pozitifi testle sabitlendi).
+- **KURAL: KISMİ token örtüşmesi ("Red Pepper Flakes" ↔ "Chili Flakes")
+  BİLİNÇLİ eşleşmez** — eş anlamlıyı önlemek PROMPT'un işidir; lexical
+  katman yalnız yazım/dil/çoğul farklarını kapatır.
 
 **UI (app/(tabs)/recipes.tsx, MVP-11; kademeli gösterim MVP-14, tek-tek/
 canlı gösterim MVP-15; eksik-bazlı bölümleme MVP-16):** cache'lenmiş/statik
@@ -1061,14 +1052,13 @@ kullanır. Vision'a dokunmadan değiştirilebilir.
 - **Thumbnail:** listede `expo-image-manipulator` ile 320px'e küçültülmüş
   kopya, detay ekranında (`RecipeHeroImage`) orijinal gösterilir. Thumbnail
   üretimi NON-FATAL: başarısız olursa kartta da orijinal kullanılır.
-- **Dosya yazımı `write(base64, {encoding:'base64'})` KULLANMAZ** — bu
-  seçeneğin native desteği expo-file-system 19.0.16'da eklendi ve Expo
-  Go'nun gömülü native modülü node_modules'taki JS sürümünden BAĞIMSIZ
-  (daha eski) olabilir; ilk sürümde görsellerin telefonda hiç görünmemesinin
-  kök nedeni buydu (MVP-9'daki "masaüstünde çalıştı, cihazda çöktü"
-  dersinin üçüncü örneği — hata, hook'taki sessiz catch yüzünden görünmezdi).
-  Bunun yerine base64 JS'te çözülüp `Uint8Array` overload'ıyla yazılır
-  (yeni FS API'sinin ilk gününden beri var, sürüm farkından etkilenmez).
+- **KURAL: dosya yazımında `write(base64, {encoding:'base64'})` KULLANMA** —
+  native desteği expo-file-system 19.0.16'da geldi; Expo Go'nun gömülü
+  native modülü node_modules'taki JS sürümünden ESKİ olabilir (görsellerin
+  cihazda hiç görünmemesinin kök nedeniydi; hata sessiz catch'te gizliydi —
+  MVP-9'un "masaüstünde çalıştı, cihazda çöktü" dersinin üçüncü örneği).
+  Base64 JS'te çözülüp `Uint8Array` overload'ıyla yazılır (API'nin ilk
+  gününden beri var, sürüm farkından etkilenmez).
 - **Placeholder/layout:** görsel alanı ve placeholder BİREBİR aynı boyutta —
   kartta 80px kare (`rounded-xl`), detayda tam genişlik 4:3 (`rounded-2xl`);
   placeholder emerald-50 zemin + ortada büyük emoji
