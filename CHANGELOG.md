@@ -1,5 +1,10 @@
 # Changelog
 
+> ⚠️ **Bu dosya MVP-4'ten sonra güncellenmedi ve KAPATILDI.** Proje
+> tarihçesi ve ölçüm arşivi artık
+> `.claude/skills/yemek-app/references/HISTORY.md`'de tutulur; güncel
+> kurallar `.claude/skills/yemek-app/SKILL.md`'dedir.
+
 ## MVP-4 — 2026-07-05
 
 Aynı iki aşamalı mimariyi Gemini'ye de uygula, varsayılan sağlayıcıyı
