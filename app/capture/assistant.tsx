@@ -16,8 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { parseIngredients, type ParsedIngredient } from '@/lib/claude/parseIngredients';
-import { llmOutputLanguage } from '@/src/i18n';
-import { backfillInventoryTranslations } from '@/src/i18n/inventoryI18n';
+import { getAppLanguage, llmOutputLanguage } from '@/src/i18n';
+import {
+  backfillInventoryTranslations,
+  backfillPantryTranslations,
+} from '@/src/i18n/inventoryI18n';
 import { Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
@@ -110,11 +113,15 @@ export default function AssistantAddScreen() {
     if (selected.length === 0) {
       return;
     }
+    // Adlar aktif dilde üretildi (parseIngredients outputLanguage) — kiler
+    // kaydına kaynak dilin alanı hemen yazılır, karşı dil backfill'e kalır.
+    const sourceLanguageField = getAppLanguage() === 'tr' ? 'nameTr' : 'nameEn';
     if (targetMode === 'pantry') {
       // Kiler modunda kategori: bakliyat/tahıl kendi kategorisine, kalanı 'Kiler'.
       addPantryItems(
         selected.map((item) => ({
           name: item.name,
+          [sourceLanguageField]: item.name,
           category: item.pantryCategory ?? ('Kiler' as const),
           active: true,
         }))
@@ -129,6 +136,7 @@ export default function AssistantAddScreen() {
         addPantryItems(
           pantryBound.map((item) => ({
             name: item.name,
+            [sourceLanguageField]: item.name,
             category: item.pantryCategory!,
             active: true,
           }))
@@ -143,6 +151,8 @@ export default function AssistantAddScreen() {
     // src/i18n/inventoryI18n.ts). Hata akışı bozmaz, ekleme çoktan bitti.
     void backfillInventoryTranslations('tr').catch(() => {});
     void backfillInventoryTranslations('en').catch(() => {});
+    void backfillPantryTranslations('tr').catch(() => {});
+    void backfillPantryTranslations('en').catch(() => {});
     setIsDone(true);
     setTimeout(() => router.back(), 900);
   }

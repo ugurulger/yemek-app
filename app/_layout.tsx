@@ -16,10 +16,14 @@ import 'react-native-reanimated';
 import '../global.css';
 // i18n init'i (dil algılama + kayıtlı seçim) her şeyden önce yüklenir.
 import '@/src/i18n';
-import { backfillInventoryTranslations } from '@/src/i18n/inventoryI18n';
+import {
+  backfillInventoryTranslations,
+  backfillPantryTranslations,
+} from '@/src/i18n/inventoryI18n';
 import { initLanguageSync } from '@/src/i18n/languageSync';
 import { ToastHost } from '@/components/ui';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { usePantryStore } from '@/store/pantryStore';
 
 // Dil değişiminde envanter/tarif çevirilerini arka planda tamamlayan dinleyici
 // (bkz. src/i18n/languageSync.ts) — i18n init'inden hemen sonra, bir kez.
@@ -91,6 +95,21 @@ export default function RootLayout() {
       return undefined;
     }
     return useInventoryStore.persist.onFinishHydration(run);
+  }, []);
+
+  // Aynı backfill kalıbı KULLANICI kiler malzemeleri için (Ekmek/Peynir gibi
+  // asistanla eklenenler; varsayılan 20'nin çevirisi i18n anahtarından gelir,
+  // onlar atlanır — bkz. backfillPantryTranslations).
+  useEffect(() => {
+    const run = () => {
+      void backfillPantryTranslations('tr').catch(() => {});
+      void backfillPantryTranslations('en').catch(() => {});
+    };
+    if (usePantryStore.persist.hasHydrated()) {
+      run();
+      return undefined;
+    }
+    return usePantryStore.persist.onFinishHydration(run);
   }, []);
 
   if (!loaded) {

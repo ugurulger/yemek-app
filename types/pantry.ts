@@ -17,8 +17,20 @@ export type PantryCategory = (typeof PANTRY_CATEGORIES)[number];
 
 export interface PantryItem {
   id: string;
-  /** Jenerik Türkçe malzeme adı — tarif üretim promptuna bu ad gider. */
+  /**
+   * Kanonik malzeme adı — varsayılan 20 malzemede Türkçe'dir ve çevirisi
+   * i18n etiketiyle yapılır (labels.ts PANTRY_ITEM_KEYS). Kullanıcının
+   * asistanla eklediği malzemelerde eklendiği dildedir.
+   */
   name: string;
+  /**
+   * Kullanıcı eklemeleri için iki dilli ad karşılıkları (envanterdeki
+   * nameTr/nameEn kalıbıyla aynı — bkz. types/inventory.ts). Varsayılan
+   * malzemelerde DOLDURULMAZ (onların çevirisi i18n anahtarından gelir);
+   * eksik karşılık backfillPantryTranslations ile arka planda tamamlanır.
+   */
+  nameTr?: string;
+  nameEn?: string;
   category: PantryCategory;
   /** true = evde var sayılır; kullanıcı chip'e dokununca toggle edilir. */
   active: boolean;

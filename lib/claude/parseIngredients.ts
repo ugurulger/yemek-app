@@ -32,6 +32,10 @@ function buildSystemPrompt(outputLanguage: string): string {
   );
 }
 
+// NOT: name alanının description'ı bilinçli olarak dil SÖYLEMEZ — dil kuralı
+// sistem promptunda parametriktir (outputLanguage, B3). Buradaki eski sabit
+// "Türkçe" ifadesi, İngilizce modda bile modele Türkçe ad ürettiriyordu
+// (kullanıcı gözlemi: EN girişte onay chip'leri Türkçe geliyordu).
 const SUBMIT_INGREDIENTS_SCHEMA = {
   type: 'object',
   properties: {
@@ -40,7 +44,10 @@ const SUBMIT_INGREDIENTS_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'Jenerik Türkçe malzeme adı (markasız)' },
+          name: {
+            type: 'string',
+            description: 'Jenerik malzeme adı, istenen çıktı dilinde (markasız)',
+          },
           qty: { type: 'number', description: 'Miktar; metinde belirtilmemişse 1' },
           unit: { type: 'string', enum: [...INVENTORY_UNITS] },
           emoji: { type: 'string', description: 'Malzemeyi anlatan tek emoji' },

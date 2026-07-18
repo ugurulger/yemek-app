@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { LastUpdatedLabel } from '@/components/inventory/LastUpdatedLabel';
 import { colors } from '@/lib/theme';
-import { pantryCategoryKey, pantryItemKey } from '@/src/i18n/labels';
+import { pantryDisplayName } from '@/src/i18n/inventoryI18n';
+import { pantryCategoryKey } from '@/src/i18n/labels';
 import { usePantryStore } from '@/store/pantryStore';
 import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from '@/types/pantry';
 
@@ -117,7 +118,10 @@ function PantryCategoryCard({
         {items.map((item) => (
           <Chip
             key={item.id}
-            label={t(pantryItemKey(item.name))}
+            // pantryDisplayName: varsayılanlar i18n anahtarıyla, kullanıcı
+            // eklemeleri nameTr/nameEn ile çevrilir — anahtarı olmayan ada
+            // t() çağrılmaz ("EKSİK ÇEVİRİ ANAHTARI" uyarısının kaynağıydı).
+            label={pantryDisplayName(item)}
             selected={item.active}
             onPress={() => onToggle(item.id)}
             size="compact"

@@ -21,8 +21,9 @@ import {
   type RecipeLayerId,
 } from '@/lib/claude/generateRecipes';
 import { generateRecipesRag, RAG_ENABLED } from '@/lib/rag/generateRecipesRag';
-import { llmOutputLanguage } from '@/src/i18n';
-import { useLocalizedRecipes } from '@/src/i18n/recipeI18n';
+import { getAppLanguage, llmOutputLanguage } from '@/src/i18n';
+import { pantryPromptNames } from '@/src/i18n/inventoryI18n';
+import { ensureRecipeTranslations, useLocalizedRecipes } from '@/src/i18n/recipeI18n';
 import { cardShadow, colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
@@ -84,7 +85,14 @@ export default function TariflerScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [slots, setSlots] = useState<RecipeSlotState[]>([]);
 
-  const activePantryNames = pantryItems.filter((item) => item.active).map((item) => item.name);
+  const activePantryItems = pantryItems.filter((item) => item.active);
+  // Bulgu 1 (analysis/rag-analysis.md §7b): prompta giden kiler adları çıktı
+  // DİLİNDE olmalı — TR adlar İngilizce üretimde sahte eksik yaratıyordu.
+  // Varsayılanlar statik i18n etiketiyle, kullanıcı eklemeleri nameTr/nameEn
+  // alanlarıyla çevrilir (LLM çağrısı yok); RAG yolu item listesini alır ve
+  // kendi içinde her zaman İngilizce'ye çevirir.
+  const promptPantryNames = () =>
+    pantryPromptNames(activePantryItems, llmOutputLanguage() === 'Turkish' ? 'tr' : 'en');
 
   async function handleGenerateRecipes() {
     // Önbellek kuralı: envanter + tercihler değişmediyse tarifler yeniden
@@ -107,12 +115,12 @@ export default function TariflerScreen() {
       // Supabase edge function'ına gider (tek çağrı, canlı slot gösterimi yok —
       // ekran genel iskeletlerde bekler); kapalıyken mevcut akış AYNEN çalışır.
       const merged = RAG_ENABLED
-        ? await generateRecipesRag(inventoryItems, { preferences, activePantryNames })
+        ? await generateRecipesRag(inventoryItems, { preferences, activePantry: activePantryItems })
         : await generateRecipesTwoPhase(inventoryItems, {
         // Tercihler + aktif kiler üretim promptuna girer (servis kontratı —
         // bkz. services/contracts.ts, GenerateRecipesOptions).
         preferences,
-        activePantryNames,
+        activePantryNames: promptPantryNames(),
         // Çıktı dili aktif uygulama dilinden (BLOK B / B3).
         outputLanguage: llmOutputLanguage(),
         // Aşama 1 (isim/plan) döner dönmez 6 slot oluşturulur — her biri
@@ -147,6 +155,14 @@ export default function TariflerScreen() {
         },
       });
       setRecipes(merged, fingerprint);
+      // Dil politikası (lib/rag/generateRecipesRag.ts): RAG yolu HEP
+      // İngilizce üretir; uygulama dili TR ise çeviriler burada arka planda
+      // başlatılır — hazır olan tarif useLocalizedRecipes ile kendiliğinden
+      // TR'ye döner, o ana kadar EN gösterilir. İki aşamalı yol aktif dilde
+      // ürettiği için bu çağrı onda no-op olurdu; yine de RAG'e sınırlandı.
+      if (RAG_ENABLED && getAppLanguage() !== 'en') {
+        void ensureRecipeTranslations(getAppLanguage());
+      }
     } catch (error) {
       // Domain hata mesajları (lib/claude) Türkçe teknik metinler — UI tam
       // yerelleşsin diye ekranda genel çevrilmiş mesaj gösterilir, orijinali
@@ -167,7 +183,7 @@ export default function TariflerScreen() {
     try {
       const context = {
         preferences,
-        activePantryNames,
+        activePantryNames: promptPantryNames(),
         outputLanguage: llmOutputLanguage(),
       };
       // Fine dining slotunun retry'ı kendi varyantını kullanır (İş 1).

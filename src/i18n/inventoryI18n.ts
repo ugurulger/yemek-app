@@ -19,6 +19,7 @@ import { pantryItemKey } from './labels';
 
 import { translateTexts, type TranslationLanguage } from '@/lib/claude/translate';
 import { useInventoryStore } from '@/store/inventoryStore';
+import { usePantryStore } from '@/store/pantryStore';
 import type { InventoryItem } from '@/types/inventory';
 import type { PantryItem } from '@/types/pantry';
 
@@ -105,6 +106,79 @@ export function expandInventoryForMatching(
   return expanded;
 }
 
+/** Kiler adı çözümlemede kullanılan minimum alanlar (PantryItem alt kümesi). */
+export interface PantryNameFields {
+  name: string;
+  nameTr?: string;
+  nameEn?: string;
+}
+
+/**
+ * Kiler malzemesinin verilen dildeki adı: varsayılan malzemeler statik i18n
+ * etiketiyle ("Tuz" → "Salt", LLM YOK), kullanıcı eklemeleri iki dilli
+ * alanlarıyla (nameTr/nameEn — asistan ekleme + backfill doldurur) çözülür;
+ * karşılık yoksa kanonik ada düşer.
+ */
+export function pantryNameForLanguage(item: PantryNameFields, language: AppLanguage): string {
+  const key = pantryItemKey(item.name);
+  if (key !== item.name) {
+    const translated = i18n.t(key, { lng: language });
+    if (typeof translated === 'string' && translated.length > 0 && translated !== key) {
+      return translated;
+    }
+  }
+  return (language === 'tr' ? item.nameTr : item.nameEn) ?? item.name;
+}
+
+/**
+ * Kiler chip'i/onay etiketi gösterim adı — AKTİF uygulama dilinde.
+ * `t(pantryItemKey(name))` kalıbının yerini alır: anahtarı olmayan kullanıcı
+ * eklemelerinde t() çağrısı yapılmaz (i18n "EKSİK ÇEVİRİ ANAHTARI" uyarısının
+ * kaynağı buydu), iki dilli alan varsa o kullanılır.
+ */
+export function pantryDisplayName(item: PantryNameFields): string {
+  return pantryNameForLanguage(item, getAppLanguage());
+}
+
+/**
+ * Kiler adlarını üretim isteğine gidecek dile çevirir (Bulgu 1 düzeltmesi —
+ * bkz. analysis/rag-analysis.md §7b): TR kiler adları İngilizce prompt'a
+ * girince model "salt"ı kilerle eşleştiremiyor ve sahte eksik üretiyordu;
+ * edge function'daki hibrit kısayol da aynı nedenle bloke oluyordu (canlı
+ * ölçüm: 8 tarifte 12 sahte eksik → EN kilerle 2).
+ */
+export function pantryPromptNames(
+  items: readonly PantryNameFields[],
+  language: AppLanguage
+): string[] {
+  return items.map((item) => pantryNameForLanguage(item, language));
+}
+
+/**
+ * Dil karşılığı eksik KULLANICI kiler malzemelerini tek toplu çeviriyle
+ * tamamlar (envanterdeki backfillInventoryTranslations kalıbı). Varsayılan
+ * malzemeler atlanır — çevirileri zaten i18n anahtarından gelir. Hata
+ * durumunda sessizce vazgeçilir; gösterim/prompt kanonik ada düşmeye devam eder.
+ */
+export async function backfillPantryTranslations(targetLanguage: AppLanguage): Promise<void> {
+  const { items, applyNameTranslations } = usePantryStore.getState();
+  const targetField = targetLanguage === 'tr' ? 'nameTr' : 'nameEn';
+  const missing = items.filter(
+    (item) => pantryItemKey(item.name) === item.name && !item[targetField]
+  );
+  if (missing.length === 0) {
+    return;
+  }
+
+  const translations = await translateTexts(
+    missing.map((item) => item.name),
+    toTranslationLanguage(targetLanguage)
+  );
+  applyNameTranslations(
+    missing.map((item, index) => ({ id: item.id, [targetField]: translations[index] }))
+  );
+}
+
 /**
  * computeMissing'in kiler parametresi için ad varyantlarını genişletir:
  * varsayılan kiler malzemelerinin (types/pantry.ts) çeviri anahtarları
@@ -113,7 +187,7 @@ export function expandInventoryForMatching(
  * Kullanıcının kendi eklediği (anahtarı olmayan) malzemeler adıyla kalır.
  */
 export function expandPantryForMatching(
-  pantryItems: readonly Pick<PantryItem, 'name' | 'active'>[]
+  pantryItems: readonly Pick<PantryItem, 'name' | 'nameTr' | 'nameEn' | 'active'>[]
 ): { name: string; active: boolean }[] {
   const expanded: { name: string; active: boolean }[] = [];
   for (const item of pantryItems) {
@@ -128,6 +202,12 @@ export function expandPantryForMatching(
         if (typeof translated === 'string' && translated.length > 0 && translated !== key) {
           variants.add(translated);
         }
+      }
+    }
+    // Kullanıcı eklemelerinin iki dilli alanları (asistan ekleme + backfill).
+    for (const fieldName of [item.nameTr, item.nameEn]) {
+      if (typeof fieldName === 'string' && fieldName.trim().length > 0) {
+        variants.add(fieldName);
       }
     }
     for (const name of variants) {

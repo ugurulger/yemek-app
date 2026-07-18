@@ -9,6 +9,85 @@ Bu skill, AI destekli yemek uygulamasının geliştirme kurallarını içerir.
 Bu projede kod yazmadan önce bu dosyayı oku ve buradaki kararlara uy.
 Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
+> ## RAG-EN (2026-07-18) — RAG HATTI HEP İNGİLİZCE + KİLER PROMPT DİLİ +
+> ## FINE DINING EXACT-SCAN
+>
+> Canlı ölçüm gerekçeli üç karar (ölçümler: `analysis/rag-analysis.md` §7 —
+> RAG kurulumu aynı gün tamamlandı: migration + 10k embedding + 524
+> fine-dining etiketi + edge function deploy; `EXPO_PUBLIC_USE_RAG` hâlâ
+> KAPALI, açma kararı ayrı verilecek):
+>
+> - **RAG hattı uygulama dilinden BAĞIMSIZ, HER ZAMAN İngilizce çalışır**
+>   (kullanıcı kararı; `lib/rag/generateRecipesRag.ts`): envanter `nameEn`
+>   adlarıyla (`simplifyInventory(inventory,'en')`), kiler statik EN
+>   çeviriyle, `language: "English"` ile gönderilir; tarifler `language:'en'`
+>   damgalanır. Gerekçe: korpus %100 EN (retrieval isabeti EN sorguda
+>   belirgin yüksek: 0.755 vs 0.722), EN üretim ~%25 hızlı/ucuz (~29s vs
+>   ~38s), Haiku'nun TR çıktısı pürüzlü. TR gösterim üretim SONRASI mevcut
+>   çeviri katmanıyla: `recipes.tsx` setRecipes ardından
+>   `ensureRecipeTranslations(getAppLanguage())` tetikler (RAG'e sınırlı);
+>   çeviri gelene dek EN gösterilir, gelince `useLocalizedRecipes` takas eder.
+> - **Prompt'a giden kiler adları çıktı DİLİNDE** (`pantryPromptNames`,
+>   `src/i18n/inventoryI18n.ts` — varsayılan 20 malzeme statik i18n
+>   etiketiyle çevrilir, LLM YOK; anahtarı olmayan kullanıcı malzemesi
+>   adıyla geçer). Kök neden: TR kiler adları EN üretimde modele
+>   bağlanamıyor → 8 tarifte 12 sahte eksik + edge function hibrit
+>   kısayolunun blokajı (ölçüldü; EN kilerle 12→2 ve kısayol 0.7s'de
+>   tetiklendi). İki aşamalı yol `promptPantryNames()` ile aktif dili,
+>   RAG kendi içinde hep EN'i kullanır. UI eşleştirmesi zaten iki dilliydi
+>   (`expandPantryForMatching`) — DEĞİŞMEDİ.
+> - **`match_recipes` fine dining yolu exact-scan'e alındı** (migration
+>   `20260718300000`, plpgsql): HNSW post-filter tuzağı — index top-40
+>   adayı getirip filtre SONRA uygulanıyordu, etiketliler havuzun ~%5'i
+>   olduğundan sorgu bölgesine göre 0-5 referans kalıyordu (makarna
+>   sorgularında 0 → fine dining tarifi hiç üretilemedi). filter_tag
+>   doluyken materialized CTE ile 524 satırlık alt kümede tam tarama;
+>   filter_tag null iken eski HNSW yolu birebir korunur.
+>
+> Aynı gün, cihaz testindeki kullanıcı geri bildirimiyle eklenen kararlar:
+>
+> - **Kiler artık ÇİFT DİLLİ** (`PantryItem.nameTr/nameEn`, envanter
+>   kalıbıyla aynı): varsayılan 20 malzeme i18n anahtarıyla çevrilmeye devam
+>   eder (alanları DOLDURULMAZ); asistanla eklenen ÖZEL malzemeler kaynak
+>   dil alanıyla yazılır, karşı dil `backfillPantryTranslations` ile arka
+>   planda tamamlanır (tetikler: açılış `_layout`, dil değişimi
+>   `languageSync`, asistan ekleme sonrası). Gösterim `pantryDisplayName`
+>   (src/i18n/inventoryI18n.ts) — anahtarı olmayan ada `t()` ÇAĞRILMAZ
+>   (terminaldeki "EKSİK ÇEVİRİ ANAHTARI: Ekmek/Peynir/Ceviz" uyarılarının
+>   kaynağı buydu). `pantryStore.addItems` mükerrer kontrolünü iki dilli
+>   varyantlarla yapar ("Ekmek" varken "Bread" ikinci kayıt açmaz).
+> - **`parseIngredients` şema düzeltmesi:** tool şemasındaki `name`
+>   description'ı sabit "Jenerik Türkçe malzeme adı" idi — sistem promptu
+>   çıktı dilini parametrik istese de model şemaya uyup EN modda Türkçe ad
+>   üretiyordu (kullanıcı gözlemi: EN girişte onay chip'leri Türkçe).
+>   Description dil-nötr yapıldı; dil kuralı yalnız sistem promptunda.
+> - **RAG edge function 2/4/2 katman dağılımı (kullanıcı kararı):** tam 2
+>   tarif SADECE envanter+kiler (0 eksik), 4 tarif 1-4 eksikli; fine dining
+>   İKİLİSİ zıt kurgulu — biri 0 eksik ("hemen pişir" seviyesinde rafine),
+>   diğeri tam 2-3 eksikli. Eski "Prefer recipes the user can cook NOW"
+>   satırı kaldırıldı (her şeyi 0 eksiğe itiyordu).
+> - **Edge function eksik hesabı client'la HİZALANDI:** `namesMatch`
+>   (lib/recipes/ingredient-match.ts) edge function'a bilinçli KOPYALANDI
+>   (edge bundle app koduna bağımlı olamaz — iki taraf birlikte
+>   güncellenmeli) ve üretim sonrası `reconcileRecipes` deterministik
+>   düzeltmesi eklendi. Kök neden: model "eksik" diye mevcut malzemenin
+>   VARYANTINI seçiyordu (kilerde Vinegar varken "Balsamic Vinegar") —
+>   sunucu ham alt-dize eşleştirmesiyle eksik sayarken client namesMatch'le
+>   evde-var sayıyor, tarif "alışverişle"den "hemen"e kayıp 2/4 dağılımını
+>   bozuyordu (kullanıcı gözlemi: 4 ready). Prompt'a "eksikler GERÇEKTEN
+>   yeni malzeme olsun, mevcutun varyantını eksik yazma" kuralı da eklendi.
+>   Hibrit kısayolun countMissing'i de aynı eşleştirmeye geçti ("un ⊂
+>   sabun" sınıfı yanlış pozitifler sunucudan da temizlendi). Dağılım
+>   kotası (2/4) prompt-yönlendirmeli kalır, KOD ZORLAMAZ — MVP-16'nın
+>   "kesin katman koddan gelir, dağılım garanti değil" ilkesiyle tutarlı.
+> - **Kiler retrieval sorgusuna dahil + kiler-yıldız kuralı:** queryText'e
+>   "Pantry staples: ..." satırı eklendi ve prompt'a "makarna/pirinç/bulgur
+>   gibi doyurucu kiler malzemeleri gerçek malzemedir, uygunsa en az bir
+>   tarifte taşıyıcı yap" kuralı kondu. Önceki "envantere öncelik ver,
+>   kilere yaslanma" ifadesi TERS TEPMİŞTİ (kullanıcı gözlemi: kilerde
+>   makarna/pirinç varken hiç makarnalı/pirinçli tarif çıkmıyordu —
+>   retrieval sorgusunda kiler hiç yoktu, prompt da kileri bastırıyordu).
+
 > ## IG-EĞİTİM GÖRSELLERİ (2026-07-18) — CAROUSEL'E STATİK AI GÖRSELLERİ
 >
 > IG içe aktarma eğitim carousel'inin (components/import/InstagramEduSheet)

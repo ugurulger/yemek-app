@@ -57,3 +57,6 @@ tests/vision-eval/fixtures/*.MOV
 
 # RAG embed script checkpoint'i (runtime durumu, bkz. scripts/embed-recipes.ts)
 data/.embed-checkpoint.json
+
+# Supabase CLI link/geçici dosyaları (proje-ref vb. — makineye özgü)
+supabase/.temp/

@@ -14,7 +14,7 @@
  * ekranlar kendiliğinden yenilenir.
  */
 import i18n, { type AppLanguage } from './index';
-import { backfillInventoryTranslations } from './inventoryI18n';
+import { backfillInventoryTranslations, backfillPantryTranslations } from './inventoryI18n';
 import { ensureRecipeTranslations } from './recipeI18n';
 
 let initialized = false;
@@ -29,6 +29,9 @@ export function initLanguageSync(): void {
     const language: AppLanguage = lng === 'tr' ? 'tr' : 'en';
     void backfillInventoryTranslations(language).catch((error) => {
       console.warn('[i18n] envanter çeviri backfill hatası:', error);
+    });
+    void backfillPantryTranslations(language).catch((error) => {
+      console.warn('[i18n] kiler çeviri backfill hatası:', error);
     });
     void ensureRecipeTranslations(language).catch((error) => {
       console.warn('[i18n] tarif çeviri hatası:', error);

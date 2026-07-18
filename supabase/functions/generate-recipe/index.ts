@@ -253,16 +253,82 @@ async function matchRecipes(
 // ---------------------------------------------------------------------------
 
 /**
- * Basit ad eşleştirme: envanter/kiler adı ile korpus malzeme adı (her ikisi
- * küçük harfe indirgenmiş) birbirini içeriyorsa "evde var" sayılır. Korpus
- * İngilizce, envanter Türkçe olduğundan diller karışıksa kısayol nadiren
- * tetiklenir — bilinçli MVP sınırı (bkz. README-rag.md).
+ * Ad eşleştirme — client'taki lib/recipes/ingredient-match.ts ile AYNI
+ * normalize token mantığının kopyası (edge bundle app koduna bağımlı olamaz,
+ * bilinçli kopya — iki taraf değişirse birlikte güncellenmeli). Eski ham
+ * alt-dize eşleştirmesi client'la FARKLI karar veriyordu: model "Balsamic
+ * Vinegar"ı eksik işaretliyor, client namesMatch ile kilerdeki "Vinegar"a
+ * eşleyip tarifi "hemen yapılabilir"e taşıyordu — sunucunun 2/4 katman
+ * dağılımı ekranda bozuluyordu (kullanıcı gözlemi: 4 ready).
  */
+function normalizeForMatch(name: string): string {
+  return name
+    .trim()
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stemToken(token: string): string {
+  if (token.length >= 6 && (token.endsWith('ler') || token.endsWith('lar'))) {
+    return token.slice(0, -3);
+  }
+  if (token.length >= 4 && token.endsWith('s')) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
+function tokenize(name: string): string[] {
+  return normalizeForMatch(name).split(' ').filter(Boolean).map(stemToken);
+}
+
+function tokenMatches(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+  return shorter.length >= 3 && longer.startsWith(shorter) && longer.length - shorter.length <= 2;
+}
+
+function namesMatch(a: string, b: string): boolean {
+  const tokensA = tokenize(a);
+  const tokensB = tokenize(b);
+  if (tokensA.length === 0 || tokensB.length === 0) return false;
+  const aInB = tokensA.every((ta) => tokensB.some((tb) => tokenMatches(ta, tb)));
+  const bInA = tokensB.every((tb) => tokensA.some((ta) => tokenMatches(ta, tb)));
+  return aInB || bInA;
+}
+
 function isAvailable(ingredientName: string, availableNames: string[]): boolean {
-  const target = ingredientName.toLowerCase();
-  return availableNames.some((available) => {
-    if (available.length < 3 || target.length < 3) return available === target;
-    return target.includes(available) || available.includes(target);
+  return availableNames.some((available) => namesMatch(ingredientName, available));
+}
+
+/**
+ * Üretim SONRASI deterministik düzeltme (client'taki applyInventoryReconciliation
+ * ile aynı ilke): envanter/kilerle eşleşen malzemeler in_inventory: true yapılır,
+ * missing_count/match_pct yeniden hesaplanır — modelin bayrağına güvenilmez.
+ * Böylece sunucunun katman dağılımı client'ın canlı hesabıyla AYNI dili konuşur.
+ */
+function reconcileRecipes(recipes: Recipe[], availableNames: string[]): Recipe[] {
+  return recipes.map((recipe) => {
+    const ingredients = recipe.ingredients.map((ingredient) =>
+      !ingredient.in_inventory && isAvailable(ingredient.name, availableNames)
+        ? { ...ingredient, in_inventory: true }
+        : ingredient
+    );
+    const missingCount = ingredients.filter((ingredient) => !ingredient.in_inventory).length;
+    return {
+      ...recipe,
+      ingredients,
+      missing_count: missingCount,
+      match_pct:
+        ingredients.length === 0
+          ? 100
+          : Math.round(((ingredients.length - missingCount) / ingredients.length) * 100),
+    };
   });
 }
 
@@ -386,13 +452,25 @@ function buildSharedRules(input: GenerateRecipeInput): string {
     : '';
   const preferencesRule =
     input.preferences && input.preferences.length > 0
-      ? `- User preferences (shape recipes around them): ${input.preferences.join(', ')}.\n`
+      ? `- User preferences — these MUST visibly shape the set (choice of dishes, techniques and textures), ` +
+        `not just be mentioned: ${input.preferences.join(', ')}. Different preference selections should ` +
+        'lead to noticeably different recipe sets.\n'
       : '';
   const pantryRule =
     input.pantry && input.pantry.length > 0
       ? `- Pantry staples always available at home (never count as missing, always in_inventory: true): ${input.pantry.join(', ')}.\n`
       : '';
-  return servingsRule + preferencesRule + pantryRule;
+  const languagePurityRule =
+    `- Never mix languages: every recipe name, ingredient name and step must be written entirely in ${input.language}, ` +
+    'even when the user inventory contains ingredient names in another language (translate them).\n';
+  // Model "eksik" olarak mevcut malzemenin varyantını seçince (Vinegar varken
+  // Balsamic Vinegar) deterministik düzeltme onu evde-var'a çevirir ve katman
+  // dağılımı kayar — eksikler GERÇEKTEN yeni malzemeler olmalı.
+  const genuineShoppingRule =
+    '- Shopping ingredients (in_inventory: false) must be genuinely NEW items: never list a variant of ' +
+    'something already available (if Vinegar is available, do not list Balsamic Vinegar as a shopping ' +
+    'item — either use the available item or pick a truly different ingredient).\n';
+  return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule;
 }
 
 function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
@@ -405,15 +483,27 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     'image_prompt_en (always English) keep their fixed values.\n' +
     '- Ground the recipes in the reference recipes where possible (adapt, simplify, combine), but adjust them ' +
     'to the user inventory; do not invent implausible dishes.\n' +
-    '- Prefer recipes the user can cook NOW: use inventory ingredients as the base; mark in_inventory per the ' +
-    'inventory list.\n' +
+    '- Use inventory ingredients as the base; mark in_inventory per the inventory list.\n' +
+    `- LAYER DISTRIBUTION (strict): exactly 2 of the ${input.count} recipes must be cookable RIGHT NOW ` +
+    'using ONLY inventory + pantry staples (every ingredient in_inventory: true). Every other recipe must ' +
+    'require 1-4 shopping ingredients (in_inventory: false) that genuinely elevate the dish — do not pad ' +
+    'recipes with unnecessary purchases, but do not force everything to be cookable now either.\n' +
     '- Use metric units (g/ml) or counts for ingredient quantities; qty is for the default servings.\n' +
     '- kcal is per person; ingredient kcal values are totals for the default servings and should roughly sum ' +
     'to kcal × servings.\n' +
-    '- Make the recipes diverse: different main ingredients, cooking techniques and meal types.\n' +
+    '- Make the recipes DIVERSE: spread them across different meal types (breakfast, main dish, soup, ' +
+    'salad, oven bake...) and different cooking techniques; no two recipes may share the same main ' +
+    'ingredient combination, and do not base every recipe on the same one or two reference recipes.\n' +
+    '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
+    'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
+    'ingredients too — when available, build at least one dish around one of them (a pasta dish, a rice ' +
+    'pilaf, a bake...), combined with inventory items.\n' +
     buildSharedRules(input) +
-    '\nReference recipes (retrieved by similarity):\n' +
-    buildContextBlock(matches)
+    // Dayanıklılık yolu: retrieval başarısızsa referans bloğu boş kalır —
+    // model envanterden bağımsız üretir, boş başlık altında liste beklemesin.
+    (matches.length > 0
+      ? '\nReference recipes (retrieved by similarity):\n' + buildContextBlock(matches)
+      : '\n(No reference recipes available — create the recipes from the inventory alone.)')
   );
 }
 
@@ -436,8 +526,11 @@ function buildFineDiningSystemPrompt(input: GenerateRecipeInput, matches: Matche
     'emulsifying, resting...), sauce/texture contrast, and a final PLATING step describing how to present ' +
     'the dish beautifully (composition, garnish, sauce placement).\n' +
     '- Ground the recipes in the reference recipes where possible (adapt, refine, elevate), but base the ' +
-    'ingredients on the user inventory; a few missing ingredients are acceptable — mark them ' +
-    'in_inventory: false exactly like the normal flow. Do not invent implausible dishes.\n' +
+    'ingredients on the user inventory; mark missing ingredients in_inventory: false exactly like the ' +
+    'normal flow. Do not invent implausible dishes.\n' +
+    '- CONTRAST (strict): the FIRST fine dining recipe must be cookable RIGHT NOW using only inventory + ' +
+    'pantry staples (every ingredient in_inventory: true) — elevated technique, zero shopping. The SECOND ' +
+    'must require exactly 2-3 shopping ingredients (in_inventory: false) that push it to restaurant level.\n' +
     '- Use metric units (g/ml) or counts for ingredient quantities; qty is for the default servings.\n' +
     '- kcal is per person; ingredient kcal values are totals for the default servings and should roughly sum ' +
     'to kcal × servings.\n' +
@@ -605,29 +698,64 @@ Deno.serve(async (request) => {
   try {
     const input = parseInput(await request.json());
 
-    // 1) Sorgu metni: envanter adları + tercihler (embedding modeli çok dilli —
-    //    Türkçe envanter, İngilizce korpusla makul eşleşir).
+    // 1) Sorgu metni: envanter adları + kiler + tercihler (embedding modeli
+    //    çok dilli — Türkçe envanter, İngilizce korpusla makul eşleşir).
+    //    Kiler sorguya BİLİNÇLİ dahil: makarna/pirinç gibi taşıyıcı kiler
+    //    malzemeleri sorguda yoksa retrieval o yemek ailelerini (pasta, pilav)
+    //    hiç getirmiyor ve üretim hep envanter kümesine sıkışıyordu
+    //    (kullanıcı gözlemi: "makarnalı/pirinçli hiçbir tarif yok").
     const inventoryNames = input.inventory.map((entry) => entry.name);
     const queryText =
       `Available ingredients: ${inventoryNames.join(', ')}` +
+      (input.pantry && input.pantry.length > 0
+        ? `\nPantry staples: ${input.pantry.join(', ')}`
+        : '') +
       (input.preferences && input.preferences.length > 0
         ? `\nPreferences: ${input.preferences.join(', ')}`
         : '');
 
     // 2) Embedding + 3) retrieval — normal havuz ve 'fine-dining' etiketli
     //    havuz aynı sorgu embedding'iyle PARALEL çekilir (İş 1b).
-    const queryEmbedding = await embedQuery(queryText);
-    const [matches, fineDiningMatches] = await Promise.all([
-      matchRecipes(queryEmbedding, CONFIG.matchCount),
-      matchRecipes(queryEmbedding, CONFIG.fineDiningMatchCount, CONFIG.fineDiningTag).catch(
-        (error) => {
-          // Fine dining retrieval'ı normal akışı DÜŞÜRMEZ (örn. tag-filtresi
-          // migration'ı henüz uygulanmadıysa) — loglanır, boş devam edilir.
-          console.error('[generate-recipe] fine dining retrieval hatası:', error);
-          return [] as MatchedRecipe[];
-        }
-      ),
-    ]);
+    //
+    // DAYANIKLILIK: embedding/retrieval'daki geçici hatalar (canlıda görüldü:
+    // PostgREST "JWT issued at future" saat kayması → tüm istek 500'e
+    // düşüyordu) üretimi ASLA düşürmez — her adım 1 kez yeniden denenir,
+    // yine olmazsa referanssız devam edilir (LLM tarifleri korpus bağlamı
+    // olmadan da üretir; RAG zenginleştirmedir, ön koşul değil).
+    const retryOnce = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
+      try {
+        return await run();
+      } catch (error) {
+        console.warn(`[generate-recipe] ${label} ilk deneme başarısız, tekrarlanıyor:`, error);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        return run();
+      }
+    };
+
+    const queryEmbedding = await retryOnce('embedding', () => embedQuery(queryText)).catch(
+      (error) => {
+        console.error('[generate-recipe] embedding alınamadı — referanssız üretim:', error);
+        return null;
+      }
+    );
+    const [matches, fineDiningMatches] = queryEmbedding
+      ? await Promise.all([
+          retryOnce('retrieval', () => matchRecipes(queryEmbedding, CONFIG.matchCount)).catch(
+            (error) => {
+              console.error('[generate-recipe] retrieval hatası — referanssız üretim:', error);
+              return [] as MatchedRecipe[];
+            }
+          ),
+          retryOnce('fine dining retrieval', () =>
+            matchRecipes(queryEmbedding, CONFIG.fineDiningMatchCount, CONFIG.fineDiningTag)
+          ).catch((error) => {
+            // Fine dining retrieval'ı normal akışı DÜŞÜRMEZ (örn. tag-filtresi
+            // migration'ı henüz uygulanmadıysa) — loglanır, boş devam edilir.
+            console.error('[generate-recipe] fine dining retrieval hatası:', error);
+            return [] as MatchedRecipe[];
+          }),
+        ])
+      : [[] as MatchedRecipe[], [] as MatchedRecipe[]];
 
     // İş 1b: fine dining üretimi normal akışla EŞZAMANLI başlar — kısayol
     // tetiklense de tetiklenmese de her yanıtta 2 fine dining tarifi hedeflenir.
@@ -652,7 +780,7 @@ Deno.serve(async (request) => {
     const top = matches[0];
     if (top && top.similarity >= CONFIG.matchThreshold && countMissing(top, availableNames) === 0) {
       const recipe = toDatabaseRecipe(top, availableNames);
-      const fineDiningRecipes = await fineDiningPromise;
+      const fineDiningRecipes = reconcileRecipes(await fineDiningPromise, availableNames);
       return new Response(
         JSON.stringify({
           source: 'database',
@@ -668,16 +796,23 @@ Deno.serve(async (request) => {
     }
 
     // 5) LLM üretimi (retrieval bağlamıyla) — fine dining çağrısıyla paralel.
-    const [recipes, fineDiningRecipes] = await Promise.all([
+    // Üretim sonrası her iki set de deterministik düzeltmeden geçer: modelin
+    // eksik sandığı ama envanter/kilerde varyantı bulunan malzemeler
+    // (örn. kilerde Vinegar varken "Balsamic Vinegar") evde-var'a çevrilir,
+    // missing_count buna göre yeniden hesaplanır — katman dağılımı client'ın
+    // canlı hesabıyla tutarlı kalır.
+    const [rawRecipes, rawFineDining] = await Promise.all([
       generateWithClaude(input, {
         count: input.count ?? CONFIG.defaultRecipeCount,
         systemPrompt: buildSystemPrompt(input, matches),
       }),
       fineDiningPromise,
     ]);
-    if (recipes.length === 0) {
+    if (rawRecipes.length === 0) {
       throw new Error('Tarif üretilemedi');
     }
+    const recipes = reconcileRecipes(rawRecipes, availableNames);
+    const fineDiningRecipes = reconcileRecipes(rawFineDining, availableNames);
 
     return new Response(
       JSON.stringify({

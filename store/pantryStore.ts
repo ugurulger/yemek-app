@@ -19,13 +19,27 @@ interface PantryState {
    */
   lastUpdatedAt: number | null;
   toggleItem: (id: string) => void;
-  /** Aynı ad (normalize) zaten varsa eklemez, pasifse aktifleştirir. */
+  /** Aynı ad (normalize, iki dilli alanlar dahil) zaten varsa eklemez, pasifse aktifleştirir. */
   addItems: (items: Omit<PantryItem, 'id'>[]) => void;
   removeItem: (id: string) => void;
+  /**
+   * Eksik dil karşılıklarını arka plan çevirisiyle tamamlar (kullanıcı
+   * eklemeleri için; varsayılan malzemeler i18n anahtarıyla çevrilir) —
+   * bkz. src/i18n/inventoryI18n.ts backfillPantryTranslations.
+   */
+  applyNameTranslations: (entries: { id: string; nameTr?: string; nameEn?: string }[]) => void;
 }
 
 function normalizeName(name: string): string {
   return name.trim().toLocaleLowerCase('tr-TR');
+}
+
+/** Ürünün bilinen tüm ad varyantları (kanonik + iki dilli) — mükerrer eklemeyi
+ * dil fark etmeksizin yakalamak için ("Ekmek" varken "Bread" eklenmesin). */
+function nameVariants(item: Pick<PantryItem, 'name' | 'nameTr' | 'nameEn'>): string[] {
+  return [item.name, item.nameTr, item.nameEn]
+    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+    .map(normalizeName);
 }
 
 function seedDefaults(): PantryItem[] {
@@ -48,17 +62,39 @@ export const usePantryStore = create<PantryState>()(
         set((state) => {
           const items = [...state.items];
           for (const newItem of newItems) {
-            const existing = items.findIndex(
-              (item) => normalizeName(item.name) === normalizeName(newItem.name)
+            const newVariants = nameVariants(newItem);
+            const existing = items.findIndex((item) =>
+              nameVariants(item).some((variant) => newVariants.includes(variant))
             );
             if (existing >= 0) {
-              items[existing] = { ...items[existing], active: true };
+              // Aktifleştir + yeni gelen dil karşılıklarını (varsa) tamamla —
+              // mevcut dolu alan EZİLMEZ.
+              items[existing] = {
+                ...items[existing],
+                active: true,
+                nameTr: items[existing].nameTr ?? newItem.nameTr,
+                nameEn: items[existing].nameEn ?? newItem.nameEn,
+              };
             } else {
               items.push({ ...newItem, id: `pantry-${Date.now()}-${items.length}` });
             }
           }
           return { items, lastUpdatedAt: Date.now() };
         }),
+      applyNameTranslations: (entries) =>
+        set((state) => ({
+          // lastUpdatedAt BİLİNÇLİ güncellenmez — arka plan çevirisi kullanıcı
+          // eylemi değildir, "son güncelleme" göstergesini oynatmamalı.
+          items: state.items.map((item) => {
+            const entry = entries.find((candidate) => candidate.id === item.id);
+            if (!entry) return item;
+            return {
+              ...item,
+              nameTr: item.nameTr ?? entry.nameTr,
+              nameEn: item.nameEn ?? entry.nameEn,
+            };
+          }),
+        })),
       removeItem: (id) =>
         set((state) => ({
           items: state.items.filter((item) => item.id !== id),
