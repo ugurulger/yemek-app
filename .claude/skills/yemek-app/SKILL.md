@@ -12,8 +12,10 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 > ## RAG-EN (2026-07-18) — RAG HATTI KARARLARI
 >
 > RAG kurulumu tamam (migration + 10k embedding + 524 fine-dining etiketi +
-> edge function deploy); `EXPO_PUBLIC_USE_RAG` hâlâ KAPALI, açma kararı
-> ayrı verilecek. Ölçüm gerekçeleri: `analysis/rag-analysis.md` §7.
+> edge function deploy); **`EXPO_PUBLIC_USE_RAG=true` — 2026-07-18'de
+> kullanıcı kararıyla AÇILDI** (.env; tarif üretimi artık RAG yolundan
+> akar, iki aşamalı yol kodda geri-dönüş olarak durur). Ölçüm gerekçeleri:
+> `analysis/rag-analysis.md` §7 + `analysis/rag-tuning-result.md`.
 >
 > - **KURAL: RAG hattı uygulama dilinden BAĞIMSIZ, HEP İngilizce çalışır**
 >   (kullanıcı kararı; `lib/rag/generateRecipesRag.ts`): envanter `nameEn`,
@@ -690,11 +692,12 @@ sağlayıcı seçim mekanizması (`VISION_PROVIDER` benzeri) YOK — iki özelli
 birbirinden bağımsız, sabit birer sağlayıcıya bağlı (tarif üretimi hep
 Claude, envanter çıkarımı hep Gemini/Claude karşılaştırması).
 
-> **RAG durumu (2026-07-18 tuning sonrası):** `EXPO_PUBLIC_USE_RAG=true`
-> arkasında alternatif üretim yolu var (`lib/rag/generateRecipesRag.ts` →
-> Supabase `generate-recipe` edge function'ı, canlı ve İNCE AYARLI) — şu an
-> varsayılan KAPALI; ölçüm sonucu **"şartlı açılabilir"** (göz testi + UX
-> kabulü bekliyor, `analysis/rag-tuning-result.md`). RAG hattı hep
+> **RAG durumu (2026-07-18 tuning sonrası):** tarif üretimi **AKTİF olarak
+> RAG yolundan akar** (`EXPO_PUBLIC_USE_RAG=true`, kullanıcı kararı;
+> `lib/rag/generateRecipesRag.ts` → Supabase `generate-recipe` edge
+> function'ı, canlı ve İNCE AYARLI — ölçümler
+> `analysis/rag-tuning-result.md`). Bu bölümün iki aşamalı akışı kodda
+> geri-dönüş yoludur (flag kaldırılırsa aynen çalışır). RAG hattı hep
 > İngilizce çalışır; canlı slot gösterimi YOK (ekran ~20s genel iskelette
 > bekler — bilinen sınır). Ölçülen durum: katman dağılımı iki aşamalı yolun
 > bandında (ready=2 stabil, alışveriş katmanları dolu), çeşitlilik hedefte,
