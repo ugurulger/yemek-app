@@ -715,8 +715,8 @@ yapar (sistem talimatı: "envanter listesine göre işaretle; kiler
 malzemelerini [MVP-16'dan beri geniş `PANTRY_STAPLES` listesi, bkz. yukarı]
 in_inventory: true say"). **MVP-15'ten itibaren `match_pct` ve
 `missing_count` MODELDEN İSTENMEZ** — ikisi de `ingredients[].
-in_inventory`'den KODDA deterministik hesaplanır (bkz. altta "MVP-15",
-`toRecipeDetail`): `match_pct = round((in_inventory=true sayısı / toplam
+in_inventory`'den KODDA deterministik hesaplanır (bkz. altta "İki aşamalı
+üretim", `toRecipeDetail`): `match_pct = round((in_inventory=true sayısı / toplam
 malzeme sayısı) × 100)`, `missing_count` = `in_inventory: false` sayısı.
 `image_prompt_en` görsel üretimi içindir (bkz. "Tarif görselleri"): tool
 şemasında zorunlu (Claude tarif üretirken doldurur, ekstra LLM çağrısı
@@ -755,7 +755,7 @@ kullanıcı kararı; tarif DETAY ekranındaki %uyum göstergesi duruyor). Tarif 
 `in_inventory: false` malzemelerin yanında amber "eksik" mikro-rozeti +
 sepet ikonu vardır; `in_inventory: true` olanlar sade kalır (tik ikonu
 YOK — gürültü olur, bilinçli karar). Üretim SIRASINDA gösterilen kademeli/
-canlı görünüm için bkz. altta "MVP-15".
+canlı görünüm için bkz. altta "Tek-tek/canlı gösterim".
 
 **Tarif önbelleği:** `store/recipeStore.ts` zustand `persist`
 (`yemek-app-recipes`); tarifler hangi envanter için üretildiyse
