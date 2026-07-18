@@ -1,5 +1,15 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt",
+        "hooks": [
+          { "type": "command", "command": "afplay /System/Library/Sounds/Glass.aiff &" }
+        ]
+      }
+    ]
   }
 }
