@@ -365,6 +365,32 @@ function titleTokens(title: string): string[] {
     .filter((token) => token.length >= 4 && !TITLE_STOP_TOKENS.has(token));
 }
 
+/**
+ * Referans başlıklarında BASKIN token (referansların yarısından fazlasında
+ * geçen, örn. "salmon") — bulunursa prompt'a ADIYLA somut bir tavan cümlesi
+ * yazılır. Ölçüm dersi (madde 3): jenerik "aynı yıldızı tekrarlama" kuralları
+ * 8/8 somon referansına yenik düşüyor; somut kelimeli kural pozisyonel dağılım
+ * kuralı gibi izlenebilir.
+ */
+function dominantReferenceToken(matches: MatchedRecipe[]): string | null {
+  if (matches.length < 4) return null;
+  const counts = new Map<string, number>();
+  for (const match of matches) {
+    for (const token of new Set(titleTokens(match.title))) {
+      counts.set(token, (counts.get(token) ?? 0) + 1);
+    }
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [token, count] of counts) {
+    if (count > bestCount) {
+      best = token;
+      bestCount = count;
+    }
+  }
+  return best !== null && bestCount > matches.length / 2 ? best : null;
+}
+
 function diversifyMatches(candidates: MatchedRecipe[], take: number): MatchedRecipe[] {
   const tokenCount = new Map<string, number>();
   const selected: MatchedRecipe[] = [];
@@ -534,6 +560,7 @@ function buildSharedRules(input: GenerateRecipeInput): string {
 }
 
 function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
+  const dominantToken = dominantReferenceToken(matches);
   return (
     'You are a recipe generator for a mobile cooking app. Using the user inventory and the similar ' +
     `reference recipes below, create ${input.count} distinct, realistic recipes.\n` +
@@ -567,6 +594,11 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     'bell pepper), then write the recipes. This holds EVEN IF the reference recipes are dominated by a ' +
     'single ingredient family — use the references for technique and structure, not to repeat their ' +
     'star; the other inventory items (eggs, vegetables, dairy, pantry carbs...) must carry the rest.\n' +
+    (dominantToken
+      ? `- CONCRETE CAP: the references below are dominated by "${dominantToken}" — AT MOST 2 of your ` +
+        `${input.count} recipes may contain ${dominantToken} at all; the other recipes must be built ` +
+        `entirely without ${dominantToken}.\n`
+      : '') +
     '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
     'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
     'ingredients too — when available, build at least one dish around one of them (a pasta dish, a rice ' +
@@ -587,6 +619,7 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
  * işaretlenir. Referanslar yalnızca 'fine-dining' etiketli havuzdan gelir.
  */
 function buildFineDiningSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
+  const dominantToken = dominantReferenceToken(matches);
   return (
     'You are a fine dining chef creating elevated recipes for a mobile cooking app. Using the user ' +
     `inventory and the fine dining reference recipes below, create ${CONFIG.fineDiningCount} distinct, ` +
@@ -600,6 +633,10 @@ function buildFineDiningSystemPrompt(input: GenerateRecipeInput, matches: Matche
     'the dish beautifully (composition, garnish, sauce placement).\n' +
     '- The two recipes must NOT share the same primary protein or star ingredient, even if the reference ' +
     'recipes all feature one — build the second dish around a different inventory item.\n' +
+    (dominantToken
+      ? `- CONCRETE CAP: the references below are dominated by "${dominantToken}" — only ONE of the two ` +
+        `recipes may contain ${dominantToken}; the other must be built entirely without it.\n`
+      : '') +
     '- Ground the recipes in the reference recipes where possible (adapt, refine, elevate), but base the ' +
     'ingredients on the user inventory; mark missing ingredients in_inventory: false exactly like the ' +
     'normal flow. Do not invent implausible dishes.\n' +
