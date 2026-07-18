@@ -264,9 +264,14 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   mock DEĞİL — akışın gerçek içeriği); import → Kategorisiz + kayıtlı +
 >   detay açılır.
 > - **Ortak altyapı:** `components/ui/BottomSheet.tsx` (referans sheet
->   iskeleti), global toast (`store/toastStore.ts` + `components/ui/
->   Toast.tsx`, host `app/_layout.tsx`'te; Animated.View NativeWind
->   className ALMAZ — stiller StyleSheet ile, canlı testte öğrenildi).
+>   iskeleti; sonradan eklenenler: backdrop opaklığı sheet hareketiyle
+>   SENKRON kademeli animasyon, zincirleme sheet geçişlerinde native Modal
+>   çakışmasını önleyen modül-seviyesi KAPANIŞ KİLİDİ, ve isim yazarken
+>   klavyenin sheet'i örtmemesi için `KeyboardAvoidingView` — cookbook
+>   isimlendirme şikayetiyle geldi), global toast (`store/toastStore.ts` +
+>   `components/ui/Toast.tsx`, host `app/_layout.tsx`'te; Animated.View
+>   NativeWind className ALMAZ — stiller StyleSheet ile, canlı testte
+>   öğrenildi).
 > - **Sekme reset:** Kayıtlı ekranı `useFocusEffect` cleanup'ında açık
 >   defteri/akışı/aramayı sıfırlar (genel state kuralı).
 > - Doğrulama: `npx tsc --noEmit` temiz, 12 birim test geçti, tüm akışlar
@@ -295,7 +300,8 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 > - **MVP kapsamı GENİŞLEDİ (kullanıcı onayı):** sepet, tarife özel chat
 >   (Şefe Sor), tarif tercihleri, Temel Malzemeler (kiler) ve asistanla/
 >   kamerayla ekleme artık KAPSAM İÇİ. "Kayıtlı" sayfası hâlâ kapsam dışı.
-> - **Navigasyon 3 sekme:** Mutfağım `/` · Tarifler `/recipes` · Market
+> - **Navigasyon 3 sekme (⚠️ MVP-23'te 5 SEKMEYE ÇIKTI, bkz. üstteki
+>   blok — bu madde tarihi kayıt):** Mutfağım `/` · Tarifler `/recipes` · Market
 >   `/market` (spec §7; eski "4 sekme" planı geçersiz). Tam ekran rotalar:
 >   `/capture/camera` (expo-camera, basılı-tut video → `store/captureStore`
 >   köprüsüyle Mutfağım'daki mevcut analiz akışına), `/capture/assistant`
@@ -303,9 +309,10 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   claude-haiku-4-5, zorunlu tool-use).
 > - **Recipe şeması v3:** `RecipeIngredient` artık `{name, qty, unit, kcal,
 >   category, in_inventory}` (qty/kcal varsayılan porsiyon içindir);
->   `Recipe.nutrition_tag` eklendi (kart meta şeridi). Tarif cache
->   `GENERATION_VERSION v3` + zustand persist migrate (eski cache atılır).
->   Parmak izi artık envanter + TERCİHLER + AKTİF KİLER içerir.
+>   `Recipe.nutrition_tag` eklendi (kart meta şeridi). Cache sürümü o gün
+>   v3'e çıktı — GÜNCEL sürüm ve parmak izi içeriği için bkz. "Tarif
+>   önbelleği" (v5; kiler v4'te parmak izinden ÇIKARILDI, bu bloktaki
+>   "parmak izi aktif kiler içerir" kararı artık geçerli değil).
 > - **Tercihler:** `types/preferences.ts` (4 kategori chip seçimi), Tarifler
 >   sekmesi cache geçersizse önce tercih ekranı gösterir; yenile butonu
 >   tercihlere döner. Tercih metni üretim promptlarına eklenir (ortak detay
@@ -332,9 +339,13 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   çıkarıldı (native davranış değişmedi).
 > - **Mikrofon (sesli giriş) MVP DIŞI** (buton var, "yakında" uyarısı verir);
 >   kamera ilerleme halkası saf View'la (yeni paket YOK, react-native-svg yok).
-> - Supabase HÂLÂ KURULU DEĞİL — kalıcılık zustand persist/AsyncStorage;
->   anahtarlar `.env` `EXPO_PUBLIC_*` (mevcut düzen korundu). "Mimari"
->   bölümündeki Supabase/TanStack satırları hedef mimaridir, mevcut durum değil.
+> - Supabase durumu (2026-07-18'de güncellendi): KISMEN kurulu — yalnız
+>   RAG tarif korpusu (`supabase/migrations/` 3 migration: pgvector +
+>   `match_recipes` + tag filtresi/exact-scan) ve `supabase/functions/
+>   generate-recipe` edge function'ı canlı (proje + kurulum: `README-rag.md`).
+>   Auth/kullanıcı verisi tarafı HÂLÂ YOK — uygulama kalıcılığı zustand
+>   persist/AsyncStorage; anahtarlar `.env` `EXPO_PUBLIC_*`. "Mimari"
+>   bölümündeki Supabase auth/TanStack satırları hedef mimaridir.
 
 > ## ⚠️ i18n (2026-07-18) — ÇOK DİLLİ UYGULAMA (BLOK B)
 >
@@ -363,9 +374,12 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 ## Mimari
 
 - **Framework:** React Native + Expo (managed workflow, TypeScript)
-- **Navigasyon:** expo-router, alt tab bar ile 3 sekme (Mutfağım · Tarifler ·
-  Market, MVP-22) + tam ekran `/capture/*` ve `/recipe/[id]` rotaları
-- **Backend:** Supabase (auth, Postgres, storage)
+- **Navigasyon:** expo-router, alt tab bar ile 5 sekme (Mutfağım `/` ·
+  Tarifler `/recipes` · Kayıtlı `/saved` · Plan `/plan` · Market `/market`,
+  MVP-23) + tam ekran `/capture/*` ve `/recipe/[id]` rotaları
+- **Backend:** Supabase — ŞU AN yalnız RAG tarif korpusu + `generate-recipe`
+  edge function canlı (bkz. `README-rag.md`); auth/Postgres kullanıcı
+  verisi/storage HEDEF mimaridir, kurulmadı (kalıcılık zustand persist)
 - **AI:** Claude API (`claude-sonnet-4-6`) — tarif üretimi, tarif chat'i
 - **AI:** Gemini görsel üretimi (`gemini-3.1-flash-lite-image`) — tarif
   kartı/detay görselleri, bkz. `services/images/` ("Tarif görselleri"
@@ -384,9 +398,9 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
 ## MVP kapsamı (öncelik sırası)
 
-> ⚠️ MVP-22 ile GENİŞLEDİ (bkz. üstteki MVP-22 bloğu): sepet, Şefe Sor
-> chat'i, tarif tercihleri, kiler ve kamera/asistan ekleme artık kapsam İÇİ.
-> Sadece "Kayıtlı" sayfası kapsam dışı kaldı.
+> ⚠️ MVP-22 ile GENİŞLEDİ: sepet, Şefe Sor chat'i, tarif tercihleri, kiler
+> ve kamera/asistan ekleme kapsam İÇİ. MVP-23 ile "Kayıtlı" (Defterlerim)
+> ve "Plan" da kapsama GİRDİ — artık kapsam dışı sayfa yok.
 
 Çekirdek iki özellik (öncelik hâlâ bunlarda):
 1. Fotoğraf/video ile ürün tanıma → envantere ekleme (Mutfağım sayfası)
@@ -396,18 +410,27 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
 1. **Mutfağım (`/`)** — Fiş fotoğrafı veya buzdolabı fotoğrafı/videosu
    yükleme; vision sağlayıcısıyla (varsayılan Gemini, bkz. "Mimari") ürün
-   çıkarımı; düzenlenebilir envanter listesi (miktar +/-, silme). Video
-   doğrudan API'ye gönderilmez: cihazda karelere ayrılır (bkz.
-   "Fotoğraf/Video → envanter").
-2. **Tarifler (`/recipes`)** — Envantere göre AI tarif önerileri. Her kart:
-   kalori, kişi sayısı, süre, makrolar, envanter uyum yüzdesi.
-   Detayda adım adım hazırlanış + **tarife özel chat** (her tarif için ayrı
-   konuşma geçmişi, `recipe_id` ile saklanır).
-3. **Market (`/market`)** — seçilen tariflerin eksik malzemeleri, malzeme
-   KATEGORİSİNE göre gruplu 2 sütun; kaynak tarif etiketleri, işaretleme,
-   "Tümünü tamamla"/"Listeyi temizle" (MVP-22; eski `/cart` planının yerini
-   aldı).
-4. ~~Kayıtlı (`/saved`)~~ — HÂLÂ kapsam dışı, ileride.
+   çıkarımı; düzenlenebilir envanter listesi; kiler (Temel Malzemeler)
+   chip'leri; blok başlıklarında son güncelleme tarihi
+   (`inventoryStore.lastUpdatedAt` — analiz/ekleme günceller, çeviri
+   backfill'i GÜNCELLEMEZ). Video Claude'a doğrudan gönderilmez: cihazda
+   karelere ayrılır (bkz. "Fotoğraf/Video → envanter"); Gemini'de native
+   video tek çağrıdır.
+2. **Tarifler (`/recipes`)** — Envantere göre AI tarif önerileri (6 standart
+   + 2 fine dining, bkz. "Envanter → tarif"). Her kart: kalori, kişi sayısı,
+   süre, makrolar, eksik rozeti. Detayda adım adım hazırlanış + **Şefe Sor**
+   (tarife özel chat; geçmiş `store/chefChatStore.ts`'te recipeId bazlı,
+   zustand persist — Supabase tablosu YOK).
+3. **Kayıtlı = Defterlerim (`/saved`, MVP-23)** — kolaj kapaklı defter
+   kartları, arama + sıralama, defter detayı 4'lü grid (canlı
+   `computeMissing` rozetli), FAB → içe aktarma akışı
+   (`components/import/`); `store/cookbookStore.ts` (importedRecipes
+   kopyalama kuralı — bkz. MVP-23 bloğu).
+4. **Plan (`/plan`, MVP-23)** — Pzt–Paz ajanda; `store/planStore.ts`,
+   `PlanEntry` ad/kcal/emoji DENORMALİZE taşır.
+5. **Market (`/market`)** — seçilen tariflerin eksik malzemeleri, malzeme
+   KATEGORİSİNE göre gruplu; kaynak tarif etiketleri, işaretleme; AH &
+   Jumbo fiyat karşılaştırması (MVP-24, bkz. o blok).
 
 ## Tasarım sistemi
 
@@ -639,15 +662,16 @@ Demo'da onaylanan görsel dil. Bundan sapma:
     trade-off'u bilerek tekrar tercih etti (kart artık daha az bilgi
     taşıdığı için kabul edilebilir görüldü).
 
-## Veritabanı şeması (Supabase)
+## Veritabanı (Supabase) — gerçek durum
 
-- `inventory_items(id, user_id, name, qty, unit, emoji, updated_at)`
-- `recipes(id, user_id, name, kcal, servings, time_min, macros jsonb,
-  ingredients jsonb, steps jsonb, created_at)`
-- `saved_recipes(user_id, recipe_id)`
-- `recipe_chats(id, recipe_id, user_id, role, content, created_at)`
-- `cart_items(id, user_id, name, recipe_name, checked)`
-- Tüm tablolarda RLS aktif: `user_id = auth.uid()`
+- Gerçek migration'lar SADECE RAG tarif korpusu içindir
+  (`supabase/migrations/`: pgvector'lu `recipes` korpus tablosu +
+  `match_recipes` RPC + tag filtresi/fine-dining exact-scan; kurulum ve
+  edge function: `README-rag.md`). Kullanıcı verisi tabloları
+  (envanter/sepet/chat vb.) YOK — kalıcılık zustand persist.
+- Hedef kullanıcı-verisi şeması, auth işi gündeme geldiğinde o işin
+  kapsamında tasarlanacak; burada önceden tutulan taslak şema kaldırıldı
+  (koda karşılık gelmiyordu).
 
 ## AI çağrı formatları
 
@@ -1002,13 +1026,30 @@ sağlayıcı seçim mekanizması (`VISION_PROVIDER` benzeri) YOK — iki özelli
 birbirinden bağımsız, sabit birer sağlayıcıya bağlı (tarif üretimi hep
 Claude, envanter çıkarımı hep Gemini/Claude karşılaştırması).
 
+> **RAG durumu:** `EXPO_PUBLIC_USE_RAG=true` arkasında alternatif bir üretim
+> yolu var (`lib/rag/generateRecipesRag.ts` → Supabase `generate-recipe`
+> edge function'ı, canlı) — şu an varsayılan KAPALI, açma kararı ayrı
+> verilecek. RAG hattı hep İngilizce çalışır ve TEK çağrıda final listeyi
+> döndürür — canlı slot gösterimi YOK (ekran genel iskeletlerde bekler).
+> 2/4/2 katman dağılımı, `namesMatch` kopyası + `reconcileRecipes` ve
+> hibrit kısayol düzeltmesi edge function'a işlendi (bkz. üstteki RAG-EN
+> bloğu); analiz ve ölçümler `analysis/rag-analysis.md`. Bu bölümdeki iki
+> aşamalı yolun katmanlama/canlı gösterim davranışı, RAG ayarının REFERANS
+> hedefidir.
+
 Girdi: envanter listesi (`{name, qty, unit}`'e sadeleştirilmiş). Çıktı:
-**TAM 6 tarif, 3 katman — katmanlar EKSİK MALZEME SAYISI bazlı** (MVP-16
-katman tanımı; MVP-11'in "9 tarif, match_pct yüzdesi bazlı" tanımı ve
-MVP-15'in ~3'er dağılımı DEĞİŞTİ — bkz. altta "MVP-16"): 2 tarif `ready`
-(`missing_count = 0`, SADECE envanter + kiler malzemeleri), 2 tarif
-`closeMatch` (1-2 eksik malzeme), 2 tarif `fewMissing` (3-4 eksik malzeme,
-yüksek temperature ile daha yaratıcı). **Kiler listesi MVP-16'da geniş
+**6 standart + 2 fine dining = TOPLAM 8 tarif** (`RECIPE_COUNT = 6`,
+`FINE_DINING_COUNT = 2`, `lib/claude/generateRecipes.ts`). Standart 6'nın
+katmanları EKSİK MALZEME SAYISI bazlı (MVP-16 katman tanımı; MVP-11'in
+"9 tarif, match_pct yüzdesi bazlı" tanımı ve MVP-15'in ~3'er dağılımı
+DEĞİŞTİ — bkz. altta "MVP-16"): 2 tarif `ready` (`missing_count = 0`,
+SADECE envanter + kiler malzemeleri), 2 tarif `closeMatch` (1-2 eksik
+malzeme), 2 tarif `fewMissing` (3-4 eksik malzeme, yüksek temperature ile
+daha yaratıcı). **Fine dining ikilisi** ayrı bir plan çağrısı
+(`SUBMIT_FINE_DINING_NAMES` aracı) + `FINE_DINING_VARIANT`'lı detay
+çağrılarıyla PARALEL üretilir; tarifler `category: 'fine-dining'` damgalanır,
+eksik-bazlı katmanlamaya KARIŞMAZ — listede ayrı "Fine Dining" bölümü +
+kartta ✦ rozeti (`RecipeList.tsx`, `RecipeCard.tsx`). **Kiler listesi MVP-16'da geniş
 tutuldu** (kullanıcı kararı: "temel baharatlar/kiler evde var kabul edilir",
 `PANTRY_STAPLES` sabiti, `lib/claude/generateRecipes.ts` — tek kaynak,
 promptlara interpolate edilir): tuz, karabiber, pul biber, kimyon, kekik,
@@ -1067,11 +1108,17 @@ mevcut listeyi kullanır. Bu kural MVP-14/15/16'nın mimari
 değişikliklerinde de aynen korundu — cache edilen şey her zaman üretim
 adımlarından BAĞIMSIZ, final BİRLEŞMİŞ liste (bkz. altta
 `mergeRecipeLayers`); üretim sırasındaki ara state (katman/slot durumları)
-sadece UI'da tutulur, kalıcı değildir. **MVP-16'dan itibaren parmak izi
-`GENERATION_VERSION` önekli** (`"v2|" + JSON`): üretim mantığı
-değiştiğinde sürüm artırılır ki envanteri değişmeyen kullanıcının eski
-mantıkla üretilmiş cache'i eşleşmeye devam edip yeni akışı sonsuza dek
-engellemesin (v2 = MVP-16).
+sadece UI'da tutulur, kalıcı değildir. **Parmak izi `GENERATION_VERSION`
+önekli ve GÜNCEL SÜRÜM v5** (`store/recipeStore.ts`): parmak izi =
+`sürüm | tercihler | sadeleştirilmiş envanter` — KİLER DAHİL DEĞİL.
+Üretim mantığı değiştiğinde sürüm artırılır ki envanteri değişmeyen
+kullanıcının eski mantıkla üretilmiş cache'i eşleşmeye devam edip yeni
+akışı sonsuza dek engellemesin. Sürüm tarihi: v2 = MVP-16 (sürümleme
+başladı) → v3 = MVP-22 (şema v3 + tercihler/kiler parmak izine girdi) →
+**v4 = kiler parmak izinden ÇIKARILDI** (kiler değişimi üretimi baştan
+başlatmaz; eksik rozetleri zaten canlı `computeMissing` ile güncellenir) →
+**v5 = iki dilli envanter/tarif adları** (ENVANTER-2DİL — eski tek dilli
+cache atılır).
 
 **MVP-14 (2026-07-08, tarihi not — MVP-15 ile DEĞİŞTİRİLDİ) — 9 tarifi 3
 paralel çağrıya bölme:** Profilleme, tek `submit_recipes` çağrısıyla 9
@@ -1221,22 +1268,24 @@ bölümüne kayıyordu; (2) kiler listesi çok dardı (tuz/karabiber/su/sıvı y
 
 **Tek-tek/canlı gösterim (`app/(tabs)/recipes.tsx`, `components/recipes/
 RecipeLayerSections.tsx`, `components/recipes/RecipeSkeletonCard.tsx`;
-MVP-15'te 9, MVP-16'dan beri 6 slot):**
-ekran artık `slots: RecipeSlotState[]` (6 eleman, plan sırasına göre sabit
-index) tutar — her slot `{name, estimatedLayer, status: loading|done|error,
-recipe, actualLayer}`. Üç aşama:
-1. **Aşama 1 dönmeden önce** (`slots.length === 0`): isimsiz, bölümsüz 6
-   genel iskelet kart (`RecipeSkeletonCard`, `name` prop'u YOK) düz bir
+MVP-15'te 9, MVP-16'da 6, fine dining ile 6+2 = 8 slot):**
+ekran artık `slots: RecipeSlotState[]` (8 eleman, plan sırasına göre sabit
+index) tutar — her slot `{name, estimatedLayer, fineDining, status:
+loading|done|error, recipe, actualLayer}`. `fineDining: true` slotlar ayrı
+"Fine Dining" bölümünde gösterilir ve retry'ları `generateFineDiningDetail`
+çağırır. Üç aşama:
+1. **Aşama 1 dönmeden önce** (`slots.length === 0`): isimsiz, bölümsüz
+   genel iskelet kartlar (`RecipeSkeletonCard`, `name` prop'u YOK) düz bir
    liste olarak gösterilir — henüz hangi tarifin hangi bölüme gideceği
    bilinmiyor.
-2. **Aşama 1 döner dönmez**: 6 slot isim + `estimatedLayer` ile oluşturulur,
+2. **Aşama 1 döner dönmez**: slotlar isim + `estimatedLayer` ile oluşturulur,
    `RecipeLayerSections` bunları `estimatedLayer`e göre bölümlere yerleştirir;
    her kart artık ADI GÖRÜNEN ama gövdesi hâlâ iskelet olan bir karttır
    (`RecipeSkeletonCard`'a `name` verilince başlık gri bar yerine gerçek
    metin olur — "isim biliniyor, detay yükleniyor" hissi).
 3. **Her Aşama 2 çağrısı TAMAMLANDIKÇA** o slot TEK BAŞINA `done`/`error`
-   olur — kart iskeletten dolu `RecipeCard`'a döner (diğer 5 kart
-   ETKİLENMEZ, MVP-14'teki "6 tarif aynı anda göründü" sorunu çözüldü) ve
+   olur — kart iskeletten dolu `RecipeCard`'a döner (diğer kartlar
+   ETKİLENMEZ, MVP-14'teki "tüm tarifler aynı anda göründü" sorunu çözüldü) ve
    bölüm ataması `actualLayer`e (MVP-16'dan beri gerçek `missing_count`)
    göre YENİDEN hesaplanır — tahmin yanlışsa kart doğru bölüme "taşınır";
    alışveriş bölümü içinde dolan kartlar eksik sayısına göre artan sıraya
@@ -1330,11 +1379,16 @@ cache'i BOZMAZ). Aşama 1 (`PLAN_SYSTEM_PROMPT`) TEK bir çağrı olduğu
 için cache_control KULLANMAZ — tekrar kullanılmayan bir önbellek yazma
 maliyeti kendini amorti etmez.
 
-### Tarif chat'i
-Her istek şunları içerir: tarifin tamamı + o tarife ait geçmiş mesajlar
-(`recipe_chats` tablosundan). Sistem talimatı: "Türkçe konuşan bir şefsin,
-yalnızca bu tarif bağlamında yanıt ver, tarifte değişiklik önerirken
-miktarları da güncelle."
+### Tarif chat'i (Şefe Sor)
+`lib/claude/askChef.ts` (`claude-sonnet-4-6`). Her istek: `CHEF_INSTRUCTIONS`
++ çıktı dili (parametrik, `llmOutputLanguage()` — 4. parametre) + tarifin
+tamamı system bloğunda (`formatRecipeContext`, aynı tarif boyunca birebir
+aynı metin → `cache_control: ephemeral` prefix cache'i tutar) + o tarife
+ait geçmiş mesajlar (`store/chefChatStore.ts`, recipeId bazlı zustand
+persist — Supabase tablosu YOK). `CHEF_INSTRUCTIONS` özü: yalnızca bu
+tarif bağlamında yanıt ver; ikame önerirken etkilenen miktarları güncelle;
+kısa/pratik; markdown YASAK (sohbet balonu düz metin — madde gerekirse
+"• " kullan).
 
 ## Sağlayıcı karşılaştırma notları
 
