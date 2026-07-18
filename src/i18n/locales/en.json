@@ -71,6 +71,8 @@
     "refreshA11y": "Go back to preferences and regenerate recipes",
     "sectionReady": "Ready to Cook",
     "sectionShopping": "With a Quick Shop",
+    "sectionFineDining": "Fine Dining",
+    "fineDiningBadge": "Fine Dining",
     "sectionCount_one": "{{count}} recipe",
     "sectionCount_other": "{{count}} recipes",
     "viewCart_one": "View grocery cart · {{count}} item",

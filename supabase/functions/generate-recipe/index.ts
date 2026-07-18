@@ -37,6 +37,12 @@ const CONFIG = {
   generationModel: Deno.env.get('RAG_GENERATION_MODEL') ?? 'claude-haiku-4-5',
   /** Tek çağrıda üretilecek varsayılan tarif sayısı. */
   defaultRecipeCount: Number(Deno.env.get('RAG_RECIPE_COUNT') ?? '6'),
+  /** İş 1b: normal tariflere EK üretilen fine dining tarif sayısı. */
+  fineDiningCount: Number(Deno.env.get('RAG_FINE_DINING_COUNT') ?? '2'),
+  /** Fine dining retrieval'da çekilen benzer tarif sayısı. */
+  fineDiningMatchCount: Number(Deno.env.get('RAG_FINE_DINING_MATCH_COUNT') ?? '5'),
+  /** Fine dining havuzunun tag'i — scripts/tag-fine-dining.ts ile senkron. */
+  fineDiningTag: 'fine-dining',
   embeddingModel: 'gemini-embedding-001',
   embeddingDimensions: 768,
   defaultLanguage: 'English',
@@ -90,6 +96,9 @@ interface Recipe {
   image_prompt_en?: string;
   /** RAG genişletmesi: tarifin kaynağı — kısayol "database", LLM "llm". */
   source: 'database' | 'llm';
+  /** İş 1b: fine dining havuzundan üretilen tarifler bu alanla ayırt edilir
+   * (normal tariflerde alan hiç bulunmaz — types/recipe.ts ile senkron). */
+  category?: 'fine-dining';
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +215,11 @@ interface MatchedRecipe {
   similarity: number;
 }
 
-async function matchRecipes(queryEmbedding: number[], matchCount: number): Promise<MatchedRecipe[]> {
+async function matchRecipes(
+  queryEmbedding: number[],
+  matchCount: number,
+  filterTag?: string
+): Promise<MatchedRecipe[]> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
@@ -223,6 +236,9 @@ async function matchRecipes(queryEmbedding: number[], matchCount: number): Promi
     body: JSON.stringify({
       query_embedding: `[${queryEmbedding.join(',')}]`,
       match_count: matchCount,
+      // filter_tag yalnızca istendiğinde gönderilir — tag-filtresi migration'ı
+      // uygulanmamış bir veritabanında normal akış çalışmaya devam eder.
+      ...(filterTag ? { filter_tag: filterTag } : {}),
     }),
   });
   if (!response.ok) {
@@ -349,8 +365,8 @@ const RECIPE_SCHEMA = {
   ],
 };
 
-function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
-  const contextBlock = matches
+function buildContextBlock(matches: MatchedRecipe[]): string {
+  return matches
     .map((match, i) => {
       const ingredients = match.ingredients.map((ingredient) => ingredient.text).join('; ');
       return (
@@ -361,7 +377,10 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
       );
     })
     .join('\n');
+}
 
+/** Ortak kural blokları — normal ve fine dining promptlarında birebir aynı. */
+function buildSharedRules(input: GenerateRecipeInput): string {
   const servingsRule = input.servings
     ? `- Each recipe must serve ${input.servings} people (servings: ${input.servings}); scale ingredient quantities accordingly.\n`
     : '';
@@ -373,7 +392,10 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     input.pantry && input.pantry.length > 0
       ? `- Pantry staples always available at home (never count as missing, always in_inventory: true): ${input.pantry.join(', ')}.\n`
       : '';
+  return servingsRule + preferencesRule + pantryRule;
+}
 
+function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
   return (
     'You are a recipe generator for a mobile cooking app. Using the user inventory and the similar ' +
     `reference recipes below, create ${input.count} distinct, realistic recipes.\n` +
@@ -389,11 +411,41 @@ function buildSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[])
     '- kcal is per person; ingredient kcal values are totals for the default servings and should roughly sum ' +
     'to kcal × servings.\n' +
     '- Make the recipes diverse: different main ingredients, cooking techniques and meal types.\n' +
-    servingsRule +
-    preferencesRule +
-    pantryRule +
+    buildSharedRules(input) +
     '\nReference recipes (retrieved by similarity):\n' +
-    contextBlock
+    buildContextBlock(matches)
+  );
+}
+
+/**
+ * İş 1b: fine dining üretim promptu — tarz farkı belirgin (rafine sunum/
+ * plating notları, teknik ağırlıklı adımlar) ama malzemeler yine kullanıcının
+ * envanterine dayanır; eksikler normal akıştaki gibi in_inventory: false ile
+ * işaretlenir. Referanslar yalnızca 'fine-dining' etiketli havuzdan gelir.
+ */
+function buildFineDiningSystemPrompt(input: GenerateRecipeInput, matches: MatchedRecipe[]): string {
+  return (
+    'You are a fine dining chef creating elevated recipes for a mobile cooking app. Using the user ' +
+    `inventory and the fine dining reference recipes below, create ${CONFIG.fineDiningCount} distinct, ` +
+    'refined restaurant-quality recipes.\n' +
+    'Rules:\n' +
+    `- Respond in ${input.language}: every human-readable text field (name, ingredient names, steps, chef_tip) ` +
+    `must be written in ${input.language}. Schema enum fields (difficulty, category, nutrition_tag) and ` +
+    'image_prompt_en (always English) keep their fixed values.\n' +
+    '- Fine dining style is essential: elegant dish names, technique-driven steps (searing, deglazing, ' +
+    'emulsifying, resting...), sauce/texture contrast, and a final PLATING step describing how to present ' +
+    'the dish beautifully (composition, garnish, sauce placement).\n' +
+    '- Ground the recipes in the reference recipes where possible (adapt, refine, elevate), but base the ' +
+    'ingredients on the user inventory; a few missing ingredients are acceptable — mark them ' +
+    'in_inventory: false exactly like the normal flow. Do not invent implausible dishes.\n' +
+    '- Use metric units (g/ml) or counts for ingredient quantities; qty is for the default servings.\n' +
+    '- kcal is per person; ingredient kcal values are totals for the default servings and should roughly sum ' +
+    'to kcal × servings.\n' +
+    '- chef_tip should be a professional technique tip (temperature, timing, texture).\n' +
+    '- image_prompt_en should describe a fine dining plating (elegant plate, garnish, negative space).\n' +
+    buildSharedRules(input) +
+    '\nFine dining reference recipes (retrieved by similarity):\n' +
+    buildContextBlock(matches)
   );
 }
 
@@ -403,9 +455,18 @@ interface ClaudeToolUseBlock {
   input?: unknown;
 }
 
+interface ClaudeGenerationOptions {
+  /** Üretilecek en fazla tarif sayısı (tool şemasının maxItems'ı). */
+  count: number;
+  /** Sistem promptu — normal veya fine dining varyantı. */
+  systemPrompt: string;
+  /** Üretilen her tarife yazılacak ayırt edici kategori (fine dining yolu). */
+  category?: Recipe['category'];
+}
+
 async function generateWithClaude(
   input: GenerateRecipeInput,
-  matches: MatchedRecipe[]
+  options: ClaudeGenerationOptions
 ): Promise<Recipe[]> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY tanımlı değil (supabase secrets)');
@@ -420,7 +481,7 @@ async function generateWithClaude(
     body: JSON.stringify({
       model: CONFIG.generationModel,
       max_tokens: 8192,
-      system: buildSystemPrompt(input, matches),
+      system: options.systemPrompt,
       messages: [
         {
           role: 'user',
@@ -439,7 +500,7 @@ async function generateWithClaude(
               recipes: {
                 type: 'array',
                 minItems: 1,
-                maxItems: input.count,
+                maxItems: options.count,
                 items: RECIPE_SCHEMA,
               },
             },
@@ -468,14 +529,14 @@ async function generateWithClaude(
   }
 
   return rawRecipes
-    .map((raw) => toLlmRecipe(raw))
+    .map((raw) => toLlmRecipe(raw, options.category))
     .filter((recipe): recipe is Recipe => recipe !== null);
 }
 
 /** Tool-use şeması tip/alanları garanti eder; burada minimal doğrulama +
  * missing_count/match_pct'in KODDA deterministik hesabı yapılır (mevcut
  * üretim akışıyla aynı ilke — modele güvenilmez). */
-function toLlmRecipe(raw: unknown): Recipe | null {
+function toLlmRecipe(raw: unknown, category?: Recipe['category']): Recipe | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const obj = raw as Record<string, unknown>;
   if (typeof obj.name !== 'string' || !Array.isArray(obj.ingredients) || !Array.isArray(obj.steps)) {
@@ -522,6 +583,7 @@ function toLlmRecipe(raw: unknown): Recipe | null {
       : 'Dengeli',
     image_prompt_en: typeof obj.image_prompt_en === 'string' ? obj.image_prompt_en : undefined,
     source: 'llm',
+    ...(category ? { category } : {}),
   };
 }
 
@@ -552,29 +614,67 @@ Deno.serve(async (request) => {
         ? `\nPreferences: ${input.preferences.join(', ')}`
         : '');
 
-    // 2) Embedding + 3) retrieval
+    // 2) Embedding + 3) retrieval — normal havuz ve 'fine-dining' etiketli
+    //    havuz aynı sorgu embedding'iyle PARALEL çekilir (İş 1b).
     const queryEmbedding = await embedQuery(queryText);
-    const matches = await matchRecipes(queryEmbedding, CONFIG.matchCount);
+    const [matches, fineDiningMatches] = await Promise.all([
+      matchRecipes(queryEmbedding, CONFIG.matchCount),
+      matchRecipes(queryEmbedding, CONFIG.fineDiningMatchCount, CONFIG.fineDiningTag).catch(
+        (error) => {
+          // Fine dining retrieval'ı normal akışı DÜŞÜRMEZ (örn. tag-filtresi
+          // migration'ı henüz uygulanmadıysa) — loglanır, boş devam edilir.
+          console.error('[generate-recipe] fine dining retrieval hatası:', error);
+          return [] as MatchedRecipe[];
+        }
+      ),
+    ]);
 
-    // 4) Hibrit kısayol (A5): eşik üstü benzerlik + 0 eksik → LLM'siz dönüş.
+    // İş 1b: fine dining üretimi normal akışla EŞZAMANLI başlar — kısayol
+    // tetiklense de tetiklenmese de her yanıtta 2 fine dining tarifi hedeflenir.
+    // Başarısızlık normal tarifleri düşürmez (graceful degradation).
+    const fineDiningPromise: Promise<Recipe[]> =
+      fineDiningMatches.length > 0
+        ? generateWithClaude(input, {
+            count: CONFIG.fineDiningCount,
+            systemPrompt: buildFineDiningSystemPrompt(input, fineDiningMatches),
+            category: 'fine-dining',
+          }).catch((error) => {
+            console.error('[generate-recipe] fine dining üretim hatası:', error);
+            return [];
+          })
+        : Promise.resolve([]);
+
+    // 4) Hibrit kısayol (A5): eşik üstü benzerlik + 0 eksik → normal set için
+    //    LLM'siz dönüş (fine dining tarifleri yine eklenir).
     const availableNames = [...inventoryNames, ...(input.pantry ?? [])].map((name) =>
       name.toLowerCase()
     );
     const top = matches[0];
     if (top && top.similarity >= CONFIG.matchThreshold && countMissing(top, availableNames) === 0) {
       const recipe = toDatabaseRecipe(top, availableNames);
+      const fineDiningRecipes = await fineDiningPromise;
       return new Response(
         JSON.stringify({
           source: 'database',
-          recipes: [recipe],
-          retrieval: { topSimilarity: top.similarity, matchedTitles: matches.map((m) => m.title) },
+          recipes: [recipe, ...fineDiningRecipes],
+          retrieval: {
+            topSimilarity: top.similarity,
+            matchedTitles: matches.map((m) => m.title),
+            fineDiningTitles: fineDiningMatches.map((m) => m.title),
+          },
         }),
         { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }
       );
     }
 
-    // 5) LLM üretimi (retrieval bağlamıyla)
-    const recipes = await generateWithClaude(input, matches);
+    // 5) LLM üretimi (retrieval bağlamıyla) — fine dining çağrısıyla paralel.
+    const [recipes, fineDiningRecipes] = await Promise.all([
+      generateWithClaude(input, {
+        count: input.count ?? CONFIG.defaultRecipeCount,
+        systemPrompt: buildSystemPrompt(input, matches),
+      }),
+      fineDiningPromise,
+    ]);
     if (recipes.length === 0) {
       throw new Error('Tarif üretilemedi');
     }
@@ -582,10 +682,11 @@ Deno.serve(async (request) => {
     return new Response(
       JSON.stringify({
         source: 'llm',
-        recipes,
+        recipes: [...recipes, ...fineDiningRecipes],
         retrieval: {
           topSimilarity: top?.similarity ?? null,
           matchedTitles: matches.map((m) => m.title),
+          fineDiningTitles: fineDiningMatches.map((m) => m.title),
         },
       }),
       { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }

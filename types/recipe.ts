@@ -90,4 +90,11 @@ export interface Recipe {
    * Eski önbelleklenmiş tariflerde bulunmayabilir (opsiyonel).
    */
   image_prompt_en?: string;
+  /**
+   * İş 1: RAG akışının fine dining havuzundan üretilen tarifler bu alanla
+   * ayırt edilir — listede ayrı "Fine Dining" bölümünde, kart üzerinde küçük
+   * rozetle gösterilirler. Normal tariflerde alan hiç bulunmaz (edge function
+   * şemasıyla senkron — supabase/functions/generate-recipe/index.ts).
+   */
+  category?: 'fine-dining';
 }
