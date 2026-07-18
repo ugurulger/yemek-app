@@ -375,40 +375,36 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
   buton metinleri eylemi söyler ("Malzemeleri sepete ekle", "Gönder" değil)
 - Boş durumlar yönlendirme içerir ("Tarif sayfasından malzeme
   ekleyebilirsin"), asla sadece "Liste boş" yazmaz.
-- **Ürün adı / marka ayrımı (MVP-8):** kart başlığında ürün adı büyük ve
-  kalın (`Outfit_600SemiBold`, `text-base text-stone-900`); marka varsa
-  altında küçük, gri, ikincil bir etiket olarak (`Outfit_400Regular`,
-  `text-xs text-stone-400`). Marka adı ASLA ürün adıyla birleştirilip tek
+- **Ürün adı / marka ayrımı (MVP-8):** satırda ürün adı esas metin; marka
+  varsa altında küçük/gri ikincil etiket (`ProductRow`,
+  `app/(tabs)/index.tsx`). Marka adı ASLA ürün adıyla birleştirilip tek
   uzun başlık yapılmaz.
-- **Kategori grupları + "Buzdolabım" dış kart (MVP-10):** ham 7 kategori
-  (bkz. "Envanter ekranı" altında) görüntülemede 5 üst gruba birleştirilir
-  (`CATEGORY_GROUPS`, `app/(tabs)/index.tsx`): **Süt & Peynir, Et &
-  Şarküteri, Meyve & Sebze, İçecek & Sos, Diğer**. Tüm gruplar TEK bir
-  "🧊 Buzdolabım" dış kartı (`rounded-2xl`, `shadow-sm`, `ring-stone-200`)
-  içinde, aralarında ince `border-stone-100` ayraçlarla ayrılan iç
-  bölümler olarak gösterilir (düz art arda kartlar DEĞİL, "dolap/raf"
-  hissi). Grup başlıkları "chip" görünümünde: `bg-stone-100 rounded-full
-  px-3 py-1`, `Outfit_600SemiBold`, `text-sm` — önceki (MVP-8) soluk
-  `text-sm text-stone-500` başlıktan daha belirgin.
+- **Kategori grupları — 4 GÖRÜNTÜLEME grubu (MVP-22 spec):** ham 7
+  kategori görüntülemede 4 üst gruba birleştirilir (`CATEGORY_GROUPS`,
+  `app/(tabs)/index.tsx`): **Süt & Peynir, Et & Şarküteri, Meyve & Sebze,
+  Diğer** — MVP-10/17'nin 5'li grubundaki "Sos & Baharat", spec'in 4
+  kartlı düzenine uymak için "Diğer"e KATLANDI (spec kazandı); ham
+  `item.category` aynen saklanır. Her grup ayrı beyaz `Card` (radius 22),
+  başlıkta pastel TINT'li emoji rozeti (`GROUP_META`, `colors.tint*` —
+  `lib/theme.ts`), satırlar `colors.divider` ince çizgiyle ayrılır.
+  MVP-10'un tek "🧊 Buzdolabım" dış kartı ve MVP-19'un pastel ARKA PLANLI
+  `CategoryColumn` stili bu düzenle DEĞİŞTİ (tarihi:
+  references/HISTORY.md#mvp-1721-tasarım-sagası).
 - **Confidence rozeti ana listede GÖSTERİLMEZ** — eşik üstü ürünler zaten
   "kesin" sayıldığından rozet bilgi taşımıyordu; SADECE "emin olunamayan
   ürünler" modalında durur. (MVP-10 renkli şerit denemesi MVP-21'de
   kaldırıldı — tarihçe: references/HISTORY.md#mvp-1721-tasarım-sagası.)
-- **⚠️ İki farklı kart render yolu var (MVP-10 mimari notu):** ana
-  kategorili liste artık `components/inventory/InventoryRow.tsx`'i
-  KULLANMIYOR — `app/(tabs)/index.tsx` içinde yerel tanımlı `ProductCard`
-  (ikon yok, rozet yok, MVP-21'den beri şerit de yok) kullanıyor. "Emin
-  olunamayan ürünler" modalı ise HÂLÂ eski `InventoryList`/`InventoryRow`'u
-  (ikon + confidence rozetiyle) kullanıyor — bilinçli bir ayrım (MVP-10 görevinin
-  kapsamı SADECE `app/(tabs)/index.tsx`'in render katmanıyla
-  sınırlandırılmıştı, `InventoryRow.tsx`'e dokunulmadı). Yani modal
-  kartları ile ana liste kartları görsel olarak FARKLI — bu kasıtlı,
-  birleştirme istenirse `InventoryRow.tsx`'in de kapsama alınması gerekir.
-- **"Emin olunamayan ürünler" bildirimi (MVP-10):** artık soluk tek
-  satırlık bir link değil, amber vurgu renginde ayrı bir uyarı kartı
-  (`bg-amber-50`, `ring-amber-200`, `text-amber-900`, "⚠️ N ürün kontrol
-  bekliyor" + `chevron-forward` ikonu) — "Buzdolabım" dış kartının
-  DIŞINDA, listenin en üstünde.
+- **⚠️ İki farklı satır render yolu var (MVP-10'dan beri bilinçli):** ana
+  kategorili liste `components/inventory/InventoryRow.tsx`'i KULLANMIYOR —
+  `app/(tabs)/index.tsx` içinde yerel `ProductRow` (ikon/rozet yok)
+  kullanır. "Emin olunamayan ürünler" modalı ise HÂLÂ eski
+  `InventoryList`/`InventoryRow`'u (ikon + confidence rozetiyle) kullanır.
+  Modal ile ana liste görsel olarak FARKLI — kasıtlı; birleştirme
+  istenirse `InventoryRow.tsx` de kapsama alınmalı (eski Fraunces/Outfit
+  fontları da o zaman kalkabilir, bkz. MVP-22 bloğu).
+- **"Emin olunamayan ürünler" bildirimi:** soluk link değil, amber uyarı
+  kartı ("N ürün kontrol bekliyor" + `chevron-forward`; `bg-amber-soft`) —
+  kategori kartlarının DIŞINDA, listenin üstünde.
 - Kategori bölümlerinin 2'li grid yerleşiminin MVP-17'deki ilk denemesi ve
   ara halleri için tarihçe: references/HISTORY.md#mvp-1721-tasarım-sagası — NİHAİ yerleşim
   MVP-20 maddesinde (altta).
@@ -416,15 +412,12 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
   (su, meyve suyu, gazlı içecek, bira...) envanterde İSTENMİYOR; soslar/
   baharatlar kalır. Kapsam SADECE video akışı (bkz. "Video → envanter" —
   içecek filtresi maddesi); iki aşamalı fotoğraf/fiş akışının prompt'larına
-  BİLİNÇLİ dokunulmadı (o akış `category` üretmiyor, davranışı değişmesin
-  istendi — fişten içecek gelirse elle silinir). Görüntüleme grubu
-  "İçecek & Sos" → **"Sos & Baharat"** (`🧂`) olarak yeniden adlandırıldı;
-  şerit rengi (amber-300) aynı. `CATEGORY_GROUPS`'ta `İçecek` anahtarı tip
-  gereği duruyor ve "Diğer"e eşlenir (store'da kalmış eski içecek
-  kayıtları için geri-dönüş; bir sonraki tam tarama zaten temizler).
-  `INVENTORY_CATEGORIES`'teki `'İçecek'` enum değeri SİLİNMEDİ — şemadan
-  çıkarılsaydı model içecekleri başka kategoriye zorlardı ve parse filtresi
-  yakalayamazdı.
+  BİLİNÇLİ dokunulmadı (o akış `category` üretmiyor — fişten içecek
+  gelirse elle silinir). `CATEGORY_GROUPS`'ta `İçecek` anahtarı tip gereği
+  durur ve "Diğer"e eşlenir (eski kayıtlar için geri-dönüş).
+  **KURAL: `INVENTORY_CATEGORIES`'teki `'İçecek'` enum değeri SİLİNMEZ** —
+  şemadan çıkarılsa model içecekleri başka kategoriye zorlar ve parse
+  filtresi yakalayamaz.
 - **Kategori düzeltmeleri: yumurta, turşu/konserve (MVP-18, 2026-07-11):**
   kullanıcı gerçek veriyle test edip yumurtanın "Diğer" yerine "Et &
   Şarküteri" grubunda, turşu/konserve gibi kavanoz/teneke ürünlerin de
@@ -443,26 +436,21 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
   yeniden oluşturulmazsa (`useRef`e sarılırsa) release handler'ları İLK
   mount'taki bayat state'i okur (stale closure) — swipe/gesture kodunda
   buna dikkat.
-- **Kategori arka plan renkleri (MVP-19 — AKTİF):** her `CategoryColumn`
-  kendi soluk pastel tonuyla ayrı "raf" gibi görünür (`GROUP_BACKGROUND_COLORS`,
-  `rounded-2xl px-3 py-3`; bölümler arası çizgi ayraç YOK, renk geçişi
-  ayırır): Süt & Peynir açık krem `#FAF3E7` (kullanıcının özel isteği),
-  Et & Şarküteri soluk terracotta `#F6E8E2`, Meyve & Sebze soluk adaçayı
-  `#EAF3EA`, Sos & Baharat soluk hardal `#F5EFD6`, Diğer soluk taş grisi
-  `#F3F1EE`. Bölüm başlığı chip'i `bg-white/60` (her pastel tonda "yüzer"),
-  satır içi ayraç `border-stone-900/5`. Bu paletin türetilme öyküsü ve o
-  dönemki chevron/kaydırma görünürlük işleri: references/HISTORY.md#mvp-1721-tasarım-sagası.
-- **Nihai kart/yerleşim durumu (MVP-20 — AKTİF):** `ProductCard` tamamen
-  STATİK — `[ad, flex-1] [silme kutusu]` + (varsa) marka satırı; hook/
-  animasyon/kaydırma YOK. Miktar (`qty`) veri modelinde/store'da AYNEN
-  DURUR ama ana listede RENDER EDİLMEZ (kullanıcı kararı: "bilgi arkada
-  tutulabilir"). `incrementQty`/`decrementQty` store'dan SİLİNMEDİ — "emin
-  olunamayan ürünler" modalı hâlâ kullanır. Kategori bölümleri `chunkPairs`
-  ile 2'li grid'de yan yana (tek sayıda bölümde boş `flex-1` hücre); uzun
-  adlar `numberOfLines={1}` ile kısalır — bilinen ve kullanıcı tarafından
-  kabul edilmiş trade-off. Bu duruma gelen deneme/geri-alma zinciri
-  (MVP-17 grid → MVP-18 swipe → MVP-19 alt alta → MVP-20 statik):
+- **MVP-19 pastel arka planları TARİHİ:** `GROUP_BACKGROUND_COLORS` ve
+  `bg-white/60` chip stili MVP-22 spec'inde beyaz kart + pastel TINT'li
+  emoji rozetiyle (`GROUP_META`) DEĞİŞTİRİLDİ — kodda yok. Paletin öyküsü:
   references/HISTORY.md#mvp-1721-tasarım-sagası.
+- **Nihai satır/yerleşim davranışı (MVP-20 kararları — AKTİF, görünüm
+  MVP-22 spec):** envanter satırı (`ProductRow`) tamamen STATİK —
+  `[ad, flex-1] [silme ikonu]` + (varsa) marka satırı; hook/animasyon/
+  kaydırma YOK. Miktar (`qty`) veri modelinde/store'da AYNEN DURUR ama ana
+  listede RENDER EDİLMEZ (kullanıcı kararı: "bilgi arkada tutulabilir").
+  `incrementQty`/`decrementQty` store'dan SİLİNMEDİ — "emin olunamayan
+  ürünler" modalı hâlâ kullanır. Kategori kartları `chunkPairs` ile İKİ
+  SÜTUN yan yana (tek sayıda kartta ikinci hücre boş `flex-1`); uzun adlar
+  `numberOfLines={1}` ile kısalır — bilinen, kabul edilmiş trade-off.
+  Deneme/geri-alma zinciri (MVP-17 grid → MVP-18 swipe → MVP-19 alt alta →
+  MVP-20 statik): references/HISTORY.md#mvp-1721-tasarım-sagası.
 
 ## Veritabanı (Supabase) — gerçek durum
 
@@ -570,13 +558,13 @@ talimatını `cache_control: {"type": "ephemeral"}` ile önbellekler; Gemini
 istemedi, eşik yükseltilerek daha az ürün "kesin" sayılıyor. Davranış:
 
 - **`confidence >= 90` (veya `confidence` yok):** ürün, `item.category`'nin
-  eşlendiği GÖRÜNTÜLEME grubuna (bkz. altta MVP-10 — `CATEGORY_GROUPS`,
-  5 üst grup) göre "Buzdolabım" dış kartı içindeki bir bölümde `ProductCard`
-  ile gösterilir. `category` alanı yoksa (iki aşamalı JSON akışı) "Diğer"
+  eşlendiği GÖRÜNTÜLEME grubuna (`CATEGORY_GROUPS`, 4 üst grup — bkz.
+  "Tasarım sistemi") göre ilgili kategori kartında `ProductRow` ile
+  gösterilir. `category` alanı yoksa (iki aşamalı JSON akışı) "Diğer"
   grubuna düşer.
 - **`confidence < 90`:** ürün kategorili listede HİÇBİR YER KAPLAMAZ.
   Bunun yerine listenin en üstünde belirgin bir amber uyarı kartı
-  gösterilir ("⚠️ N ürün kontrol bekliyor", bkz. altta MVP-10). Tıklanınca
+  gösterilir ("N ürün kontrol bekliyor"). Tıklanınca
   bir `Modal` (pageSheet) açılır, içinde bu ürünler mevcut
   `InventoryList`/`InventoryRow` + "Envantere ekle" akışıyla tam kart
   olarak gösterilir — silinmiş değildir, "Envantere ekle" ile ana listeye
@@ -807,11 +795,12 @@ YOK) ama TS tipinde opsiyonel (eski cache'lerle uyum).
 
 **UI (app/(tabs)/recipes.tsx, MVP-11; kademeli gösterim MVP-14, tek-tek/
 canlı gösterim MVP-15; eksik-bazlı bölümleme MVP-16):** cache'lenmiş/statik
-görünümde liste iki bölüm halinde — "Hemen Yapabilirsin"
-(`missing_count = 0`, üstte, emerald-900 chip başlık) ve "Küçük Bir
-Alışverişle" (kalan tarifler `missing_count`'a göre ARTAN sıralı —
-2-eksikliler 4-eksiklilerin üstünde; stone-100 chip başlık; MVP-10 grup
-başlığı chip stiliyle tutarlı). Eksikli kartlarda amber-500 "N eksik"
+görünümde liste bölümlü — "Hemen Yapabilirsin" (`missing_count = 0`,
+üstte; `recipes.sectionReady`), "Küçük Bir Alışverişle" (kalan tarifler
+`missing_count`'a göre ARTAN sıralı — 2-eksikliler 4-eksiklilerin
+üstünde; `recipes.sectionShopping`) ve ayrı "Fine Dining" bölümü
+(`recipes.sectionFineDining`, eksik-bazlı bölümlemeye karışmaz).
+Eksikli kartlarda amber "N eksik"
 rozeti (`missing_count`) gösterilir; **"%N uyum" rozeti MVP-16'da
 KALDIRILDI** (eksik-bazlı kategorileme sonrası bilgi tekrarıydı —
 kullanıcı kararı; tarif DETAY ekranındaki %uyum göstergesi duruyor). Tarif detayında
@@ -878,7 +867,7 @@ kendi hızında dönüp kendi kartını doldurur). `lib/claude/generateRecipes.t
   kalsın diye modelin çıktısından ALINMAZ), match_pct/missing_count ise
   `toRecipeDetail` içinde `ingredients[].in_inventory`'den KODDA hesaplanır
   (bkz. yukarıdaki "ingredients şeması" notu). Ortak sistem talimatı
-  (`COMMON_DETAIL_SYSTEM_PROMPT`) dokuz çağrıda da BİREBİR AYNI metin —
+  (bugünkü adıyla `buildCommonDetailSystemPrompt`) dokuz çağrıda da BİREBİR AYNI metin —
   `cache_control: ephemeral` ile önbelleklenir (maliyet kuralı).
 - `assignRecipeLayer(matchPct)` — **kesin katman ataması KODDA yapılır,
   modelin `estimated_layer` tahminine GÜVENİLMEZ**: match_pct=100 → `ready`,
@@ -918,10 +907,10 @@ bölümüne kayıyordu; (2) kiler listesi çok dardı (tuz/karabiber/su/sıvı y
   çalışır, kesin katman zaten koddan gelir.
 - **Katman bazlı detay varyantları (`LAYER_VARIANTS`):**
   `generateRecipeDetail(name, inventory, layerTarget)` artık plandan gelen
-  hedef katmanı alır; `system` İKİ blok olur — ilk blok
-  (`COMMON_DETAIL_SYSTEM_PROMPT`, 6 çağrıda birebir aynı,
-  `cache_control: ephemeral`) + katman kısıtı (cache'siz ikinci blok,
-  prefix cache BOZULMAZ). `ready`: "SADECE envanter+kiler, HER malzeme
+  hedef katmanı alır; `system` İKİ blok olur — ilk blok (ortak detay
+  talimatı, `buildCommonDetailSystemPrompt(context)`; aynı koşunun tüm
+  detay çağrılarında birebir aynı, `cache_control: ephemeral`) + katman
+  kısıtı (cache'siz ikinci blok, prefix cache BOZULMAZ). `ready`: "SADECE envanter+kiler, HER malzeme
   in_inventory: true" + `temperature: 0.3`; `closeMatch`: "en fazla 1-2
   dışarıdan" + `0.7`; `fewMissing`: "3-4 dışarıdan, yaratıcı ol" + `1.0`
   (Claude API'de temperature 0-1, varsayılan 1 — "yüksek" = 1.0;
@@ -972,7 +961,7 @@ loading|done|error, recipe, actualLayer}`. `fineDining: true` slotlar ayrı
    Alışverişle") o bölümde EN AZ bir slot varsa görünür, yoksa gizlenir.
 Üretim bitip `setRecipes` (birleşmiş final liste) çağrılınca ekran statik/
 cache'lenmiş `RecipeList` render yoluna döner (iki render yolu kasıtlı ayrı
-tutuldu — MVP-10'daki `InventoryRow`/`ProductCard` ayrımıyla aynı desen).
+tutuldu — MVP-10'daki `InventoryRow`/`ProductRow` ayrımıyla aynı desen).
 
 ### Tarif görselleri (AI görsel üretimi, MVP-11)
 
@@ -1043,16 +1032,17 @@ kontrolü (`toRecipePlan`, `toRecipeDetail`) var. Karar nedeni: tutarlılık
 kalkması — Gemini'nin native JSON şema kısıtlı üretimiyle aynı prensip,
 Claude'un API yüzeyine uyarlanmış hali.
 
-Aşama 2'nin sistem talimatı İKİ bloktur (MVP-16): ilk blok
-(`COMMON_DETAIL_SYSTEM_PROMPT`) `cache_control: {"type": "ephemeral"}` ile
-önbelleklenir — altı paralel detay çağrısının HEPSİNDE BİREBİR aynı olduğu
-için prefix önbelleği tutar (maliyet kuralı; `system` bir blok dizisi
-olarak gönderilir, bkz. `ClaudeSystemBlock`); ikinci blok katman bazlı
-varyant kısıtıdır (`LAYER_VARIANTS[layer].constraint`, cache'siz — cache
-breakpoint'i İLK bloğun sonunda olduğu için sonrasındaki farklılık prefix
-cache'i BOZMAZ). Aşama 1 (`PLAN_SYSTEM_PROMPT`) TEK bir çağrı olduğu
-için cache_control KULLANMAZ — tekrar kullanılmayan bir önbellek yazma
-maliyeti kendini amorti etmez.
+Aşama 2'nin sistem talimatı İKİ bloktur (MVP-16): ilk blok — ortak detay
+talimatı, `buildCommonDetailSystemPrompt(context)` ile kurulur ve aynı
+koşudaki 8 paralel çağrıda (6 standart + 2 fine dining + ready-retry)
+BİREBİR aynıdır — `cache_control: {"type": "ephemeral"}` ile önbelleklenir,
+prefix önbelleği tutar (maliyet kuralı; `system` bir blok dizisi olarak
+gönderilir, bkz. `ClaudeSystemBlock`); ikinci blok katman/fine-dining
+varyant kısıtıdır (`LAYER_VARIANTS[layer].constraint` /
+`FINE_DINING_VARIANT`, cache'siz — cache breakpoint'i İLK bloğun sonunda
+olduğu için sonrasındaki farklılık prefix cache'i BOZMAZ). Aşama 1
+(`PLAN_SYSTEM_PROMPT`) TEK bir çağrı olduğu için cache_control KULLANMAZ —
+tekrar kullanılmayan bir önbellek yazma maliyeti kendini amorti etmez.
 
 ### Tarif chat'i (Şefe Sor)
 `lib/claude/askChef.ts` (`claude-sonnet-4-6`). Her istek: `CHEF_INSTRUCTIONS`
