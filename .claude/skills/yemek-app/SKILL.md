@@ -45,17 +45,33 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   `parseIngredients`'taki sabit "Jenerik Türkçe malzeme adı" description'ı
 >   parametrik dil talimatını eziyordu (EN modda TR chip'ler); dil kuralı
 >   yalnız sistem promptunda durur.
-> - **Edge function 2/4/2 dağılımı (kullanıcı kararı):** 2 tarif 0 eksik
->   (SADECE envanter+kiler), 4 tarif 1-4 eksikli; fine dining İKİLİSİ zıt
->   kurgulu (biri 0, diğeri 2-3 eksik). "Prefer recipes the user can cook
->   NOW" satırı kaldırıldı (her şeyi 0 eksiğe itiyordu). Dağılım
->   prompt-yönlendirmeli, KOD ZORLAMAZ (MVP-16 ilkesi).
+> - **Edge function dağılımı 2/4 (kullanıcı kararı), İNCE AYARLI (2026-07-18
+>   tuning session, ölçümler: `analysis/rag-tuning-result.md`):** normal 6
+>   tarif **2×3 PARALEL grupta** üretilir (plan çağrısı YOK) — A grubu 2
+>   ready + 1 eksikli, B grubu 1×(1-2) + 2×(3-4) eksikli; pozisyonel prompt
+>   kuralları. Fine dining İKİLİSİ zıt kurgulu (biri 0, diğeri 2-3 eksik) ve
+>   aynı yıldız malzemeyi PAYLAŞAMAZ. Dağılım prompt-yönlendirmeli, KOD
+>   ZORLAMAZ (MVP-16 ilkesi). "Prefer recipes the user can cook NOW" satırı
+>   kaldırılmıştı; tek-çağrılı üretim de aynı nedenle (4-6 ready'ye
+>   yığılma, ölçüldü) terk edildi.
+> - **KURAL: RAG çeşitlilik savunması ÜÇ katmanlı** (tek başına prompt
+>   YETMEDİ — 8/8 somon referansı somut BAN'ı bile eziyordu, ölçüldü):
+>   (1) retrieval 24 aday → başlık-token tavanıyla 8 referans
+>   (`diversifyMatches`; `matches[0]` global en-benzer kalır — kısayol
+>   eşiği bozulmaz), (2) referanslarda BASKIN token tespit edilip prompt'a
+>   ADIYLA tavan yazılır, (3) B grubu baskın malzemeyi HİÇ kullanamaz ve
+>   baskın-aile dışı aday yoksa referans bloğu BOŞ verilir.
 > - **KURAL: edge function'daki `namesMatch` kopyası client'la BİRLİKTE
 >   güncellenir** (edge bundle app koduna bağımlı olamaz — bilinçli kopya)
->   + üretim sonrası `reconcileRecipes` deterministik düzeltme (model
->   mevcut malzemenin VARYANTINI eksik yazıyordu — prompt'a "mevcudun
->   varyantını eksik yazma" kuralı da eklendi); hibrit kısayolun
->   countMissing'i aynı eşleştirmeyi kullanır.
+>   + üretim sonrası `reconcileRecipes` İKİ YÖNLÜ deterministik düzeltme:
+>   in_inventory envanter+kiler eşleşmesinden SIFIRDAN hesaplanır —
+>   yükseltme (varyantı eksik yazma) VE alçaltma (envanterde olmayanı var
+>   sayma; sunucu 0 eksik derken ekran 1 gösteriyordu, tuning B3). Hibrit
+>   kısayolun countMissing'i aynı eşleştirmeyi kullanır.
+> - **Gözlemlenebilirlik:** her Claude çağrısının stop_reason + usage'ı
+>   `[rag-gen]` etiketiyle loglanır ve yanıtın `generation` alanında döner
+>   (ölçüm harness'i `tests/rag-tuning/run-compare.ts` okur); max_tokens
+>   12288 (6 tarif tek çıktıda 7.6K'ya dayanmıştı, ölçüldü).
 > - **Kiler retrieval sorgusunda + kiler-yıldız kuralı:** queryText'e
 >   "Pantry staples: ..." satırı; prompt'ta "makarna/pirinç/bulgur gerçek
 >   malzemedir, uygunsa taşıyıcı yap". Önceki "kilere yaslanma" ifadesi
@@ -671,16 +687,19 @@ sağlayıcı seçim mekanizması (`VISION_PROVIDER` benzeri) YOK — iki özelli
 birbirinden bağımsız, sabit birer sağlayıcıya bağlı (tarif üretimi hep
 Claude, envanter çıkarımı hep Gemini/Claude karşılaştırması).
 
-> **RAG durumu:** `EXPO_PUBLIC_USE_RAG=true` arkasında alternatif bir üretim
-> yolu var (`lib/rag/generateRecipesRag.ts` → Supabase `generate-recipe`
-> edge function'ı, canlı) — şu an varsayılan KAPALI, açma kararı ayrı
-> verilecek. RAG hattı hep İngilizce çalışır ve TEK çağrıda final listeyi
-> döndürür — canlı slot gösterimi YOK (ekran genel iskeletlerde bekler).
-> 2/4/2 katman dağılımı, `namesMatch` kopyası + `reconcileRecipes` ve
-> hibrit kısayol düzeltmesi edge function'a işlendi (bkz. üstteki RAG-EN
-> bloğu); analiz ve ölçümler `analysis/rag-analysis.md`. Bu bölümdeki iki
-> aşamalı yolun katmanlama/canlı gösterim davranışı, RAG ayarının REFERANS
-> hedefidir.
+> **RAG durumu (2026-07-18 tuning sonrası):** `EXPO_PUBLIC_USE_RAG=true`
+> arkasında alternatif üretim yolu var (`lib/rag/generateRecipesRag.ts` →
+> Supabase `generate-recipe` edge function'ı, canlı ve İNCE AYARLI) — şu an
+> varsayılan KAPALI; ölçüm sonucu **"şartlı açılabilir"** (göz testi + UX
+> kabulü bekliyor, `analysis/rag-tuning-result.md`). RAG hattı hep
+> İngilizce çalışır; canlı slot gösterimi YOK (ekran ~20s genel iskelette
+> bekler — bilinen sınır). Ölçülen durum: katman dağılımı iki aşamalı yolun
+> bandında (ready=2 stabil, alışveriş katmanları dolu), çeşitlilik hedefte,
+> ~%40-58 hızlı, ~4× ucuz, sunucu/ekran eksik sayıları birebir hizalı.
+> Kalan açıklar: 3+ eksikli katman tutarsız, koşular arası fine dining
+> monotonluğu, nadir yakın-ad tekrarı (rapor §"Kalan açıklar"). Eski analiz
+> `analysis/rag-analysis.md` KISMEN BAYAT (tuning öncesi yazıldı) — çelişki
+> durumunda kod + tuning raporları kazanır.
 
 Girdi: envanter listesi (`{name, qty, unit}`'e sadeleştirilmiş). Çıktı:
 **6 standart + 2 fine dining = TOPLAM 8 tarif** (`RECIPE_COUNT = 6`,
@@ -1038,6 +1057,9 @@ bunları yeniden önermek). Gerekçeler ilgili bölümde/HISTORY'de:
   eksiğe itiyordu (RAG-EN).
 - **RAG promptunda "envantere öncelik ver, kilere yaslanma"** — ters
   tepti; kiler-yıldız kuralıyla değiştirildi (RAG-EN).
+- **RAG'de tek çağrıda 6 tarif ve salt-prompt çeşitlilik tavanı** — ready
+  yığılması + referans-ailesi taklidi ölçümle kanıtlandı; 2×3 bölünmüş
+  üretim + üç katmanlı çeşitlilik savunması kuruldu (RAG-EN tuning).
 
 ## KRİTİK DETAYLAR — kısaltma/temizlikte SİLME
 
