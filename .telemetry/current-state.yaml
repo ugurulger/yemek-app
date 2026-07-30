@@ -1,0 +1,15 @@
+# Current State: greenfield (no tracking detected)
+# Scanned: 2026-07-19
+# SDK: none
+# Notes: no analytics SDK in package.json; no track/capture/identify calls,
+# no crash reporting (Sentry/Crashlytics) anywhere in app/, components/,
+# lib/, services/, store/, src/. Only console.log diagnostics with
+# [rag-gen], [match-llm], [recipe-image] tags.
+
+events: []
+identity:
+  identify_calls: []
+  group_calls: []
+patterns:
+  naming_style: n/a
+  centralized: n/a

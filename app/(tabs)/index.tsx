@@ -13,14 +13,33 @@ import InventoryList from '@/components/inventory/InventoryList';
 import { LanguageSelector } from '@/components/settings/LanguageSelector';
 import { LastUpdatedLabel } from '@/components/inventory/LastUpdatedLabel';
 import { PantrySection } from '@/components/inventory/PantrySection';
-import { Card, PrimaryButton } from '@/components/ui';
+import { Card, EmptyState, PrimaryButton } from '@/components/ui';
 import { extractInventory, getVisionProvider, InventoryVisionError } from '@/services/vision';
 import { extractVideoFramesAsBase64 } from '@/lib/media/extractVideoFrames';
 import { resizeImageToBase64 } from '@/lib/media/resizeImageToBase64';
 import { colors } from '@/lib/theme';
 import { useCaptureStore } from '@/store/captureStore';
 import { useInventoryStore } from '@/store/inventoryStore';
+import {
+  trackInventoryCaptureCompleted,
+  trackInventoryCaptureFailed,
+  trackInventoryCaptureStarted,
+  trackInventoryUncertainItemResolved,
+  type VisionProviderProp,
+} from '@/tracking';
 import type { InventoryCategory, InventoryItem } from '@/types/inventory';
+
+// Analitik property'si — aktif vision sağlayıcısı (services/vision registry'si
+// ile aynı env bayrağı; tracking modülü services'e bağlanmasın diye burada).
+const VISION_PROVIDER_PROP: VisionProviderProp =
+  process.env.EXPO_PUBLIC_VISION_PROVIDER === 'claude' ? 'claude' : 'gemini';
+
+/** confidence < eşik ürün sayısı — capture_completed property'si. */
+function countUncertain(items: InventoryItem[]): number {
+  return items.filter(
+    (item) => item.confidence !== undefined && item.confidence < CONFIDENCE_THRESHOLD
+  ).length;
+}
 
 // Capture rotaları paralel geliştirildiği için typed-routes çıktısında henüz
 // olmayabilir — Href'e cast edilir (rota adları spec §2/§3 ile sabit).
@@ -153,7 +172,7 @@ function ProductRow({
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t('inventory.deleteItemA11y', { name: item.name })}
+        accessibilityLabel={t('inventory.deleteItemA11y', { name: inventoryDisplayName(item) })}
         onPress={() => onDelete(item.id)}
         hitSlop={8}
         className="ml-2 active:scale-95">
@@ -263,6 +282,7 @@ export default function MutfagimScreen() {
       return;
     }
 
+    trackInventoryCaptureStarted('video');
     setIsAnalyzing(true);
     // MVP-9 (performans): video seçiminden envanterin ekrana gelmesine kadar
     // geçen süreyi aşamalara ayırıp loglamak için — bkz. SKILL.md "Performans
@@ -324,11 +344,25 @@ export default function MutfagimScreen() {
       console.log(
         `[perf] TOPLAM (seçimden envanterin state'e yazılmasına): ${(performance.now() - tPickStart).toFixed(0)}ms`
       );
+      trackInventoryCaptureCompleted({
+        method: 'video',
+        provider: VISION_PROVIDER_PROP,
+        item_count: extractedItems.length,
+        uncertain_item_count: countUncertain(extractedItems),
+        write_mode: 'replace',
+        duration_ms: performance.now() - tPickStart,
+      });
     } catch (error) {
       // Vision hata mesajları (services/vision) Türkçe — ekranda çevrilmiş
       // genel mesaj gösterilir, orijinali console'a düşer (ekran sınırı
       // kararı; services Node eval script'lerinden de import ediliyor).
       console.warn('[inventory] video analiz hatası:', error);
+      trackInventoryCaptureFailed({
+        method: 'video',
+        provider: VISION_PROVIDER_PROP,
+        error_type: error instanceof InventoryVisionError ? 'empty_result' : 'unknown',
+        duration_ms: performance.now() - tPickStart,
+      });
       setErrorMessage(t('errors.analysisFailed'));
     } finally {
       setIsAnalyzing(false);
@@ -344,6 +378,11 @@ export default function MutfagimScreen() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
+      trackInventoryCaptureFailed({
+        method: 'photo',
+        provider: VISION_PROVIDER_PROP,
+        error_type: 'permission',
+      });
       setErrorMessage(t('errors.galleryPermission'));
       return;
     }
@@ -364,6 +403,7 @@ export default function MutfagimScreen() {
       return;
     }
 
+    trackInventoryCaptureStarted('photo');
     setIsAnalyzing(true);
     const tPickStart = performance.now();
 
@@ -388,8 +428,22 @@ export default function MutfagimScreen() {
       console.log(
         `[perf] TOPLAM (seçimden envanterin state'e yazılmasına): ${(performance.now() - tPickStart).toFixed(0)}ms`
       );
+      trackInventoryCaptureCompleted({
+        method: 'photo',
+        provider: VISION_PROVIDER_PROP,
+        item_count: bilingualItems.length,
+        uncertain_item_count: countUncertain(bilingualItems),
+        write_mode: 'add',
+        duration_ms: performance.now() - tPickStart,
+      });
     } catch (error) {
       console.warn('[inventory] fotoğraf analiz hatası:', error);
+      trackInventoryCaptureFailed({
+        method: 'photo',
+        provider: VISION_PROVIDER_PROP,
+        error_type: error instanceof InventoryVisionError ? 'empty_result' : 'unknown',
+        duration_ms: performance.now() - tPickStart,
+      });
       setErrorMessage(t('errors.analysisFailed'));
     } finally {
       setIsAnalyzing(false);
@@ -424,9 +478,17 @@ export default function MutfagimScreen() {
               {t('inventory.title')}
             </Text>
           </View>
-          {/* Dil seçici (EN/TR) — Blok B "ayarlar" gereksinimi, kompakt pill. */}
-          <View className="pt-1">
+          {/* Dil seçici (EN/TR) — Blok B "ayarlar" gereksinimi, kompakt pill.
+              Yanında Ayarlar (dişli) — gizlilik/destek bağlantıları orada. */}
+          <View className="flex-row items-center gap-2 pt-1">
             <LanguageSelector />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.openA11y')}
+              onPress={() => router.push('/settings')}
+              className="h-[30px] w-[30px] items-center justify-center rounded-full bg-sand active:scale-95">
+              <Ionicons name="settings-outline" size={15} color={colors.forest} />
+            </Pressable>
           </View>
         </View>
 
@@ -503,8 +565,9 @@ export default function MutfagimScreen() {
           </Card>
         )}
 
-        {/* DEBUG — kaldırılacak: Aşama 1 (gözlem) ham metnini görüntüleme butonu. */}
-        {observationText && (
+        {/* DEBUG — kaldırılacak: Aşama 1 (gözlem) ham metnini görüntüleme butonu.
+            Yalnız geliştirmede görünür (__DEV__) — store build'ine sızmaz. */}
+        {__DEV__ && observationText && (
           <Pressable
             accessibilityRole="button"
             onPress={() => setIsObservationModalVisible(true)}
@@ -553,13 +616,14 @@ export default function MutfagimScreen() {
             </View>
           ))
         ) : (
-          <Card className="mt-3 items-center px-6 py-8">
-            <Text className="text-4xl">🧺</Text>
-            <Text className="mt-3 font-serif text-lg text-ink">{t('inventory.emptyTitle')}</Text>
-            <Text className="mt-1.5 text-center font-sans text-sm text-muted">
-              {t('inventory.emptyBody')}
-            </Text>
-          </Card>
+          <EmptyState
+            className="mt-3"
+            emoji="🧺"
+            title={t('inventory.emptyTitle')}
+            body={t('inventory.emptyBody')}
+            ctaLabel={t('inventory.emptyCta')}
+            onPressCta={() => router.push(CAMERA_ROUTE)}
+          />
         )}
 
         {/* Temel Malzemeler bloğu (spec §2, görsel 02). */}
@@ -589,8 +653,14 @@ export default function MutfagimScreen() {
               items={uncertainItems}
               onIncrement={incrementQty}
               onDecrement={decrementQty}
-              onDelete={removeItem}
-              onConfirm={confirmItem}
+              onDelete={(id) => {
+                trackInventoryUncertainItemResolved('deleted');
+                removeItem(id);
+              }}
+              onConfirm={(id) => {
+                trackInventoryUncertainItemResolved('added');
+                confirmItem(id);
+              }}
             />
           </View>
         </SafeAreaView>

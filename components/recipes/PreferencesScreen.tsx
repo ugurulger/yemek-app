@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Chip, SectionLabel } from '@/components/ui';
 import { useRecipeStore } from '@/store/recipeStore';
+import { trackPreferencesUpdated } from '@/tracking';
 import { PREFERENCE_SECTIONS, type PreferenceSectionId } from '@/types/preferences';
 
 interface PreferencesScreenProps {
@@ -91,7 +92,14 @@ export default function PreferencesScreen({ onNext }: PreferencesScreenProps) {
       <View className="absolute inset-x-0 bottom-0 px-5 pb-3.5 pt-3">
         <Pressable
           accessibilityRole="button"
-          onPress={onNext}
+          onPress={() => {
+            // Analitik: seçim sayısı — İleri'ye basıldığında (tercihlerin
+            // üretime girdiği an); chip başına event üretmek gürültü olurdu.
+            trackPreferencesUpdated(
+              Object.values(preferences).reduce((sum, options) => sum + options.length, 0)
+            );
+            onNext();
+          }}
           className="w-full flex-row items-center justify-center rounded-[18px] bg-forest p-4 active:scale-95"
           style={CTA_SHADOW}>
           <Text className="font-sans-semibold text-[15px] text-white">{t('common.next')}</Text>

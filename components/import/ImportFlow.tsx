@@ -3,7 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
 
 import { SAMPLE_INSTAGRAM_RECIPE, SAMPLE_WEB_RECIPE } from '@/lib/recipes/sample-imports';
+import { getAppLanguage } from '@/src/i18n';
+import { ensureRecipeTranslations } from '@/src/i18n/recipeI18n';
 import { useCookbookStore } from '@/store/cookbookStore';
+import { trackRecipeImported, type ImportSource } from '@/tracking';
 import type { Recipe } from '@/types/recipe';
 
 import { AddEntrySheet } from './AddEntrySheet';
@@ -95,10 +98,15 @@ export default function ImportFlow({ visible, onClose }: ImportFlowProps) {
   }, [visible, step, onClose]);
 
   /** İçe aktarma (referans importRecipe): store'a yaz → kapat → detayı aç. */
-  function handleImport(recipe: Recipe) {
+  function handleImport(recipe: Recipe, source: ImportSource) {
     useCookbookStore.getState().importRecipe(recipe);
+    // Tarif aktif dilden farklı dildeyse çevirisi arka planda hemen başlar
+    // (dil değişimi tetiğini beklemesin); hata sessiz — sonraki tetikte
+    // yeniden denenir, çeviri gelene dek detay orijinal dilde görünür.
+    void ensureRecipeTranslations(getAppLanguage()).catch(() => {});
+    trackRecipeImported(source);
     onClose();
-    router.push(`/recipe/${recipe.id}`);
+    router.push(`/recipe/${recipe.id}?src=import`);
   }
 
   /** Fotoğraftan: akışı kapatıp tam ekran kamerayı tarif modunda aç. */
@@ -140,13 +148,13 @@ export default function ImportFlow({ visible, onClose }: ImportFlowProps) {
         onPrev={() => setIgPage((page) => Math.max(0, page - 1))}
         onNext={() => setIgPage((page) => Math.min(2, page + 1))}
         onLaunch={() => setStep('ig-launch')}
-        onImportSample={() => handleImport(SAMPLE_INSTAGRAM_RECIPE)}
+        onImportSample={() => handleImport(SAMPLE_INSTAGRAM_RECIPE, 'instagram')}
       />
       <InstagramLaunchScreen visible={visible && step === 'ig-launch'} onClose={onClose} />
       <WebImportScreen
         visible={visible && step === 'web'}
         onClose={onClose}
-        onImport={() => handleImport(SAMPLE_WEB_RECIPE)}
+        onImport={() => handleImport(SAMPLE_WEB_RECIPE, 'web')}
       />
     </>
   );

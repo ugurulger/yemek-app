@@ -11,6 +11,7 @@ import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
 import { PLAN_DAYS, usePlanStore, type PlanDay } from '@/store/planStore';
 import { showToast } from '@/store/toastStore';
+import { trackPlanRecipeAdded } from '@/tracking';
 import type { Recipe } from '@/types/recipe';
 
 export interface PlanDayPickerSheetProps {
@@ -60,6 +61,8 @@ export default function PlanDayPickerSheet({
       meal: 'Akşam',
       servings,
     });
+    // Sheet yalnız tarif detayından açılır (spec akışı).
+    trackPlanRecipeAdded('recipe_detail');
     // Plan → sepet otomasyonu (kullanıcı kararı): planlanan tarifin CANLI
     // eksikleri otomatik markete yazılır — manuel "sepete ekle" adımı yok.
     // syncRecipeMissing tarif bazlı DEĞİŞTİRDİĞİ için aynı tarif ikinci bir

@@ -24,10 +24,16 @@ import { generateRecipesRag, RAG_ENABLED } from '@/lib/rag/generateRecipesRag';
 import { getAppLanguage, llmOutputLanguage } from '@/src/i18n';
 import { pantryPromptNames } from '@/src/i18n/inventoryI18n';
 import { ensureRecipeTranslations, useLocalizedRecipes } from '@/src/i18n/recipeI18n';
+import { EmptyState } from '@/components/ui';
 import { cardShadow, colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
 import { inventoryFingerprint, useRecipeStore } from '@/store/recipeStore';
+import {
+  trackRecipesGenerationCompleted,
+  trackRecipesGenerationFailed,
+  trackRecipesGenerationStarted,
+} from '@/tracking';
 import type { Recipe } from '@/types/recipe';
 
 // İş 1: 6 standart + 2 fine dining = 8 (iskelet satır sayısı bunun yarısı).
@@ -110,6 +116,14 @@ export default function TariflerScreen() {
     setErrorMessage(null);
     setSlots([]);
     setIsGenerating(true);
+    const generationPath = RAG_ENABLED ? ('rag' as const) : ('two_phase' as const);
+    const tGenStart = performance.now();
+    trackRecipesGenerationStarted({
+      // İlk üretim (liste boş) = auto; sonrası kullanıcı yenilemesi = refresh.
+      trigger: recipes.length === 0 ? 'auto' : 'refresh',
+      path: generationPath,
+      inventory_item_count: inventoryItems.length,
+    });
     try {
       // RAG feature flag (BLOK A / A6): EXPO_PUBLIC_USE_RAG=true iken üretim
       // Supabase edge function'ına gider (tek çağrı, canlı slot gösterimi yok —
@@ -155,6 +169,16 @@ export default function TariflerScreen() {
         },
       });
       setRecipes(merged, fingerprint);
+      trackRecipesGenerationCompleted({
+        path: generationPath,
+        recipe_count: merged.length,
+        ready_count: merged.filter(
+          (recipe) => recipe.category !== 'fine-dining' && recipe.missing_count === 0
+        ).length,
+        // Planlanan 8 slotun dolmayanları — retry ile sonradan dolabilir.
+        failed_slot_count: Math.max(0, PLANNED_RECIPE_COUNT - merged.length),
+        duration_ms: performance.now() - tGenStart,
+      });
       // Dil politikası (lib/rag/generateRecipesRag.ts): RAG yolu HEP
       // İngilizce üretir; uygulama dili TR ise çeviriler burada arka planda
       // başlatılır — hazır olan tarif useLocalizedRecipes ile kendiliğinden
@@ -169,6 +193,10 @@ export default function TariflerScreen() {
       // console'a düşer (lib modülleri Node script'lerinden de kullanıldığı
       // için i18n lib'e SOKULMAZ — ekran sınırı kararı, BLOK B).
       console.warn('[recipes] üretim hatası:', error);
+      trackRecipesGenerationFailed({
+        path: generationPath,
+        error_type: error instanceof RecipeGenerationError ? 'api_error' : 'unknown',
+      });
       setErrorMessage(t('errors.recipeGenerationFailed'));
     } finally {
       setIsGenerating(false);
@@ -273,14 +301,14 @@ export default function TariflerScreen() {
 
       {!hasInventory ? (
         <View className="flex-1 items-center justify-center px-8">
-          <View className="w-full items-center rounded-2xl bg-white p-8" style={cardShadow}>
-            <Text className="text-5xl">🍲</Text>
-            <Text className="mt-4 text-center font-serif text-[21px] text-ink">
-              {t('recipes.emptyTitle')}
-            </Text>
-            <Text className="mt-2 text-center font-sans text-sm text-muted">
-              {t('recipes.emptyBody')}
-            </Text>
+          <View className="w-full">
+            <EmptyState
+              emoji="🍲"
+              title={t('recipes.emptyTitle')}
+              body={t('recipes.emptyBody')}
+              ctaLabel={t('recipes.emptyCta')}
+              onPressCta={() => router.push('/')}
+            />
           </View>
         </View>
       ) : showPreferencesScreen ? (
@@ -332,14 +360,14 @@ export default function TariflerScreen() {
             <View className="flex-1 px-5">
               <RecipeLayerSections
                 sections={sections}
-                onPressRecipe={(id) => router.push(`/recipe/${id}`)}
+                onPressRecipe={(id) => router.push(`/recipe/${id}?src=generated_list`)}
               />
             </View>
           ) : (
             <View className="flex-1 px-5">
               <RecipeList
                 recipes={displayRecipes}
-                onPressRecipe={(id) => router.push(`/recipe/${id}`)}
+                onPressRecipe={(id) => router.push(`/recipe/${id}?src=generated_list`)}
               />
             </View>
           )}

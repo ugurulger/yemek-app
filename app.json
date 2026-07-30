@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Yemek App",
+    "name": "MyKitchen",
     "slug": "yemek-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,13 +8,16 @@
     "scheme": "yemekapp",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.ugurulger.mykitchen",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "appie",
           "jumbo",
           "instagram"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,19 +48,21 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Uygulamanın buzdolabı fotoğraflarını seçebilmesi için galeriye erişim izni gerekiyor.",
-          "cameraPermission": "Fotoğraf çekebilmek için kameraya erişim izni gerekiyor."
+          "photosPermission": "MyKitchen needs access to your photo library so you can select photos or videos of your fridge and grocery receipts to add items to your kitchen inventory.",
+          "cameraPermission": "MyKitchen uses the camera to capture photos and videos of your fridge and grocery receipts so items can be added to your kitchen inventory.",
+          "microphonePermission": "MyKitchen uses the microphone to record audio while you capture a video of your fridge for inventory scanning."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Buzdolabını videoyla tarayabilmek için kameraya erişim izni gerekiyor.",
-          "microphonePermission": "Video kaydı sırasında mikrofona erişim izni gerekiyor.",
+          "cameraPermission": "MyKitchen uses the camera to capture photos and videos of your fridge and grocery receipts so items can be added to your kitchen inventory.",
+          "microphonePermission": "MyKitchen uses the microphone to record audio while you capture a video of your fridge for inventory scanning.",
           "recordAudioAndroid": true
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true

@@ -47,7 +47,7 @@ export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenP
               paddingHorizontal: 14,
             }}>
             <Text className="font-sans-medium text-[14px]" style={{ color: '#7B7F86' }}>
-              Menemen
+              {t('importFlow.webSearchSample')}
             </Text>
           </View>
           <Ionicons name="refresh" size={20} color="#23302B" />
@@ -95,7 +95,7 @@ export function WebImportScreen({ visible, onClose, onImport }: WebImportScreenP
               elevation: 2,
             }}>
             <Ionicons name="search" size={18} color="#9AA0A6" />
-            <Text className="font-sans text-[16px] text-ink">Menemen</Text>
+            <Text className="font-sans text-[16px] text-ink">{t('importFlow.webSearchSample')}</Text>
           </View>
           <Pressable
             onPress={onImport}

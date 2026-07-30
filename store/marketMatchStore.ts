@@ -14,6 +14,7 @@ import { getStoreProviders } from '@/services/stores';
 import type { StoreId, StoreProduct } from '@/services/stores/types';
 import { useMatchCacheStore, zustandMatchCache } from '@/store/matchCacheStore';
 import { useStorePriceStore } from '@/store/storePriceStore';
+import { trackMarketMatchRunCompleted } from '@/tracking';
 
 export type MarketMatchStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -86,6 +87,7 @@ export const useMarketMatchStore = create<MarketMatchState>()((set, get) => ({
     }
     set({ fingerprint, status: 'loading' });
     void get().runHealthChecks(); // eş zamanlı, koşuyu bloklamaz
+    const tRunStart = Date.now();
     try {
       const { matches, report } = await matchIngredients(items, {
         providers: getStoreProviders(),
@@ -101,6 +103,18 @@ export const useMarketMatchStore = create<MarketMatchState>()((set, get) => ({
         matchesByKey[match.cartKey] = match;
       }
       set({ status: 'ready', matchesByKey, report });
+      // Analitik: eşleşen satır = en az bir mağazada ürün bulunan satır.
+      const matchedCount = matches.filter((match) =>
+        Object.values(match.perStore).some(Boolean)
+      ).length;
+      const health = get().storeHealth;
+      trackMarketMatchRunCompleted({
+        matched_count: matchedCount,
+        unmatched_count: items.length - matchedCount,
+        ah_available: health.ah ?? true,
+        jumbo_available: health.jumbo ?? true,
+        duration_ms: Date.now() - tRunStart,
+      });
       console.log(
         `[match-run] ${report.totalIngredients} malzeme · T0=${report.tierCounts[0]} T1=${report.tierCounts[1]} ` +
           `T2=${report.tierCounts[2]} T3=${report.tierCounts[3]} · LLM ${report.llmCalls} çağrı ~$${report.estimatedLlmCostUsd.toFixed(4)}`

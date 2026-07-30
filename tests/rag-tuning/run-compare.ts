@@ -71,7 +71,7 @@ function inv(
   unit: InventoryItem['unit'],
   primary: 'tr' | 'en'
 ): InventoryItem {
-  return { id, name: primary === 'tr' ? nameTr : nameEn, nameTr, nameEn, qty, unit };
+  return { id, name: primary === 'tr' ? nameTr : nameEn, nameTr, nameEn, qty, unit, emoji: '🧺' };
 }
 
 /** 12 ürünlük TR envanter — TR modda taranmış gerçekçi buzdolabı. */

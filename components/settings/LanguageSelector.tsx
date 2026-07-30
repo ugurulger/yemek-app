@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { setAppLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '@/src/i18n';
+import { trackLanguageChanged } from '@/tracking';
 
 /**
  * Basit dil seçici (EN/TR) — Blok B "ayarlarda dil seçici" gereksinimi.
@@ -25,7 +26,10 @@ export function LanguageSelector() {
             key={language}
             accessibilityRole="radio"
             accessibilityState={{ selected: isActive }}
-            onPress={() => void setAppLanguage(language)}
+            onPress={() => {
+              if (language !== active) trackLanguageChanged(language);
+              void setAppLanguage(language);
+            }}
             className={`rounded-full px-2.5 py-1 active:scale-95 ${isActive ? 'bg-white' : ''}`}>
             <Text
               className={`font-sans-semibold text-[11px] ${isActive ? 'text-forest' : 'text-muted'}`}>

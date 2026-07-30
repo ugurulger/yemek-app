@@ -7,6 +7,7 @@ import { BottomSheet, PrimaryButton } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import { useCookbookStore } from '@/store/cookbookStore';
 import { showToast } from '@/store/toastStore';
+import { trackCookbookCreated } from '@/tracking';
 
 export interface CreateCookbookSheetProps {
   visible: boolean;
@@ -33,6 +34,7 @@ export function CreateCookbookSheet({ visible, onClose, onBack }: CreateCookbook
   const handleCreate = () => {
     if (!canCreate) return;
     useCookbookStore.getState().createCookbook(name);
+    trackCookbookCreated();
     showToast(t('cookbooks.createdToast', { name: name.trim() }));
     onClose();
   };

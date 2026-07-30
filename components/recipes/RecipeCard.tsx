@@ -14,6 +14,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
 import { useRecipeStore } from '@/store/recipeStore';
+import { trackCartIngredientsAdded } from '@/tracking';
 import type { Recipe } from '@/types/recipe';
 
 interface RecipeCardProps {
@@ -124,6 +125,7 @@ export default function RecipeCard({ recipe, onPress }: RecipeCardProps) {
           : undefined
       )
     );
+    trackCartIngredientsAdded({ ingredient_count: liveMissingCount, source: 'recipe_card' });
   }
 
   // NOT: eksik/sepet rozeti kart Pressable'ının İÇİNE konulmaz — iç içe iki

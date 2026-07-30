@@ -1,8 +1,10 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
+import { EmptyState } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import type { Recipe } from '@/types/recipe';
 import { CookbookRecipeCard } from './CookbookRecipeCard';
@@ -88,17 +90,19 @@ export function CookbookDetail({ name, recipes, onBack, onPressRecipe }: Cookboo
   );
 }
 
-/** Yönlendirmeli boş durum — kullanıcıya tarifin nasıl ekleneceğini söyler. */
+/** Yönlendirmeli boş durum — kullanıcıya tarifin nasıl ekleneceğini söyler;
+ * CTA Tarifler sekmesine götürür (kaydetme oradaki Defterler butonuyla). */
 function EmptyCookbook() {
   const { t } = useTranslation();
   return (
-    <View className="items-center px-8 pt-16">
-      <View className="h-16 w-16 items-center justify-center rounded-full bg-white">
-        <Ionicons name="book-outline" size={30} color={colors.muted} />
-      </View>
-      <Text className="mt-4 text-center font-sans text-[13px] leading-[19px] text-muted">
-        {t('cookbooks.emptyBody')}
-      </Text>
+    <View className="pt-8">
+      <EmptyState
+        icon={<Ionicons name="book-outline" size={30} color={colors.muted} />}
+        title={t('cookbooks.emptyTitle')}
+        body={t('cookbooks.emptyBody')}
+        ctaLabel={t('cookbooks.emptyCta')}
+        onPressCta={() => router.push('/recipes')}
+      />
     </View>
   );
 }

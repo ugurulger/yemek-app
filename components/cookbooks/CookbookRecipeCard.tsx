@@ -2,6 +2,7 @@ import { Image, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { PhotoPlaceholder } from '@/components/ui';
+import { useRecipeById } from '@/lib/recipes/find-recipe';
 import { computeMissing } from '@/lib/recipes/recipe-math';
 import { colors, photoTones } from '@/lib/theme';
 import { expandInventoryForMatching, expandPantryForMatching } from '@/src/i18n/inventoryI18n';
@@ -54,9 +55,15 @@ export function CookbookRecipeCard({ recipe, onPress }: CookbookRecipeCardProps)
   const inventoryItems = useInventoryStore((state) => state.items);
   const pantryItems = usePantryStore((state) => state.items);
 
+  // KANONİK kaynak orijinal tarif (RecipeCard İş 3c kalıbı): `recipe` prop'u
+  // yerelleştirilmiş kopya olabilir (saved.tsx → useLocalizedRecipes) —
+  // eksik hesabı, detay ekranıyla AYNI orijinal kayıt üzerinden yapılır;
+  // içe aktarılan tarifler için iki kaynaklı arama (useRecipeById) gerekir.
+  const originalRecipe = useRecipeById(recipe.id) ?? recipe;
+
   // İki dilli ad varyantlarıyla eşleştirme (bkz. src/i18n/inventoryI18n.ts).
   const liveMissingCount = computeMissing(
-    recipe,
+    originalRecipe,
     expandInventoryForMatching(inventoryItems),
     expandPantryForMatching(pantryItems)
   ).length;

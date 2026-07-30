@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -41,7 +41,28 @@ import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
 import { useRecipeStore } from '@/store/recipeStore';
 import { showToast } from '@/store/toastStore';
+import {
+  trackCartIngredientsAdded,
+  trackChefChatMessageSent,
+  trackRecipeViewed,
+  type RecipeViewSource,
+} from '@/tracking';
 import type { Recipe } from '@/types/recipe';
+
+const VIEW_SOURCES: readonly RecipeViewSource[] = [
+  'generated_list',
+  'cookbook',
+  'plan',
+  'import',
+  'market',
+];
+
+/** `?src=` parametresini plan enum'una indirger (bilinmeyen → generated_list). */
+function toViewSource(src: string | undefined): RecipeViewSource {
+  return (VIEW_SOURCES as readonly string[]).includes(src ?? '')
+    ? (src as RecipeViewSource)
+    : 'generated_list';
+}
 
 const EMPTY_MESSAGES: ChefChatMessage[] = [];
 
@@ -131,6 +152,7 @@ export default function RecipeDetailScreen() {
  */
 function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
   const { t } = useTranslation();
+  const { src } = useLocalSearchParams<{ src?: string }>();
   // Dil değişiminde "topyekün" takas: metinler (ad/malzeme/adım/tüyo) aktif
   // dile yerelleştirilmiş kopyadan gösterilir; id/sayısal alanlar ve görsel
   // cache'i ORİJİNAL kayıtla çalışmaya devam eder (bkz. src/i18n/recipeI18n.ts).
@@ -198,6 +220,16 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
 
   const scaled = useMemo(() => scaleServings(displayRecipe, servings), [displayRecipe, servings]);
 
+  // Analitik: detay açılışı — CANLI eksik sayısıyla, ekran başına bir kez.
+  useEffect(() => {
+    trackRecipeViewed({
+      source: toViewSource(src),
+      missing_count: missingIngredients.length,
+      is_fine_dining: recipe.category === 'fine-dining',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleServingsChange = (next: number) => {
     const target = Math.max(1, next);
     setSelectedServings(recipe.id, target);
@@ -240,6 +272,10 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
         cartCounterpart
       )
     );
+    trackCartIngredientsAdded({
+      ingredient_count: missingIngredients.length,
+      source: 'recipe_detail',
+    });
     showToast(t('recipeDetail.missingAddedToast'));
   };
 
@@ -250,6 +286,11 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     const message = (text ?? draft).trim();
     if (!message || isAsking) return;
     const history = messages;
+    trackChefChatMessageSent({
+      // 1-bazlı sıra: bu tarifin sohbetindeki kaçıncı kullanıcı mesajı.
+      message_index: history.filter((entry) => entry.role === 'user').length + 1,
+      used_suggestion_chip: text !== undefined,
+    });
     addMessage(recipe.id, { role: 'user', content: message, createdAt: Date.now() });
     if (text === undefined) setDraft('');
     setIsAsking(true);

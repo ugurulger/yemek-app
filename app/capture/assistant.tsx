@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,11 @@ import { Chip, PrimaryButton, SectionLabel } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import { useInventoryStore } from '@/store/inventoryStore';
 import { usePantryStore } from '@/store/pantryStore';
+import {
+  trackInventoryCaptureCompleted,
+  trackInventoryCaptureFailed,
+  trackInventoryCaptureStarted,
+} from '@/tracking';
 import type { InventoryItem } from '@/types/inventory';
 
 /** Kapat butonu gölgesi — referans 584: 0 2px 8px -3px rgba(31,74,61,.25). */
@@ -71,6 +76,8 @@ export default function AssistantAddScreen() {
   const [parsedItems, setParsedItems] = useState<ParsedIngredient[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDone, setIsDone] = useState(false);
+  /** Analitik süre ölçümü: ilk parse başlangıcından ekleme anına. */
+  const captureStartRef = useRef<number | null>(null);
 
   const selectedCount = selectedIds.size;
   const hasParsed = parsedItems.length > 0;
@@ -81,6 +88,10 @@ export default function AssistantAddScreen() {
       return;
     }
     setIsParsing(true);
+    if (captureStartRef.current === null) {
+      captureStartRef.current = performance.now();
+      trackInventoryCaptureStarted('assistant');
+    }
     try {
       // Malzeme adları aktif uygulama dilinde üretilir (BLOK B / B3).
       const items = await parseIngredients(query, { outputLanguage: llmOutputLanguage() });
@@ -90,6 +101,11 @@ export default function AssistantAddScreen() {
       setText('');
     } catch (error) {
       console.warn('[assistant] ayrıştırma hatası:', error);
+      trackInventoryCaptureFailed({
+        method: 'assistant',
+        provider: 'claude',
+        error_type: 'parse',
+      });
       Alert.alert(t('assistant.parseFailedTitle'), t('assistant.parseFailedBody'));
     } finally {
       setIsParsing(false);
@@ -153,6 +169,15 @@ export default function AssistantAddScreen() {
     void backfillInventoryTranslations('en').catch(() => {});
     void backfillPantryTranslations('tr').catch(() => {});
     void backfillPantryTranslations('en').catch(() => {});
+    trackInventoryCaptureCompleted({
+      method: 'assistant',
+      provider: 'claude', // parseIngredients = claude-haiku (sabit)
+      item_count: selected.length,
+      uncertain_item_count: 0, // asistan akışında confidence kavramı yok
+      write_mode: 'add',
+      duration_ms:
+        captureStartRef.current === null ? 0 : performance.now() - captureStartRef.current,
+    });
     setIsDone(true);
     setTimeout(() => router.back(), 900);
   }

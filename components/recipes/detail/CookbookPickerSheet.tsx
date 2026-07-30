@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BottomSheet } from '@/components/ui';
+import { cookbookDisplayName } from '@/src/i18n/labels';
 import { useCookbookStore } from '@/store/cookbookStore';
+import { trackRecipeSaved } from '@/tracking';
 import type { Recipe } from '@/types/recipe';
 
 export interface CookbookPickerSheetProps {
@@ -32,6 +34,16 @@ export default function CookbookPickerSheet({ visible, onClose, recipe }: Cookbo
   const { t } = useTranslation();
   const cookbooks = useCookbookStore((state) => state.cookbooks);
   const toggleRecipeInCookbook = useCookbookStore((state) => state.toggleRecipeInCookbook);
+  const importedRecipes = useCookbookStore((state) => state.importedRecipes);
+
+  const handleToggle = (cookbookId: string, wasSelected: boolean) => {
+    // Analitik: yalnız EKLEME yönünde (çıkarma recipe.saved sayılmaz).
+    if (!wasSelected) {
+      const isImported = importedRecipes.some((entry) => entry.id === recipe.id);
+      trackRecipeSaved(isImported ? 'imported' : 'generated');
+    }
+    toggleRecipeInCookbook(cookbookId, recipe);
+  };
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -43,16 +55,17 @@ export default function CookbookPickerSheet({ visible, onClose, recipe }: Cookbo
       <View className="mb-3.5 gap-[9px]">
         {cookbooks.map((cookbook) => {
           const selected = cookbook.recipeIds.includes(recipe.id);
+          const displayName = cookbookDisplayName(cookbook);
           return (
             <Pressable
               key={cookbook.id}
               accessibilityRole="button"
               accessibilityLabel={
                 selected
-                  ? t('cookbooks.removeFromA11y', { name: cookbook.name })
-                  : t('cookbooks.addToA11y', { name: cookbook.name })
+                  ? t('cookbooks.removeFromA11y', { name: displayName })
+                  : t('cookbooks.addToA11y', { name: displayName })
               }
-              onPress={() => toggleRecipeInCookbook(cookbook.id, recipe)}
+              onPress={() => handleToggle(cookbook.id, selected)}
               className="flex-row items-center gap-3 rounded-[15px] bg-white px-4 py-3.5 active:scale-[0.98]"
               style={ROW_SHADOW}>
               <View
@@ -63,7 +76,7 @@ export default function CookbookPickerSheet({ visible, onClose, recipe }: Cookbo
                 {selected && <Ionicons name="checkmark" size={13} color="white" />}
               </View>
               <Text className="flex-1 font-sans-semibold text-[14px] text-ink">
-                {cookbook.name}
+                {displayName}
               </Text>
               <Text className="font-sans-medium text-[11px] text-muted">
                 {t('cookbooks.recipeCount', { count: cookbook.recipeIds.length })}

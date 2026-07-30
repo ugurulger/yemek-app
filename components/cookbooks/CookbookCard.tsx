@@ -1,6 +1,7 @@
 import { Image, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { cookbookDisplayName } from '@/src/i18n/labels';
 import { useRecipeImage } from '@/services/images/useRecipeImage';
 import type { Cookbook } from '@/types/cookbook';
 import type { Recipe } from '@/types/recipe';
@@ -59,10 +60,11 @@ function CollageRecipeTile({ recipe }: { recipe: Recipe }) {
  */
 export function CookbookCard({ cookbook, recipes, onPress }: CookbookCardProps) {
   const { t } = useTranslation();
+  const displayName = cookbookDisplayName(cookbook);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t('cookbooks.openA11y', { name: cookbook.name })}
+      accessibilityLabel={t('cookbooks.openA11y', { name: displayName })}
       onPress={onPress}
       className="active:scale-95">
       <View
@@ -78,7 +80,7 @@ export function CookbookCard({ cookbook, recipes, onPress }: CookbookCardProps) 
         </View>
       </View>
       <Text className="mx-[2px] mt-[9px] font-sans-semibold text-[15px] text-ink" numberOfLines={1}>
-        {cookbook.name}
+        {displayName}
       </Text>
       <Text className="mx-[2px] mt-[1px] font-sans text-[12px] text-muted">
         {t('cookbooks.recipeCount', { count: recipes.length })}

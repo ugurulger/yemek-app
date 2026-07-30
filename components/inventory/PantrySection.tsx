@@ -9,6 +9,7 @@ import { colors } from '@/lib/theme';
 import { pantryDisplayName } from '@/src/i18n/inventoryI18n';
 import { pantryCategoryKey } from '@/src/i18n/labels';
 import { usePantryStore } from '@/store/pantryStore';
+import { trackPantryItemToggled } from '@/tracking';
 import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from '@/types/pantry';
 
 // Rota henüz typed-routes çıktısında olmayabilir (capture ekranları paralel
@@ -26,6 +27,12 @@ export function PantrySection() {
   const items = usePantryStore((state) => state.items);
   const lastUpdatedAt = usePantryStore((state) => state.lastUpdatedAt);
   const toggleItem = usePantryStore((state) => state.toggleItem);
+
+  const handleToggle = (id: string) => {
+    const item = items.find((entry) => entry.id === id);
+    trackPantryItemToggled(!(item?.active ?? false));
+    toggleItem(id);
+  };
 
   const byCategory = new Map<PantryCategory, PantryItem[]>();
   for (const item of items) {
@@ -70,7 +77,7 @@ export function PantrySection() {
             <PantryCategoryCard
               category={left}
               items={byCategory.get(left)!}
-              onToggle={toggleItem}
+              onToggle={handleToggle}
             />
           </View>
           {right ? (
@@ -78,7 +85,7 @@ export function PantrySection() {
               <PantryCategoryCard
                 category={right}
                 items={byCategory.get(right)!}
-                onToggle={toggleItem}
+                onToggle={handleToggle}
               />
             </View>
           ) : (

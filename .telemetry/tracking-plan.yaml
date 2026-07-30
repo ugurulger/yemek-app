@@ -1,0 +1,438 @@
+meta:
+  product: "Yemek App"
+  version: 1
+  created: 2026-07-19
+  updated: 2026-07-19
+  implemented: 2026-07-19   # tracking/ modülü + 23 event + Sentry — delta.md'nin tamamı uygulandı
+  owner: "ugurulger"
+  destinations: [posthog-eu, sentry]
+  posthog_host: "https://eu.i.posthog.com"   # GDPR: EU cloud, mandatory
+  naming_convention: "object.action snake_case"
+  pii_policy: none            # no auth/no email exists; identity = anonymous device UUID.
+                              # No free-text user input, no inventory/chat/photo content,
+                              # no recipe names in any event property. Counts/enums/flags only.
+  internal_user_policy: "exclude dev builds — SDK inits with optOut when __DEV__ is true unless EXPO_PUBLIC_ANALYTICS_DEBUG=true; no server/admin roles exist"
+  session_replay: disabled    # GDPR posture; camera screens would leak photos
+  autocapture: disabled       # RN autocapture off; explicit events only (volume + signal quality)
+  crash_reporting: "Sentry (EU region org). Crashes/JS errors go to Sentry only — no duplicate error events in PostHog. sendDefaultPii: false."
+
+entities:
+  user:
+    id_property: distinct_id
+    id_format: "client-generated UUID v4, persisted in AsyncStorage (device-scoped, pseudonymous). No identify() with external IDs until auth exists; if Supabase auth arrives, alias onto the Supabase user UUID."
+    traits:
+      # set via $set / $set_once on person; all non-PII
+      - name: language
+        type: string
+        enum: [tr, en]
+        required: true
+        update: on-change
+      - name: first_seen_at
+        type: datetime
+        required: true
+        update: one-time    # $set_once
+      - name: first_capture_completed_at
+        type: datetime
+        required: false
+        update: one-time    # $set_once — activation milestone (funnel: onboarding)
+      - name: first_recipe_generated_at
+        type: datetime
+        required: false
+        update: one-time
+      - name: first_recipe_added_at
+        type: datetime
+        required: false
+        update: one-time    # first save/import into a cookbook
+      - name: first_plan_entry_at
+        type: datetime
+        required: false
+        update: one-time
+      - name: first_market_use_at
+        type: datetime
+        required: false
+        update: one-time
+      - name: inventory_item_count
+        type: integer
+        required: false
+        update: on-change   # snapshot metric, set after each capture/edit; no scheduled job exists client-side
+
+groups: []   # B2C, single-player — no group hierarchy; user-level tracking only
+
+# ---------------------------------------------------------------------------
+# FUNNELS (required coverage — defined over the events below)
+# ---------------------------------------------------------------------------
+funnels:
+  - name: onboarding_completion
+    note: >
+      The app has NO dedicated onboarding UI. "Onboarding" is defined as the
+      de-facto first-run activation path. If a real onboarding flow ships
+      later, add onboarding.step_completed via instrument-new-feature.
+    steps:
+      - "app.opened (is_first_open = true)"
+      - "inventory.capture_started (is_first = true)"
+      - "inventory.capture_completed (is_first = true)"
+  - name: first_recipe_added
+    steps:
+      - "app.opened"
+      - "recipe.imported OR recipe.saved (is_first = true)"
+  - name: first_weekly_plan
+    steps:
+      - "recipes.generation_completed"
+      - "recipe.viewed"
+      - "plan.recipe_added (is_first = true)"
+  - name: market_list_usage
+    steps:
+      - "cart.ingredients_added"
+      - "market.viewed"
+      - "market.item_checked OR market.store_link_opened"
+  - name: week2_return
+    note: >
+      No dedicated event — built in PostHog as a retention insight on
+      app.opened (or any event), cohort = first_seen week, return window =
+      week 2. first_seen_at $set_once powers the cohort.
+    steps:
+      - "app.opened (week 0)"
+      - "app.opened (days 7-14)"
+
+# ---------------------------------------------------------------------------
+# EVENTS
+# ---------------------------------------------------------------------------
+events:
+  # -- Lifecycle --
+  - name: app.opened
+    category: lifecycle
+    description: Cold start or foreground return of the app
+    properties:
+      - name: is_first_open
+        type: boolean
+        required: true
+      - name: language
+        type: string
+        enum: [tr, en]
+        required: true
+    expected_frequency: high
+
+  # -- Core value: inventory capture --
+  - name: inventory.capture_started
+    category: core_value
+    description: User starts an inventory capture (photo pick, receipt, video record, or assistant entry)
+    properties:
+      - name: method
+        type: string
+        enum: [photo, receipt, video, assistant]
+        required: true
+      - name: is_first
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  - name: inventory.capture_completed
+    category: core_value
+    description: Capture pipeline finished and items were written to the inventory (or pantry for assistant mode)
+    properties:
+      - name: method
+        type: string
+        enum: [photo, receipt, video, assistant]
+        required: true
+      - name: provider
+        type: string
+        enum: [gemini, claude]
+        required: true
+      - name: item_count
+        type: integer
+        required: true
+      - name: uncertain_item_count
+        type: integer
+        required: true
+      - name: write_mode
+        type: string
+        enum: [replace, add]
+        required: true
+      - name: duration_ms
+        type: integer
+        required: true
+      - name: is_first
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  - name: inventory.capture_failed
+    category: core_value
+    description: Capture pipeline errored or returned nothing usable ("tekrar dene" state)
+    properties:
+      - name: method
+        type: string
+        enum: [photo, receipt, video, assistant]
+        required: true
+      - name: provider
+        type: string
+        enum: [gemini, claude]
+        required: true
+      - name: error_type
+        type: string
+        enum: [network, parse, empty_result, permission, cancelled, unknown]
+        required: true
+      - name: duration_ms
+        type: integer
+        required: false
+    expected_frequency: low
+
+  - name: inventory.uncertain_item_resolved
+    category: core_value
+    description: User resolves an item from the "kontrol bekliyor" modal (vision-quality signal)
+    properties:
+      - name: action
+        type: string
+        enum: [added, deleted]
+        required: true
+    expected_frequency: low
+
+  # -- Core value: recipe generation --
+  - name: recipes.generation_started
+    category: core_value
+    description: Recipe generation kicked off (cache miss or manual refresh)
+    properties:
+      - name: trigger
+        type: string
+        enum: [auto, refresh, preferences_changed]
+        required: true
+      - name: path
+        type: string
+        enum: [rag, two_phase]
+        required: true
+      - name: inventory_item_count
+        type: integer
+        required: true
+      - name: is_first
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  - name: recipes.generation_completed
+    category: core_value
+    description: Full recipe list settled (all slots done or errored)
+    properties:
+      - name: path
+        type: string
+        enum: [rag, two_phase]
+        required: true
+      - name: recipe_count
+        type: integer
+        required: true
+      - name: ready_count
+        type: integer
+        required: true
+      - name: failed_slot_count
+        type: integer
+        required: true
+      - name: duration_ms
+        type: integer
+        required: true
+    expected_frequency: medium
+
+  - name: recipes.generation_failed
+    category: core_value
+    description: Generation failed entirely (no recipes produced)
+    properties:
+      - name: path
+        type: string
+        enum: [rag, two_phase]
+        required: true
+      - name: error_type
+        type: string
+        enum: [network, api_error, parse, unknown]
+        required: true
+    expected_frequency: low
+
+  - name: recipe.viewed
+    category: core_value
+    description: Recipe detail screen opened
+    properties:
+      - name: source
+        type: string
+        enum: [generated_list, cookbook, plan, import, market]
+        required: true
+      - name: missing_count
+        type: integer
+        required: true
+      - name: is_fine_dining
+        type: boolean
+        required: true
+    expected_frequency: high
+
+  - name: recipe.saved
+    category: core_value
+    description: Recipe added to a cookbook (CookbookPickerSheet)
+    properties:
+      - name: source
+        type: string
+        enum: [generated, imported]
+        required: true
+      - name: is_first
+        type: boolean
+        required: true
+    expected_frequency: low
+
+  - name: recipe.imported
+    category: core_value
+    description: Recipe imported via the "+" flow
+    properties:
+      - name: source
+        type: string
+        enum: [instagram, web, photo]
+        required: true
+      - name: is_first
+        type: boolean
+        required: true
+    expected_frequency: low
+
+  - name: chef_chat.message_sent
+    category: core_value
+    description: User sends a message in Şefe Sor (content NOT tracked)
+    properties:
+      - name: message_index
+        type: integer
+        required: true
+      - name: used_suggestion_chip
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  # -- Core value: plan --
+  - name: plan.recipe_added
+    category: core_value
+    description: Recipe placed on a weekday in the weekly plan
+    properties:
+      - name: source
+        type: string
+        enum: [recipe_detail, plan_screen]
+        required: true
+      - name: is_first
+        type: boolean
+        required: true
+    expected_frequency: medium
+
+  # -- Core value: market / shopping list --
+  - name: cart.ingredients_added
+    category: core_value
+    description: Missing ingredients of a recipe added to the shopping cart
+    properties:
+      - name: ingredient_count
+        type: integer
+        required: true
+      - name: source
+        type: string
+        enum: [recipe_card, recipe_detail]
+        required: true
+    expected_frequency: medium
+
+  - name: market.viewed
+    category: navigation
+    description: Market tab opened with a non-empty cart (feature access, not a page view — fires only when there is a list to use)
+    properties:
+      - name: item_count
+        type: integer
+        required: true
+    expected_frequency: medium
+
+  - name: market.item_checked
+    category: core_value
+    description: Shopping-list line toggled (checked = bought/have it)
+    properties:
+      - name: is_checked
+        type: boolean
+        required: true
+    expected_frequency: high
+
+  - name: market.match_run_completed
+    category: core_value
+    description: Automatic AH/Jumbo price-match run finished
+    properties:
+      - name: matched_count
+        type: integer
+        required: true
+      - name: unmatched_count
+        type: integer
+        required: true
+      - name: ah_available
+        type: boolean
+        required: true
+      - name: jumbo_available
+        type: boolean
+        required: true
+      - name: duration_ms
+        type: integer
+        required: true
+    expected_frequency: medium
+
+  - name: market.match_corrected
+    category: core_value
+    description: User manually corrects a product match (ProductMatchSheet selection — matching-quality signal)
+    properties:
+      - name: store
+        type: string
+        enum: [ah, jumbo]
+        required: true
+      - name: via_search
+        type: boolean
+        required: true
+    expected_frequency: low
+
+  - name: market.store_link_opened
+    category: core_value
+    description: User taps through to a store (deeplink or web fallback)
+    properties:
+      - name: store
+        type: string
+        enum: [ah, jumbo]
+        required: true
+      - name: link_type
+        type: string
+        enum: [app, web]
+        required: true
+    expected_frequency: low
+
+  # -- Configuration --
+  - name: preferences.updated
+    category: configuration
+    description: Recipe preferences saved
+    properties:
+      - name: selected_count
+        type: integer
+        required: true
+    expected_frequency: low
+
+  - name: pantry.item_toggled
+    category: configuration
+    description: Pantry staple chip toggled on/off
+    properties:
+      - name: enabled
+        type: boolean
+        required: true
+    expected_frequency: low
+
+  - name: language.changed
+    category: configuration
+    description: Manual language switch via EN/TR pill
+    properties:
+      - name: language
+        type: string
+        enum: [tr, en]
+        required: true
+    expected_frequency: low
+
+  - name: cookbook.created
+    category: configuration
+    description: New cookbook (defter) created
+    properties: []
+    expected_frequency: low
+
+# ---------------------------------------------------------------------------
+# Deliberate exclusions (do not add without a reason)
+# ---------------------------------------------------------------------------
+exclusions:
+  - "No page/screen view autotracking — feature events above carry the signal at a fraction of the volume."
+  - "No LLM token/cost events in PostHog — cost diagnostics stay in console logs ([rag-gen], [match-llm]); revisit only if cost dashboards are needed."
+  - "No error events in PostHog — Sentry owns errors/crashes; duplicating them doubles volume and splits triage."
+  - "No event properties containing: inventory item names, recipe names/ingredients, chat text, photos/video, search queries, store product names — GDPR minimization; counts/enums only."
+  - "No plan.recipe_removed / cart item-level events / inventory.item_edited — noise relative to decisions they'd inform."

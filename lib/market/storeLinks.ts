@@ -26,7 +26,11 @@ const STORE_LINKS: Record<StoreId, { appScheme: string; webHome: string }> = {
   jumbo: { appScheme: 'jumbo://', webHome: 'https://www.jumbo.com' },
 };
 
-export async function openStore(storeId: StoreId, product?: StoreProduct): Promise<void> {
+/** Dönüş değeri hangi yolun açıldığını söyler (analitik `link_type` için). */
+export async function openStore(
+  storeId: StoreId,
+  product?: StoreProduct
+): Promise<'app' | 'web'> {
   const { appScheme, webHome } = STORE_LINKS[storeId];
 
   // Native'de önce uygulama şeması denenir; web'de şema sorgusu anlamsız.
@@ -34,7 +38,7 @@ export async function openStore(storeId: StoreId, product?: StoreProduct): Promi
     try {
       if (await Linking.canOpenURL(appScheme)) {
         await Linking.openURL(appScheme);
-        return;
+        return 'app';
       }
     } catch {
       // şema sorgusu/açılışı başarısız — web fallback'ine düş
@@ -45,7 +49,8 @@ export async function openStore(storeId: StoreId, product?: StoreProduct): Promi
   if (Platform.OS === 'web') {
     // Uygulama içi tarayıcı web'de yeni sekmeye düşer; doğrudan aç.
     await Linking.openURL(url);
-    return;
+    return 'web';
   }
   await WebBrowser.openBrowserAsync(url);
+  return 'web';
 }

@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { getAppLanguage, type AppLanguage } from './index';
 
 import { translateRecipeTexts } from '@/lib/claude/translate';
+import { useCookbookStore } from '@/store/cookbookStore';
 import { useRecipeStore } from '@/store/recipeStore';
 import type { Recipe, RecipeTexts } from '@/types/recipe';
 
@@ -75,14 +76,43 @@ export function useLocalizedRecipe(recipe: Recipe): Recipe {
 }
 
 /**
- * Store'daki tariflerden hedef dilde karşılığı OLMAYANLARI paralel çevirir ve
- * her biri tamamlandıkça store'a yazar (kısmi başarı: bir tarifin çevirisi
- * başarısız olursa diğerleri ETKİLENMEZ; başarısız olan, bir sonraki dil
- * değişiminde yeniden denenir). Bkz. languageSync.ts — dil değişimi tetikler.
+ * Üretilmiş (recipeStore) VE içe aktarılmış (cookbookStore.importedRecipes)
+ * tariflerden hedef dilde karşılığı OLMAYANLARI paralel çevirir ve her biri
+ * tamamlandıkça store'a yazar (kısmi başarı: bir tarifin çevirisi başarısız
+ * olursa diğerleri ETKİLENMEZ; başarısız olan, bir sonraki tetikte yeniden
+ * denenir). Çeviriler kaynaktan bağımsız recipeStore.translations'a recipeId
+ * anahtarıyla yazılır — useLocalizedRecipe(s) iki kaynağın tarifini de aynı
+ * haritadan çözer. Tetikler: dil değişimi (languageSync.ts) + içe aktarma
+ * (ImportFlow — TR'deyken EN örnek import edilince toggle beklemesin).
  */
+/** Persist'li store hidrasyonunu bekler — hidrasyon öncesi state BOŞ görünür. */
+function waitForHydration(store: {
+  persist: { hasHydrated: () => boolean; onFinishHydration: (fn: () => void) => () => void };
+}): Promise<void> {
+  if (store.persist.hasHydrated()) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const unsubscribe = store.persist.onFinishHydration(() => {
+      unsubscribe();
+      resolve();
+    });
+  });
+}
+
 export async function ensureRecipeTranslations(targetLanguage: AppLanguage): Promise<void> {
+  // Açılıştaki languageChanged (kayıtlı dil ≠ cihaz dili) store'lar AsyncStorage'dan
+  // hidrate olmadan ateşlenebiliyor — beklenmezse süpürme boş listede gezer ve
+  // içe aktarılan tarifler hiç çevrilmezdi (canlı gözlem, 2026-07-19).
+  await Promise.all([waitForHydration(useRecipeStore), waitForHydration(useCookbookStore)]);
   const { recipes, translations } = useRecipeStore.getState();
-  const pending = recipes.filter(
+  const imported = useCookbookStore.getState().importedRecipes;
+  // İki kaynak tek havuzda; aynı id iki listede de varsa (deftere kopyalanan
+  // üretilmiş tarif) üretilmiş kayıt kazanır — id bazlı tek çeviri yeter.
+  const byId = new Map<string, Recipe>();
+  for (const recipe of imported) byId.set(recipe.id, recipe);
+  for (const recipe of recipes) byId.set(recipe.id, recipe);
+  const pending = [...byId.values()].filter(
     (recipe) =>
       recipeLanguage(recipe) !== targetLanguage && !translations[recipe.id]?.[targetLanguage]
   );

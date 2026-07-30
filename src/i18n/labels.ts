@@ -9,6 +9,8 @@
 import type { PantryCategory } from '@/types/pantry';
 import type { IngredientCategory, NutritionTag, RecipeDifficulty } from '@/types/recipe';
 
+import i18n from './index';
+
 const INGREDIENT_CATEGORY_KEYS: Record<IngredientCategory, string> = {
   'Meyve & Sebze': 'data.category.produce',
   'Süt & Peynir': 'data.category.dairy',
@@ -68,6 +70,25 @@ const PANTRY_ITEM_KEYS: Record<string, string> = {
   Soğan: 'data.pantryItem.onion',
   Sarımsak: 'data.pantryItem.garlic',
 };
+
+/**
+ * Varsayılan defterlerin (store/cookbookStore.ts DEFAULT_COOKBOOKS) gösterim
+ * anahtarları — VERİ adları persist'te değişmeden kalır; kullanıcı
+ * defterlerinde anahtar yoktur ve adları t()'ye SOKULMAZ (pantryDisplayName
+ * kuralıyla aynı: anahtarı olmayan ada t() çağrılmaz — "EKSİK ÇEVİRİ
+ * ANAHTARI" uyarısının kaynağı olur), yazdıkları ad olduğu gibi döner.
+ */
+const COOKBOOK_NAME_KEYS: Record<string, string> = {
+  uncategorized: 'data.cookbook.uncategorized',
+  aksam: 'data.cookbook.aksam',
+  kahvalti: 'data.cookbook.kahvalti',
+  corba: 'data.cookbook.corba',
+};
+
+export function cookbookDisplayName(cookbook: { id: string; name: string }): string {
+  const key = COOKBOOK_NAME_KEYS[cookbook.id];
+  return key ? i18n.t(key) : cookbook.name;
+}
 
 export function pantryCategoryKey(category: PantryCategory | string): string {
   return PANTRY_CATEGORY_KEYS[category as PantryCategory] ?? category;

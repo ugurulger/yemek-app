@@ -31,8 +31,9 @@ export interface ProductMatchSheetProps {
   onClose: () => void;
   item: CartItemView | null;
   match: IngredientMatch | undefined;
-  /** Alternatif seçildi — cache'e kullanıcı düzeltmesi olarak yazılır. */
-  onSelect: (storeId: StoreId, product: StoreProduct) => void;
+  /** Alternatif seçildi — cache'e kullanıcı düzeltmesi olarak yazılır.
+   * `viaSearch`: aday, manuel NL aramasından mı geldi (analitik). */
+  onSelect: (storeId: StoreId, product: StoreProduct, viaSearch: boolean) => void;
 }
 
 /**
@@ -121,7 +122,7 @@ export default function ProductMatchSheet({ visible, onClose, item, match, onSel
                     <ProductRow
                       key={product.sku}
                       product={product}
-                      onPress={() => onSelect(storeId, product)}
+                      onPress={() => onSelect(storeId, product, searchResults !== null)}
                     />
                   ))}
                 </View>

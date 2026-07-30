@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { STARTER_RECIPES } from '@/lib/recipes/starter-recipes';
 import { UNCATEGORIZED_COOKBOOK_ID, type Cookbook } from '@/types/cookbook';
 import type { Recipe } from '@/types/recipe';
 
@@ -36,6 +37,20 @@ interface CookbookState {
   importRecipe: (recipe: Recipe) => void;
   /** "Add a Cookbook" akışı: verilen adla boş bir defter oluşturur. */
   createCookbook: (name: string) => void;
+  /**
+   * Starter tarif tohumu denendi mi — SADECE ilk açılışta bir kez koşsun
+   * diye kalıcı bayrak (tohum atlansa bile true olur ki güncelleme alan
+   * eski kullanıcıya sonradan örnek basılmasın).
+   */
+  starterSeeded: boolean;
+  /**
+   * İlk açılış tohumu (app/_layout.tsx, hidrasyon sonrası): hesap gerçekten
+   * TAZE ise (hiç kayıtlı/içe aktarılmış tarif yoksa) STARTER_RECIPES
+   * "Kategorisiz" defterine import edilir; değilse yalnız bayrak yazılır.
+   */
+  seedStarterRecipes: () => void;
+  /** Kayıtlı ekranındaki banner'ın tek dokunuşluk "örnekleri kaldır" aksiyonu. */
+  removeStarterRecipes: () => void;
 }
 
 /**
@@ -116,6 +131,47 @@ export const useCookbookStore = create<CookbookState>()(
             { id: `cookbook-${Date.now()}`, name: name.trim(), recipeIds: [] },
           ],
         })),
+      starterSeeded: false,
+      seedStarterRecipes: () =>
+        set((state) => {
+          if (state.starterSeeded) return state;
+          // Taze hesap kontrolü: kullanıcının kendi tarifi varsa örnek basma —
+          // yalnız bayrağı yaz (güncelleme sonrası ilk açılış senaryosu).
+          if (state.savedRecipeIds.length > 0 || state.importedRecipes.length > 0) {
+            return { ...state, starterSeeded: true };
+          }
+          const starterIds = STARTER_RECIPES.map((recipe) => recipe.id);
+          return {
+            ...state,
+            starterSeeded: true,
+            cookbooks: state.cookbooks.map((cookbook) =>
+              cookbook.id === UNCATEGORIZED_COOKBOOK_ID
+                ? { ...cookbook, recipeIds: [...starterIds, ...cookbook.recipeIds] }
+                : cookbook
+            ),
+            importedRecipes: [...STARTER_RECIPES, ...state.importedRecipes],
+            savedRecipeIds: [...starterIds, ...state.savedRecipeIds],
+          };
+        }),
+      removeStarterRecipes: () =>
+        set((state) => {
+          const starterIds = new Set(STARTER_RECIPES.map((recipe) => recipe.id));
+          const cookbooks = state.cookbooks.map((cookbook) => ({
+            ...cookbook,
+            recipeIds: cookbook.recipeIds.filter((id) => !starterIds.has(id)),
+          }));
+          const savedRecipeIds = state.savedRecipeIds.filter((id) => !starterIds.has(id));
+          return {
+            ...state,
+            cookbooks,
+            savedRecipeIds,
+            importedRecipes: pruneImported(
+              state.importedRecipes.filter((recipe) => !starterIds.has(recipe.id)),
+              cookbooks,
+              savedRecipeIds
+            ),
+          };
+        }),
     }),
     {
       name: 'yemek-app-cookbooks',

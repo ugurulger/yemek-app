@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CartCategorySection } from '@/components/cart/CartCategorySection';
 import ProductMatchSheet from '@/components/cart/ProductMatchSheet';
 import { StoreComparisonCard } from '@/components/cart/StoreComparisonCard';
-import { PrimaryButton } from '@/components/ui';
+import { EmptyState, PrimaryButton } from '@/components/ui';
 import { openStore } from '@/lib/market/storeLinks';
 import { ingredientCategoryKey } from '@/src/i18n/labels';
 import { useCartMatches } from '@/lib/market/useCartMatches';
@@ -17,6 +18,12 @@ import type { StoreId, StoreProduct } from '@/services/stores/types';
 import { mergeCartEntries, useCartStore } from '@/store/cartStore';
 import { useMarketMatchStore } from '@/store/marketMatchStore';
 import { showToast } from '@/store/toastStore';
+import {
+  trackMarketItemChecked,
+  trackMarketMatchCorrected,
+  trackMarketStoreLinkOpened,
+  trackMarketViewed,
+} from '@/tracking';
 import type { CartItemView } from '@/types/cart';
 import { INGREDIENT_CATEGORIES, type IngredientCategory } from '@/types/recipe';
 
@@ -83,16 +90,34 @@ export default function MarketScreen() {
     .filter(([, ok]) => !ok)
     .map(([storeId]) => (storeId === 'ah' ? 'Albert Heijn' : 'Jumbo'));
 
-  const handleSelectAlternative = (storeId: StoreId, product: StoreProduct) => {
+  // Analitik: liste kullanıma hazır olduğunda (dolu sepetle) bir kez.
+  const marketViewedRef = useRef(false);
+  useEffect(() => {
+    if (!isEmpty && !marketViewedRef.current) {
+      marketViewedRef.current = true;
+      trackMarketViewed(items.length);
+    }
+  }, [isEmpty, items.length]);
+
+  const handleToggleChecked = (key: string) => {
+    const item = items.find((entry) => entry.key === key);
+    if (item) trackMarketItemChecked(!item.checked);
+    toggleChecked(key);
+  };
+
+  const handleSelectAlternative = (storeId: StoreId, product: StoreProduct, viaSearch: boolean) => {
     if (detailKey) {
       applyCorrection(detailKey, storeId, product);
+      trackMarketMatchCorrected({ store: storeId, via_search: viaSearch });
       showToast(t('market.matchUpdated'));
     }
   };
 
   const handlePressStore = (storeId: StoreId) => {
     // Yalnızca yönlendirme — karşı uygulamanın sepeti doldurulmaz (kapsam kararı).
-    void openStore(storeId).catch(() => showToast(t('market.storeOpenFailed')));
+    void openStore(storeId)
+      .then((linkType) => trackMarketStoreLinkOpened({ store: storeId, link_type: linkType }))
+      .catch(() => showToast(t('market.storeOpenFailed')));
   };
 
   return (
@@ -141,7 +166,7 @@ export default function MarketScreen() {
                     key={section.category}
                     title={t(ingredientCategoryKey(section.category))}
                     items={section.items}
-                    onToggle={toggleChecked}
+                    onToggle={handleToggleChecked}
                     matchesByKey={byKey}
                     onPressDetails={setDetailKey}
                   />
@@ -153,7 +178,7 @@ export default function MarketScreen() {
                     key={section.category}
                     title={t(ingredientCategoryKey(section.category))}
                     items={section.items}
-                    onToggle={toggleChecked}
+                    onToggle={handleToggleChecked}
                     matchesByKey={byKey}
                     onPressDetails={setDetailKey}
                   />
@@ -194,14 +219,14 @@ export default function MarketScreen() {
 function EmptyCart() {
   const { t } = useTranslation();
   return (
-    <View className="flex-1 items-center justify-center px-10 pb-16">
-      <View className="h-16 w-16 items-center justify-center rounded-full bg-white">
-        <Ionicons name="cart-outline" size={30} color={colors.muted} />
-      </View>
-      <Text className="mt-4 font-serif text-[24px] text-ink">{t('market.emptyTitle')}</Text>
-      <Text className="mt-2 text-center font-sans text-[13px] leading-[19px] text-muted">
-        {t('market.emptyBody')}
-      </Text>
+    <View className="flex-1 justify-center px-8 pb-16">
+      <EmptyState
+        icon={<Ionicons name="cart-outline" size={30} color={colors.muted} />}
+        title={t('market.emptyTitle')}
+        body={t('market.emptyBody')}
+        ctaLabel={t('market.emptyCta')}
+        onPressCta={() => router.push('/recipes')}
+      />
     </View>
   );
 }

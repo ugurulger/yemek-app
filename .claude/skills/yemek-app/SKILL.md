@@ -9,6 +9,56 @@ Bu skill, AI destekli yemek uygulamasının geliştirme kurallarını içerir.
 Bu projede kod yazmadan önce bu dosyayı oku ve buradaki kararlara uy.
 Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 
+> ## ANALİTİK (2026-07-19) — POSTHOG EU + SENTRY
+>
+> Ürün analitiği **PostHog EU Cloud** (`tracking/` modülü, 23 event; plan:
+> `.telemetry/tracking-plan.yaml`, süreç dosyaları `.telemetry/`), crash
+> raporlama **Sentry** (EU DSN). Kimlik = anonim cihaz UUID; `identify()`
+> ÇAĞRILMAZ (auth gelince Supabase user id ile bağlanır).
+>
+> - **KURAL: ekran koduna ham `posthog.capture()` yazılmaz** — her event
+>   `tracking/events.ts`'te tipli fonksiyondur; yeni event önce plana
+>   (instrument-new-feature skill'i), sonra koda eklenir.
+> - **KURAL (GDPR, pii_policy: none): event property'lerinde serbest metin,
+>   envanter/tarif/malzeme ADI, chat metni, arama sorgusu, foto taşınmaz** —
+>   yalnız sayı/enum/bayrak. Session replay + autocapture KAPALI.
+> - **KURAL: `lib/` ve `services/` tracking IMPORT ETMEZ** (i18n kuralıyla
+>   aynı gerekçe); ekranlar ve `store/` katmanı edebilir (tek store istisnası:
+>   `marketMatchStore` koşu metriği). Hatalar SADECE Sentry'ye — PostHog'a
+>   error event'i üretilmez.
+> - Dev build event GÖNDERMEZ (`__DEV__` → SDK disabled);
+>   `EXPO_PUBLIC_ANALYTICS_DEBUG=true` ile açılır. Env anahtarları:
+>   `EXPO_PUBLIC_POSTHOG_API_KEY/HOST`, `EXPO_PUBLIC_SENTRY_DSN`
+>   (kurulum: `tracking/README.md`).
+> - "İlk kez" bayrakları/funnel milestone'ları `tracking/milestones.ts`
+>   (AsyncStorage `$set_once` kaynağı); `app.opened` `initTracking` ile
+>   `app/_layout.tsx`'ten (SDK lifecycle autocapture bilinçli kapalı —
+>   is_first_open/language property'leri için).
+
+> ## RELEASE (2026-07-30) — APP STORE ÇIKIŞ DURUMU
+>
+> P1-P5 çıkış sprinti dalları main'e merge edildi (lokalizasyon/MyKitchen
+> adı, onboarding, boş durumlar + starter tohum, PostHog+Sentry, ayarlar
+> ekranı). Release yapıları:
+>
+> - **Bundle id `com.ugurulger.mykitchen`, buildNumber "1"** (app.json);
+>   EAS profilleri `eas.json` (production `autoIncrement`, remote version).
+>   Bu Mac'te Xcode YOK — build yolu **EAS cloud build**; simülatör
+>   gerektiren işler (gerçek cihaz şema doğrulamaları dahil) açık.
+> - **Ekran görüntüleri** `screenshots/` (1290×2796, App Store 6.7" kabul
+>   boyutu) — web önizlemeden Playwright ile üretildi; demo verisi
+>   `lib/dev/demoSeed.ts` (**KURAL: yalnız `__DEV__` +
+>   `EXPO_PUBLIC_DEMO_SEED=true` iken koşar, release bundle'ına girmez**;
+>   tekrar üretim: bayrağı .env'e ekle + scratchpad capture script'i).
+>   Kartlardaki yemek görselleri Gemini'yle üretilip yakalama anında
+>   enjekte edildi (cihazda runtime aynı görselleri üretir).
+> - **Yayın dokümanları `docs/app-store/`**: privacy-policy.md (P4 veri
+>   envanterinden finalize, hesap YOK/lokal-veri modeline göre),
+>   app-privacy-labels.md (App Store Connect anket cevap anahtarı),
+>   support.md, metadata-en.md. Privacy/Support URL'leri yayınlanınca
+>   `.env` `EXPO_PUBLIC_PRIVACY_POLICY_URL/SUPPORT_URL`'e yazılmalı
+>   (boşken example.com placeholder — GÖNDERİM ÖNCESİ ŞART).
+
 > ## RAG-EN (2026-07-18) — RAG HATTI KARARLARI
 >
 > RAG kurulumu tamam (migration + 10k embedding + 524 fine-dining etiketi +
@@ -310,6 +360,29 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   (`language` alanı) çıktı dilini `llmOutputLanguage()`'dan (src/i18n)
 >   alır — aktif uygulama dili LLM çıktısına yansır; enum/şema alanları
 >   sabit Türkçe kalır.
+> - **Tarif çeviri süpürmesi İKİ kaynağı kapsar (2026-07-19):**
+>   `ensureRecipeTranslations` üretilmiş (recipeStore) + içe aktarılmış
+>   (cookbookStore.importedRecipes) tarifleri id-tekilleştirip çevirir;
+>   çeviri kaynaktan bağımsız recipeStore.translations'a yazılır
+>   (useLocalizedRecipe(s) iki kaynağı da oradan çözer). Tetikler: dil
+>   değişimi (languageSync) + içe aktarma (ImportFlow.handleImport) +
+>   açılış (_layout, envanter backfill kalıbı). **KURAL: fonksiyon içinde
+>   recipeStore + cookbookStore hidrasyonu BEKLENİR** — açılıştaki
+>   languageChanged hidrasyondan önce ateşlenip süpürmeyi boş listede
+>   gezdiriyordu (canlı gözlem; kaldırılırsa açılış çevirisi sessizce
+>   no-op olur). Kayıtlı ekranı `useLocalizedRecipes` ile gösterir;
+>   CookbookRecipeCard eksik hesabını RecipeCard İş 3c kalıbıyla
+>   `useRecipeById` orijinalinden yapar (rozet/sepet tutarlılığı kuralı).
+> - **App Store EN sürümü (2026-07-19):** görünen ad **"MyKitchen"** +
+>   iOS izin metinleri İngilizce (app.json). Varsayılan defter adları
+>   VERİ olarak Türkçe kalır, gösterim `cookbookDisplayName`
+>   (`src/i18n/labels.ts`, id → `data.cookbook.*`; kullanıcı defteri
+>   adına t() ÇAĞRILMAZ — pantryDisplayName kuralı). Örnek içe aktarma
+>   tarifleri (`lib/recipes/sample-imports.ts`) İngilizce içerik +
+>   `language:'en'` damgalı; kategori enum'ları Türkçe kalır. `[DEBUG]`
+>   ham gözlem butonu `__DEV__` arkasında. Bilinen açık: EN eşleştirmede
+>   `namesMatch` token-altküme kuralı "Tomatoes" ⊂ "Tomato Paste" sahte
+>   pozitifi üretebiliyor (TR'de yoktu; ayrı iş olarak ele alınacak).
 
 ## Mimari
 
@@ -371,6 +444,19 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 5. **Market (`/market`)** — seçilen tariflerin eksik malzemeleri, malzeme
    KATEGORİSİNE göre gruplu; kaynak tarif etiketleri, işaretleme; AH &
    Jumbo fiyat karşılaştırması (MVP-24, bkz. o blok).
+
+**Onboarding (`/onboarding`, 2026-07-19)** — yalnız İLK açılışta gösterilen
+4 ekranlık atlanabilir tanıtım (`app/onboarding.tsx`; bayrak
+`store/onboardingStore.ts` zustand persist `yemek-app-onboarding`;
+yönlendirme `app/_layout.tsx`'te `Redirect` ile, splash store hidrasyonunu
+bekler ki her açılış "ilk açılış" sanılmasın). Metinler kullanıcının verdiği
+İngilizce kopyayla BİREBİR (`onboarding.*` anahtarları, tr.json'da çeviri).
+**KURAL: akıştan HER çıkış (Atla / Enable reminders / Maybe later) boş
+ekrana değil `/(tabs)/recipes`'e replace eder** — ilk haftalık plan akışı
+orada başlar (tercihler → tarif → plana ekle). "Enable reminders" yalnız
+bildirim İZNİ ister (`expo-notifications`, web'de tarayıcı Notification
+API'si); hatırlatma PLANLAMA bilinçli kapsam dışı, izin reddi akışı
+kilitlemez.
 
 ## Tasarım sistemi
 

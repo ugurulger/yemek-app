@@ -4,6 +4,8 @@ export { Card } from './Card';
 export type { CardProps } from './Card';
 export { ToastHost } from './Toast';
 export { Chip } from './Chip';
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';
 export type { ChipProps } from './Chip';
 export { MissingBadge } from './MissingBadge';
 export type { MissingBadgeProps } from './MissingBadge';

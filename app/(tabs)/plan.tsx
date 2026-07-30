@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import PlanDayRow from '@/components/plan/PlanDayRow';
+import { EmptyState } from '@/components/ui';
 import { useCartStore } from '@/store/cartStore';
 import { countPlannedMeals, PLAN_DAYS, usePlanStore, type PlanDay } from '@/store/planStore';
 
@@ -12,8 +13,10 @@ import { countPlannedMeals, PLAN_DAYS, usePlanStore, type PlanDay } from '@/stor
  * Planlama — haftalık yemek ajandası (spec: Mutfagim.dc.html SCREEN 6).
  * Başlıkta bu haftaki toplam planlı öğün sayısı; altında 7 günün her biri
  * bir satır — boş günler kesikli "Plan boş" kutusuyla, dolu günler öğün
- * kartlarıyla. Hiç öğün yokken ayrı bir boş durum ekranı YOK (referansla
- * aynı: 7 gün de "Plan boş" kutusuyla görünür).
+ * kartlarıyla. Hafta TAMAMEN boşken gün listesinin üstünde plan oluşturmaya
+ * davet eden bir kart gösterilir (boş durum iyileştirmesi, 2026-07-19 —
+ * referansın "boş ekran yok" kararını kullanıcı isteği güncelledi); günler
+ * yine referanstaki gibi "Plan boş" kutularıyla listelenir.
  */
 export default function PlanScreen() {
   const { t } = useTranslation();
@@ -58,6 +61,20 @@ export default function PlanScreen() {
           <Text className="mt-[2px] font-serif text-[34px] text-forest">{t('plan.title')}</Text>
         </View>
 
+        {/* Hafta boş — tarif seçmeye davet (CTA Tarifler sekmesine götürür;
+            plana ekleme tarif detayındaki Plan butonuyla yapılır). */}
+        {totalMeals === 0 ? (
+          <View className="mt-[22px] px-5">
+            <EmptyState
+              emoji="🗓️"
+              title={t('plan.emptyWeekTitle')}
+              body={t('plan.emptyWeekBody')}
+              ctaLabel={t('plan.emptyWeekCta')}
+              onPressCta={() => router.push('/recipes')}
+            />
+          </View>
+        ) : null}
+
         {/* Gün listesi — dikey gap 16, mt 22. */}
         <View className="mt-[22px] gap-4 px-5">
           {PLAN_DAYS.map((day) => (
@@ -65,7 +82,7 @@ export default function PlanScreen() {
               key={day}
               day={day}
               entries={plan[day]}
-              onPressEntry={(entry) => router.push(`/recipe/${entry.recipeId}`)}
+              onPressEntry={(entry) => router.push(`/recipe/${entry.recipeId}?src=plan`)}
               onRemoveEntry={(index) => handleRemoveEntry(day, index)}
             />
           ))}
