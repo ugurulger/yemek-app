@@ -91,10 +91,10 @@ const DEMO_RECIPES: Recipe[] = [
       'Dice the tomatoes and slice the peppers into thin strips.',
       'Soften the peppers in olive oil over medium heat, about 3 minutes.',
       'Add tomatoes and simmer until the juices thicken, 6-8 minutes.',
-      'Crack the eggs on top and gently stir once — keep them soft.',
+      'Crack the eggs on top and gently stir once, keeping them soft.',
       'Crumble feta over the pan and serve straight from the skillet.',
     ],
-    chef_tip: 'Take the pan off the heat while the eggs are still glossy — they finish cooking on the way to the table.',
+    chef_tip: 'Take the pan off the heat while the eggs are still glossy: they finish cooking on the way to the table.',
     image_prompt_en: 'Turkish menemen scrambled eggs with tomatoes and peppers in a rustic skillet',
   }),
   recipe({
@@ -121,7 +121,7 @@ const DEMO_RECIPES: Recipe[] = [
       'Roast 35-40 minutes until the chicken is golden and cooked through.',
       'Rest 5 minutes, spoon the tray juices back over and serve.',
     ],
-    chef_tip: 'Throw the squeezed lemon halves onto the tray — they caramelize and perfume the whole bake.',
+    chef_tip: 'Throw the squeezed lemon halves onto the tray: they caramelize and perfume the whole bake.',
     image_prompt_en: 'roasted lemon chicken and potato wedges on a sheet pan, golden and juicy',
   }),
   recipe({
@@ -148,7 +148,7 @@ const DEMO_RECIPES: Recipe[] = [
       'Toss in the pasta with a splash of cooking water.',
       'Finish with parmesan and black pepper.',
     ],
-    chef_tip: 'Save a cup of pasta water — its starch is what makes the sauce cling.',
+    chef_tip: 'Save a cup of pasta water: its starch is what makes the sauce cling.',
     image_prompt_en: 'creamy spinach pasta with parmesan in a white bowl',
   }),
   recipe({
@@ -205,7 +205,7 @@ const DEMO_RECIPES: Recipe[] = [
       'Pile bulgur, veg and chickpeas into bowls.',
       'Drizzle with the yogurt-tahini and pomegranate molasses.',
     ],
-    chef_tip: 'The molasses is the secret — one spoon balances the whole bowl with sweet-sour depth.',
+    chef_tip: 'The molasses is the secret: one spoon balances the whole bowl with sweet-sour depth.',
     image_prompt_en: 'colorful roasted vegetable grain bowl with yogurt tahini drizzle',
   }),
   recipe({
@@ -261,7 +261,7 @@ const DEMO_RECIPES: Recipe[] = [
       'Sear the ballotine in foaming butter to color.',
       'Reduce wine and butter into a glossy pan sauce; slice and plate.',
     ],
-    chef_tip: 'Poach gently — 70°C water keeps the roll succulent before the final sear.',
+    chef_tip: 'Poach gently: 70°C water keeps the roll succulent before the final sear.',
     image_prompt_en: 'fine dining chicken ballotine slices with charred leek and butter sauce, elegant plating',
   }),
   recipe({
@@ -289,7 +289,7 @@ const DEMO_RECIPES: Recipe[] = [
       'Nestle the egg into a pool of espuma.',
       'Finish with chives and a whisper of truffle oil.',
     ],
-    chef_tip: 'Break the yolk at the table — it becomes the second sauce of the dish.',
+    chef_tip: 'Break the yolk at the table: it becomes the second sauce of the dish.',
     image_prompt_en: 'slow cooked egg on potato espuma with chives, fine dining minimal plating',
   }),
 ];

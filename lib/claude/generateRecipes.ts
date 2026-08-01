@@ -335,7 +335,8 @@ function buildPlanSystemPrompt(context: RecipePromptContext): string {
   'tanımlayıcı malzemeleri envanterde gerçekten varsa kullan (Menemen için domates ve biber şart). ' +
   'Tanımlayıcı malzeme eksikse farklı ve doğru bir isim ver. ' +
     '- estimated_missing: bu tarif için envanterde/kilerde muhtemelen olmayan malzemelerin kaba bir listesi ' +
-    '("ready" tariflerde BOŞ olmalı).'
+    '("ready" tariflerde BOŞ olmalı). ' +
+    '- Never use em dashes (—) in recipe names.'
   );
 }
 
@@ -479,6 +480,8 @@ function buildCommonDetailSystemPrompt(context: RecipePromptContext): string {
     '- Zorluk derecesini gerçekçi ver: çoğu ev yemeği "Kolay" veya "Orta" olmalı, "Zor" nadiren kullanılsın. ' +
     '- nutrition_tag: tarifin beslenme profilini en iyi anlatan TEK etiketi sabit listeden seç. ' +
     '- chef_tip: tarife özel, kısa ve pratik bir şef önerisi/tüyosu ver (örn. bir malzeme ikamesi, pişirme ipucu). ' +
+    '- Never use em dashes (—) in any text field (steps, chef_tip, ingredient names); use a comma, colon, ' +
+    'or separate sentences instead. ' +
     '- image_prompt_en: İNGİLİZCE, iki kısımdan oluşan kısa bir görsel tanımı: yemeğin tanımı + tek cümlelik ' +
     'tabaklama betimlemesi (örn. "Turkish menemen, scrambled eggs cooked with tomatoes and green peppers. ' +
     'Served bubbling in a small black skillet with a sprig of parsley on top."). Türkçe yazma; marka adı kullanma.'
@@ -779,7 +782,8 @@ function buildFineDiningPlanSystemPrompt(context: RecipePromptContext): string {
     '- Restoran kalitesinde, sofistike ama ev mutfağında uygulanabilir tarifler olsun; envanterdeki ' +
     'malzemeleri temel alsın (birkaç eksik malzeme kabul edilebilir). ' +
     '- İki tarif birbirinden FARKLI olsun: aynı ana malzemeyi veya tekniği tekrarlama. ' +
-    '- İsimler iddialı ve isabetli olsun; adın ima ettiği tanımlayıcı malzemeler envantere/kilere uysun.'
+    '- İsimler iddialı ve isabetli olsun; adın ima ettiği tanımlayıcı malzemeler envantere/kilere uysun. ' +
+    '- Never use em dashes (—) in recipe names.'
   );
 }
 

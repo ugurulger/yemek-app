@@ -556,7 +556,10 @@ function buildSharedRules(input: GenerateRecipeInput): string {
     '- Shopping ingredients (in_inventory: false) must be genuinely NEW items: never list a variant of ' +
     'something already available (if Vinegar is available, do not list Balsamic Vinegar as a shopping ' +
     'item — either use the available item or pick a truly different ingredient).\n';
-  return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule;
+  const noEmDashRule =
+    '- Never use em dashes (—) in any text field (name, ingredient names, steps, chef_tip); use a comma, ' +
+    'colon, or separate sentences instead.\n';
+  return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule + noEmDashRule;
 }
 
 /**

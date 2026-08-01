@@ -61,7 +61,8 @@ export async function translateTexts(
             `Sana JSON dizisi olarak kısa ürün/malzeme adları verilecek. Her birini ${targetLanguage} diline çevir. ` +
             'Kurallar: gıda adlarında hedef dilde market rafında/mutfakta kullanılan DOĞAL karşılığı seç (birebir ' +
             'kelime çevirisi değil); zaten hedef dilde olan girdiyi olduğu gibi bırak; özel/marka adlarını çevirme; ' +
-            'baş harf büyüklüğünü girdiye benzer tut. Çıktı girdiyle AYNI SIRADA ve AYNI UZUNLUKTA olmalı.',
+            'baş harf büyüklüğünü girdiye benzer tut. Never use em dashes (—) in the output. ' +
+            'Çıktı girdiyle AYNI SIRADA ve AYNI UZUNLUKTA olmalı.',
         },
       ],
       messages: [{ role: 'user', content: JSON.stringify(texts) }],
@@ -132,6 +133,7 @@ export async function translateRecipeTexts(
             'diline çevir. Kurallar: yemek/malzeme adlarında hedef dilde mutfakta kullanılan DOĞAL karşılığı seç; ' +
             'birimleri hedef dilin yaygın mutfak birimleriyle karşıla ("su bardağı" ↔ "cup", "yk" ↔ "tbsp" gibi; ' +
             'g/kg/ml/l aynen kalır); adım metinlerini akıcı ve doğal çevir, miktar/süre değerlerini DEĞİŞTİRME. ' +
+            'Never use em dashes (—) in the output; use a comma, colon, or separate sentences instead. ' +
             '"ingredients" ve "steps" girdiyle AYNI SIRADA ve AYNI UZUNLUKTA olmalı.',
         },
       ],

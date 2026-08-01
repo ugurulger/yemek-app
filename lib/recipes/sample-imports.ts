@@ -42,7 +42,7 @@ export const SAMPLE_INSTAGRAM_RECIPE: Recipe = {
     'Slice the veggies and arrange them on top, add the salmon and sprinkle with sesame seeds.',
   ],
   chef_tip:
-    'Let the salmon sit in the marinade for 10 minutes — the honey caramelizes into a crispy glaze.',
+    'Let the salmon sit in the marinade for 10 minutes: the honey caramelizes into a crispy glaze.',
   image_prompt_en:
     'Honey-glazed spicy salmon rice bowl with cucumber, carrot and red cabbage. Served in a ceramic bowl topped with sesame seeds and spring onion.',
 };
@@ -75,7 +75,7 @@ export const SAMPLE_WEB_RECIPE: Recipe = {
     'Take off the heat while still soft and serve hot.',
   ],
   chef_tip:
-    "Don't over-stir the eggs — keeping them in soft folds is what gives menemen its silky texture.",
+    "Don't over-stir the eggs: keeping them in soft folds is what gives menemen its silky texture.",
   image_prompt_en:
     'Turkish menemen scrambled eggs with tomatoes and green peppers in a traditional pan. Rustic, with soft folds of egg and a drizzle of olive oil.',
 };
