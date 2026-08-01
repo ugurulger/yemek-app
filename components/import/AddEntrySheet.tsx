@@ -31,6 +31,9 @@ const ROW_SHADOW = {
  */
 export function AddEntrySheet({ visible, onClose, onAddRecipe, onAddCookbook }: AddEntrySheetProps) {
   const { t } = useTranslation();
+  // P8-2: "Add a Recipe" akışı henüz implemente edilmedi — giriş noktası
+  // "Coming soon" rozetiyle devre dışı (yalnız uygulama içi; landing'de yok).
+  // Akış hazır olunca `comingSoon: true` kaldırılır, onAddRecipe geri bağlanır.
   const rows = [
     {
       key: 'recipe',
@@ -38,6 +41,7 @@ export function AddEntrySheet({ visible, onClose, onAddRecipe, onAddCookbook }: 
       label: t('importFlow.addRecipe'),
       sub: t('importFlow.addRecipeSub'),
       onPress: onAddRecipe,
+      comingSoon: true,
     },
     {
       key: 'cookbook',
@@ -45,6 +49,7 @@ export function AddEntrySheet({ visible, onClose, onAddRecipe, onAddCookbook }: 
       label: t('importFlow.addCookbook'),
       sub: t('importFlow.addCookbookSub'),
       onPress: onAddCookbook,
+      comingSoon: false,
     },
   ];
 
@@ -55,10 +60,18 @@ export function AddEntrySheet({ visible, onClose, onAddRecipe, onAddCookbook }: 
           <Pressable
             key={row.key}
             accessibilityRole="button"
-            accessibilityLabel={row.label}
+            accessibilityLabel={
+              row.comingSoon ? `${row.label}, ${t('importFlow.comingSoon')}` : row.label
+            }
+            accessibilityState={{ disabled: row.comingSoon }}
+            disabled={row.comingSoon}
             onPress={row.onPress}
             className="flex-row items-center rounded-2xl bg-white active:scale-[0.98]"
-            style={[{ paddingVertical: 15, paddingHorizontal: 16, gap: 13 }, ROW_SHADOW]}>
+            style={[
+              { paddingVertical: 15, paddingHorizontal: 16, gap: 13 },
+              ROW_SHADOW,
+              row.comingSoon ? { opacity: 0.55 } : null,
+            ]}>
             <View
               className="items-center justify-center"
               style={{
@@ -70,10 +83,19 @@ export function AddEntrySheet({ visible, onClose, onAddRecipe, onAddCookbook }: 
               <Ionicons name={row.icon} size={22} color={colors.softGreenText} />
             </View>
             <View className="flex-1">
-              <Text className="font-sans-semibold text-[15px] text-ink">{row.label}</Text>
+              <View className="flex-row items-center gap-2">
+                <Text className="font-sans-semibold text-[15px] text-ink">{row.label}</Text>
+                {row.comingSoon ? (
+                  <View className="rounded-full bg-amber-soft px-2 py-[2px]">
+                    <Text className="font-sans-semibold text-[9.5px] text-amber-text">
+                      {t('importFlow.comingSoon')}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <Text className="mt-0.5 font-sans text-[12px] text-muted">{row.sub}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={17} color="#C7CFC9" />
+            {row.comingSoon ? null : <Ionicons name="chevron-forward" size={17} color="#C7CFC9" />}
           </Pressable>
         ))}
       </View>

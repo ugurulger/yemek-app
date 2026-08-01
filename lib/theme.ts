@@ -40,6 +40,11 @@ export const colors = {
   // Tarif etiketi (market)
   recipetagBg: '#F6EFE7',
   recipetagText: '#A9846B',
+  // P8-4: Mağaza marka renkleri (logo YOK, yalnız renk — landing
+  // docs/index.html .price-demo ile birebir aynı değerler)
+  ahBlue: '#00A0E2',
+  jumboYellow: '#FFC917',
+  jumboInk: '#221B00',
   // Yumuşak yeşil sayaç pili ("N tarif") + asistan ikon zemini
   softGreenBg: '#DCEEE3',
   softGreenText: '#2E7D5B',

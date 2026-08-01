@@ -130,7 +130,7 @@ function PriceStrip({ matchView, onPressDetails }: { matchView: CartMatchView; o
                   ? 'font-sans-semibold text-[9.5px] text-forest'
                   : 'font-sans text-[9.5px] text-muted'
               }>
-              {STORE_SHORT_NAMES[storeId]} {cents != null ? formatPriceCents(cents) : '—'}
+              {STORE_SHORT_NAMES[storeId]} {cents != null ? formatPriceCents(cents) : '–'}
             </Text>
           </View>
         );

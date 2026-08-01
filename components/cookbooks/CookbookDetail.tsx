@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
+import RecipeCard from '@/components/recipes/RecipeCard';
 import { EmptyState } from '@/components/ui';
 import { colors } from '@/lib/theme';
 import type { Recipe } from '@/types/recipe';
-import { CookbookRecipeCard } from './CookbookRecipeCard';
 
 /** Geri butonu gölgesi — referans 399: 0 2px 8px -3px rgba(31,74,61,.25). */
 const BACK_SHADOW = {
@@ -18,10 +18,11 @@ const BACK_SHADOW = {
   elevation: 3,
 } as const;
 
-/** Grid sütun sayısı — birebir referans (404): repeat(4,1fr). */
-const COLUMNS = 4;
+/** Grid sütun sayısı — kullanıcı kararı (1 Ağu): 4'lü mini grid çok küçük
+ * kalıyordu; Tarifler sekmesindeki büyük kartlarla (RecipeCard) 2 sütun. */
+const COLUMNS = 2;
 
-/** Tarifleri 4'lü satırlara böler; eksik hücreler null ile doldurulur (boş flex-1). */
+/** Tarifleri 2'li satırlara böler; eksik hücreler null ile doldurulur (boş flex-1). */
 function chunkRows(recipes: Recipe[]): (Recipe | null)[][] {
   const rows: (Recipe | null)[][] = [];
   for (let i = 0; i < recipes.length; i += COLUMNS) {
@@ -43,7 +44,8 @@ interface CookbookDetailProps {
 /**
  * Defter detayı görünümü — birebir referans (SCREEN 5, satır 396-421):
  * üstte 40×40 beyaz daire geri butonu, altında defter adı h1 (serif 32
- * forest), tarifler 4 sütunlu grid'de (gap 9) mini kartlarla. Defter boşsa
+ * forest), tarifler 2 sütunlu grid'de Tarifler sekmesiyle AYNI büyük
+ * kartlarla (RecipeCard — kullanıcı kararı, 1 Ağu). Defter boşsa
  * yönlendirmeli boş durum gösterilir (tasarım kuralı: asla sadece "boş" yazma).
  */
 export function CookbookDetail({ name, recipes, onBack, onPressRecipe }: CookbookDetailProps) {
@@ -69,13 +71,13 @@ export function CookbookDetail({ name, recipes, onBack, onPressRecipe }: Cookboo
         {recipes.length === 0 ? (
           <EmptyCookbook />
         ) : (
-          <View className="mt-4 gap-[9px]">
+          <View className="mt-4 gap-[14px]">
             {chunkRows(recipes).map((row, rowIndex) => (
-              <View key={rowIndex} className="flex-row gap-[9px]">
+              <View key={rowIndex} className="flex-row gap-[14px]">
                 {row.map((recipe, cellIndex) =>
                   recipe ? (
                     <View key={recipe.id} className="flex-1">
-                      <CookbookRecipeCard recipe={recipe} onPress={onPressRecipe} />
+                      <RecipeCard recipe={recipe} onPress={onPressRecipe} />
                     </View>
                   ) : (
                     <View key={`empty-${cellIndex}`} className="flex-1" />

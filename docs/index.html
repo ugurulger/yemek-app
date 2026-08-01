@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MyKitchen — Scan your fridge, cook tonight</title>
-<meta name="description" content="Point your camera at your fridge — get recipes you can cook right now, and a grocery list priced at Albert Heijn and Jumbo. Free on iPhone.">
+<title>MyKitchen: Scan your fridge, cook tonight</title>
+<meta name="description" content="Scan your fridge and cook tonight. MyKitchen turns what you already have into recipes, with grocery prices compared at Albert Heijn and Jumbo. Free on iPhone.">
 <meta property="og:title" content="MyKitchen: AI Meal Planner">
-<meta property="og:description" content="Scan your fridge, cook tonight. Recipes from what you already have, with grocery prices compared at your local supermarkets.">
+<meta property="og:description" content="Scan your fridge, cook tonight. Recipes from what you already have, with Albert Heijn and Jumbo prices compared. Free on iPhone.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +21,8 @@
     --ink:#24312A;
     --muted:#5C6B60;
     --amber:#D98E2B;
+    --ah-blue:#00A0E2;
+    --jumbo-yellow:#FFC917;
     --radius:24px;
     --serif:"Fraunces", Georgia, serif;
     --sans:"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -44,6 +46,25 @@
   .nav-cta:hover{background:var(--green-deep)}
   @media(max-width:720px){.nav-links a:not(.nav-cta){display:none}}
 
+  /* Entrance + scroll-reveal animations */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  .hero .pill,.hero h1,.hero .sub,.hero .cta-row,.hero .cta-note,.hero-phone{opacity:0;animation:fadeUp .7s cubic-bezier(.2,.7,.2,1) forwards}
+  .hero .pill{animation-delay:.05s}
+  .hero h1{animation-delay:.15s}
+  .hero .sub{animation-delay:.3s}
+  .hero .cta-row{animation-delay:.45s}
+  .hero .cta-note{animation-delay:.55s}
+  .hero-phone{animation-delay:.55s;animation-duration:.9s}
+  .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.visible{opacity:1;transform:none}
+  .reveal[data-d="1"]{transition-delay:.12s}
+  .reveal[data-d="2"]{transition-delay:.24s}
+  .reveal[data-d="3"]{transition-delay:.36s}
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none !important;transition:none !important}
+    .hero .pill,.hero h1,.hero .sub,.hero .cta-row,.hero .cta-note,.hero-phone,.reveal{opacity:1;transform:none}
+  }
+
   /* Hero */
   .hero{padding:72px 0 0;text-align:center;position:relative;overflow:hidden}
   .pill{display:inline-block;background:var(--green);color:#F4F2EA;font-size:12.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:8px 18px;border-radius:999px}
@@ -57,7 +78,9 @@
   .badge-appstore .txt small{font-size:10px;display:block;letter-spacing:.02em}
   .badge-appstore .txt span{font-size:18px;font-weight:600}
   .cta-note{font-size:13.5px;color:var(--muted)}
-  .hero-phone{max-width:390px;margin:34px auto -80px;border-radius:28px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(22,56,40,.35)}
+  .hero-phone{max-width:390px;margin:34px auto -80px;border-radius:28px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(22,56,40,.35);position:relative}
+  .hero-phone::after{content:"";position:absolute;left:0;right:0;top:-30%;height:26%;background:linear-gradient(to bottom,rgba(220,232,223,0),rgba(163,214,183,.38),rgba(220,232,223,0));animation:scan 2.4s cubic-bezier(.4,0,.4,1) 1.5s 1 forwards;pointer-events:none}
+  @keyframes scan{from{top:-30%}to{top:110%}}
   @media(max-width:720px){.hero-phone{margin-bottom:-60px;max-width:320px}}
   .hero-fade{height:120px;background:linear-gradient(to bottom,transparent,var(--cream))}
 
@@ -76,6 +99,24 @@
   .feature ul{list-style:none;margin-top:18px}
   .feature li{padding-left:30px;position:relative;margin-bottom:10px;color:var(--ink);font-size:15.5px}
   .feature li::before{content:"";position:absolute;left:0;top:7px;width:16px;height:16px;border-radius:50%;background:var(--green-soft) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%231E4A36" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>') center/10px no-repeat}
+
+  /* Price comparison demo (AH vs Jumbo, brand colors, no logos) */
+  .price-demo{margin-top:24px;max-width:420px;background:var(--cream-card);border:1px solid rgba(30,74,54,.10);border-radius:20px;padding:18px;box-shadow:0 14px 30px -18px rgba(22,56,40,.25)}
+  .pd-title{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:12px}
+  .pd-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .pd-store{border-radius:14px;padding:14px 12px;text-align:center;position:relative}
+  .pd-ah{background:var(--ah-blue);color:#fff}
+  .pd-jumbo{background:var(--jumbo-yellow);color:#221B00}
+  .pd-name{display:block;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.9}
+  .pd-price{display:block;font-family:var(--serif);font-size:30px;font-weight:700;line-height:1.15}
+  .pd-badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--green);color:#F4F2EA;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .pd-verdict{margin-top:12px;background:var(--green-soft);color:var(--green);font-size:13.5px;font-weight:600;text-align:center;border-radius:999px;padding:8px 12px}
+  .reveal.visible .pd-store{animation:popIn .5s cubic-bezier(.2,.7,.3,1.3) both}
+  .reveal.visible .pd-jumbo{animation-delay:.15s}
+  .reveal.visible .pd-badge{animation:popIn .45s cubic-bezier(.2,.7,.3,1.4) .5s both}
+  .reveal.visible .pd-verdict{animation:fadeUp .5s ease .65s both}
+  @keyframes popIn{from{opacity:0;transform:translateX(var(--tx,0)) scale(.85)}to{opacity:1;transform:translateX(var(--tx,0)) scale(1)}}
+  .pd-badge{--tx:-50%;transform-origin:center}
 
   /* How it works */
   .how{background:var(--green);color:var(--cream);padding:90px 0;border-radius:48px 48px 0 0}
@@ -150,7 +191,7 @@
   <div class="wrap">
     <span class="pill">Free on iPhone · Made for the Netherlands</span>
     <h1>Scan your fridge, cook tonight.</h1>
-    <p class="sub">Point your camera at your fridge — get recipes you can cook right now, and a grocery list priced at your local supermarkets.</p>
+    <p class="sub">Full fridge, zero ideas? Point your camera at it. MyKitchen turns what you already have into tonight's dinner, with a grocery list priced at Albert Heijn and Jumbo.</p>
     <div class="cta-row">
       <!-- TODO: replace href="#" with the real App Store URL when the app is approved -->
       <a class="badge-appstore" href="#" aria-label="Download on the App Store">
@@ -158,8 +199,8 @@
         <span class="txt"><small>Download on the</small><span>App Store</span></span>
       </a>
     </div>
-    <p class="cta-note">Free · No account needed · English</p>
-    <div class="hero-phone"><img src="assets/02-kitchen.webp" alt="MyKitchen app — your fridge inventory after a camera scan" width="760" height="1341"></div>
+    <p class="cta-note">Free · No account needed</p>
+    <div class="hero-phone"><img src="assets/02-kitchen.webp" alt="MyKitchen app showing your fridge inventory after a camera scan" width="760" height="1341"></div>
   </div>
   <div class="hero-fade"></div>
 </section>
@@ -167,57 +208,60 @@
 <section class="features wrap" id="features">
 
   <div class="feature">
-    <div class="f-img"><img src="assets/03-recipes.webp" alt="Recipe suggestions generated from your ingredients, with calories and macros" loading="lazy"></div>
-    <div class="f-txt">
+    <div class="f-img reveal"><img src="assets/03-recipes.webp" alt="Recipe suggestions generated from your ingredients, with calories and macros" loading="lazy"></div>
+    <div class="f-txt reveal" data-d="1">
       <div class="kicker">Based on your ingredients</div>
-      <h2>Recipes from what you already have</h2>
-      <p>No more staring into a full fridge with no ideas. MyKitchen turns your inventory into real dinner options — with calories and macros on every card.</p>
+      <h2>You already have dinner. You just can't see it yet.</h2>
+      <p>MyKitchen reads your kitchen and hands you real recipes, complete with calories and macros. Cooking after work starts to feel easy again.</p>
       <ul>
-        <li><strong>Ready to Cook</strong> — using only what's at home</li>
-        <li><strong>With a Quick Shop</strong> — one or two items short</li>
-        <li><strong>Fine Dining</strong> — when you feel like showing off</li>
+        <li><strong>Ready to Cook:</strong> uses only what's at home</li>
+        <li><strong>With a Quick Shop:</strong> just one or two items short</li>
+        <li><strong>Fine Dining:</strong> for nights you feel like showing off</li>
       </ul>
     </div>
   </div>
 
   <div class="feature">
-    <div class="f-img"><img src="assets/04-grocery.webp" alt="Grocery list with Albert Heijn and Jumbo price comparison and best-price badge" loading="lazy"></div>
-    <div class="f-txt">
+    <div class="f-img reveal"><img src="assets/04-grocery.webp" alt="Grocery list with Albert Heijn and Jumbo price comparison and best-price badge" loading="lazy"></div>
+    <div class="f-txt reveal" data-d="1">
       <div class="kicker">Prices compared</div>
-      <h2>The cheapest basket, found for you</h2>
-      <p>Missing ingredients become a tidy grocery list — priced at Albert Heijn and Jumbo, so you see where today's basket is cheaper before you leave the house.</p>
-      <ul>
-        <li>Live price comparison per ingredient</li>
-        <li>One clear answer: which store wins today</li>
-        <li>Grouped by aisle, checkable in the store</li>
-      </ul>
+      <h2>See where your basket costs less</h2>
+      <p>Every missing ingredient is checked at both Albert Heijn and Jumbo, and you get one clear answer: which store wins today. No flyers, no mental math.</p>
+      <div class="price-demo reveal" data-d="2" aria-label="Example price comparison: Albert Heijn 1.09 euro, Jumbo 0.99 euro, Jumbo wins today">
+        <div class="pd-title">Your missing ingredients</div>
+        <div class="pd-row">
+          <div class="pd-store pd-ah"><span class="pd-name">Albert Heijn</span><span class="pd-price">€1,09</span></div>
+          <div class="pd-store pd-jumbo"><span class="pd-badge">Best price</span><span class="pd-name">Jumbo</span><span class="pd-price">€0,99</span></div>
+        </div>
+        <div class="pd-verdict">✓ Jumbo wins today</div>
+      </div>
     </div>
   </div>
 
   <div class="feature">
-    <div class="f-img"><img src="assets/05-recipe-detail.webp" alt="Ask the Chef assistant answering a question inside a recipe" loading="lazy"></div>
-    <div class="f-txt">
+    <div class="f-img reveal"><img src="assets/05-recipe-detail.webp" alt="Ask the Chef assistant answering a question inside a recipe" loading="lazy"></div>
+    <div class="f-txt reveal" data-d="1">
       <div class="kicker">On every recipe</div>
-      <h2>Stuck mid-recipe? Ask the chef</h2>
-      <p>A cooking assistant that knows your pantry. Missing the oregano? It suggests the thyme you actually have — mid-recipe, without breaking your flow.</p>
+      <h2>Stuck mid-recipe? Just ask the chef</h2>
+      <p>The built-in chef knows your pantry. Missing the oregano? It points you to the thyme you already have, right while you cook.</p>
       <ul>
         <li>Substitutions from your own pantry</li>
-        <li>Portion, timing and technique help</li>
-        <li>Right there on the recipe page</li>
+        <li>Help with portions, timing and technique</li>
+        <li>Right there on every recipe page</li>
       </ul>
     </div>
   </div>
 
   <div class="feature">
-    <div class="f-img"><img src="assets/01-plan.webp" alt="Weekly meal planner with breakfasts, lunches and dinners" loading="lazy"></div>
-    <div class="f-txt">
+    <div class="f-img reveal"><img src="assets/01-plan.webp" alt="Weekly meal planner with breakfasts, lunches and dinners" loading="lazy"></div>
+    <div class="f-txt reveal" data-d="1">
       <div class="kicker">Your week at a glance</div>
-      <h2>Plan once, cook all week</h2>
-      <p>Drop recipes onto a simple weekly planner. Every planned meal feeds your grocery list automatically — so the 5&nbsp;PM "what's for dinner?" panic is gone.</p>
+      <h2>Plan once, relax all week</h2>
+      <p>Pick your meals in a couple of minutes and your grocery list writes itself. The 5&nbsp;PM "what's for dinner?" panic is gone for good.</p>
       <ul>
         <li>Breakfast, lunch and dinner slots</li>
         <li>Servings and calories per meal</li>
-        <li>Plan feeds your grocery list automatically</li>
+        <li>Every planned meal feeds your grocery list</li>
       </ul>
     </div>
   </div>
@@ -226,25 +270,25 @@
 
 <section class="how" id="how">
   <div class="wrap">
-    <div class="how-head">
+    <div class="how-head reveal">
       <span class="pill">How it works</span>
-      <h2>From fridge to dinner in three steps</h2>
+      <h2>From fridge to dinner in three easy steps</h2>
     </div>
     <div class="steps">
-      <div class="step">
+      <div class="step reveal">
         <div class="num">1</div>
         <h3>Scan your fridge</h3>
-        <p>Photo, video or a supermarket receipt — MyKitchen recognizes your items and builds your kitchen inventory in seconds.</p>
+        <p>Snap a photo, a quick video or your receipt. MyKitchen recognizes your items and builds your kitchen in seconds.</p>
       </div>
-      <div class="step">
+      <div class="step reveal" data-d="1">
         <div class="num">2</div>
         <h3>Pick tonight's recipe</h3>
-        <p>Get recipes generated from what you actually have. Choose by time, effort or nutrition — cook right away.</p>
+        <p>Get recipes made from what you actually have. Choose by time, effort or nutrition, then start cooking.</p>
       </div>
-      <div class="step">
+      <div class="step reveal" data-d="2">
         <div class="num">3</div>
-        <h3>Shop the cheapest basket</h3>
-        <p>Anything missing lands on a grocery list with Albert Heijn and Jumbo prices compared — shop where it's cheaper today.</p>
+        <h3>Shop the cheaper basket</h3>
+        <p>Anything missing lands on one list, with Albert Heijn and Jumbo prices side by side. Shop wherever is cheaper today.</p>
       </div>
     </div>
   </div>
@@ -252,11 +296,11 @@
 
 <section class="privacy-strip">
   <div class="wrap">
-    <div class="privacy-card">
+    <div class="privacy-card reveal">
       <svg viewBox="0 0 24 24" fill="none" stroke="#1E4A36" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
       <div>
         <h3>Your kitchen stays yours</h3>
-        <p>No account, no ads, no tracking across apps. Your inventory, recipes and plans live on your device — analytics are anonymous and EU-hosted.</p>
+        <p>No account, no ads, no tracking across apps. Your inventory, recipes and plans live on your device, and analytics are anonymous and EU hosted.</p>
       </div>
       <a class="btn-outline" href="privacy.html">Read the privacy policy</a>
     </div>
@@ -264,15 +308,15 @@
 </section>
 
 <section class="support wrap" id="support">
-  <div class="support-head">
+  <div class="support-head reveal">
     <span class="pill">Support</span>
     <h2>Questions? We read every message.</h2>
     <p>We're a small team and usually reply within a few days. Email us at <a href="mailto:uurefe@gmail.com">uurefe@gmail.com</a>.</p>
   </div>
-  <div class="faq">
+  <div class="faq reveal" data-d="1">
     <details>
       <summary>How do I add items to my kitchen?</summary>
-      <p>On the <em>My Kitchen</em> tab, scan your fridge with the camera, upload a receipt or photo, or use <em>Add with assistant</em> to type or dictate a list.</p>
+      <p>On the <em>My Kitchen</em> tab, scan your fridge with the camera, upload a receipt or photo, or type or dictate a list with the assistant.</p>
     </details>
     <details>
       <summary>Where do the recipes come from?</summary>
@@ -284,7 +328,7 @@
     </details>
     <details>
       <summary>Is my data private?</summary>
-      <p>Yes — your inventory, recipes and plans stay on your device. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
+      <p>Yes. Your inventory, recipes and plans stay on your device. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
     </details>
     <details>
       <summary>How do I delete my data?</summary>
@@ -294,9 +338,9 @@
 </section>
 
 <section class="final">
-  <div class="wrap">
+  <div class="wrap reveal">
     <h2>Tonight's dinner is already in your fridge.</h2>
-    <p>Free on iPhone. No account needed.</p>
+    <p>Free on iPhone. No account needed. Come cook with us.</p>
     <div class="cta-row">
       <!-- TODO: replace href="#" with the real App Store URL when the app is approved -->
       <a class="badge-appstore" href="#" aria-label="Download on the App Store">
@@ -322,6 +366,21 @@
     <small>© 2026 MyKitchen. Apple and the App Store are trademarks of Apple Inc. Albert Heijn and Jumbo are trademarks of their respective owners; MyKitchen is not affiliated with them.</small>
   </div>
 </footer>
+
+<script>
+  (function(){
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('visible'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.18, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  })();
+</script>
 
 </body>
 </html>

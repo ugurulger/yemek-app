@@ -1,9 +1,11 @@
-import { Pressable, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Ionicons } from '@expo/vector-icons';
 
 import { cardShadow, colors, photoTones } from '@/lib/theme';
+import { getCachedRecipeImage } from '@/services/images/recipe-image';
 import type { PlanEntry } from '@/store/planStore';
 
 interface PlanEntryCardProps {
@@ -11,6 +13,11 @@ interface PlanEntryCardProps {
   onPress: () => void;
   onRemove: () => void;
 }
+
+/** Görsel kutusu boyutu (48×48) ve zoom çarpanı — kullanıcı kararı (1 Ağu):
+ * orijinal görüntünün 4x zoom'lu merkez kadrajı, bu boyutta tam net. */
+const TILE_SIZE = 48;
+const TILE_ZOOM = 4;
 
 /**
  * Placeholder zemin tonu — `lib/theme.ts` `photoTones` paletinden tarif
@@ -38,6 +45,19 @@ function toneForRecipe(name: string): string {
  */
 export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCardProps) {
   const { t } = useTranslation();
+  // Kullanıcı kararı (1 Ağu): planner kutusunda emoji yerine tarifin GERÇEK
+  // görseli, ORİJİNALİN 4x zoom'lu merkez kadrajıyla gösterilir — 48×48
+  // kutuda net dursun diye küçük thumbnail değil yüksek çözünürlüklü
+  // orijinal kullanılır. Yalnız CACHE okunur, üretim tetiklenmez
+  // (PlanEntry'de tam Recipe objesi yok); cache'te yoksa emoji'ye düşülür.
+  const [tileUri] = useState<string | null>(() => {
+    try {
+      const cached = getCachedRecipeImage(entry.name);
+      return cached?.originalUri ?? cached?.thumbnailUri ?? null;
+    } catch {
+      return null; // dosya sistemi yok (örn. web) — emoji placeholder
+    }
+  });
   return (
     <View>
       <Pressable
@@ -46,12 +66,30 @@ export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCar
         onPress={onPress}
         className="flex-row items-center gap-[11px] rounded-2xl bg-white p-[9px] active:scale-95"
         style={cardShadow}>
-        {/* Görsel kutusu — 48×48 radius 12, pastel zemin + ortada emoji. */}
-        <View
-          className="h-12 w-12 items-center justify-center rounded-xl"
-          style={{ backgroundColor: toneForRecipe(entry.name) }}>
-          <Text className="text-[22px]">{entry.emoji}</Text>
-        </View>
+        {/* Görsel kutusu — 48×48 radius 12: tarif görseli varsa 4x zoom'lu
+            merkez kadraj (192×192 görsel, kutu overflow-hidden, kenarlardan
+            -72 ofset), yoksa pastel zemin + ortada emoji. */}
+        {tileUri ? (
+          <View className="h-12 w-12 overflow-hidden rounded-xl">
+            <Image
+              source={{ uri: tileUri }}
+              style={{
+                width: TILE_SIZE * TILE_ZOOM,
+                height: TILE_SIZE * TILE_ZOOM,
+                marginLeft: (-TILE_SIZE * (TILE_ZOOM - 1)) / 2,
+                marginTop: (-TILE_SIZE * (TILE_ZOOM - 1)) / 2,
+              }}
+              resizeMode="cover"
+              accessibilityIgnoresInvertColors
+            />
+          </View>
+        ) : (
+          <View
+            className="h-12 w-12 items-center justify-center rounded-xl"
+            style={{ backgroundColor: toneForRecipe(entry.name) }}>
+            <Text className="text-[22px]">{entry.emoji}</Text>
+          </View>
+        )}
 
         <View className="min-w-0 flex-1">
           <Text className="font-sans-medium text-[14px] text-ink" numberOfLines={1}>

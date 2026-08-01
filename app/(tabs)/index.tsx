@@ -43,6 +43,9 @@ function countUncertain(items: InventoryItem[]): number {
 
 // Capture rotaları paralel geliştirildiği için typed-routes çıktısında henüz
 // olmayabilir — Href'e cast edilir (rota adları spec §2/§3 ile sabit).
+// P8-1: kamera girişi asistan ekranının İÇİNDE (tek birleşik akış); yalnız
+// "Scan your fridge" boş-durum CTA'sı DOĞRUDAN kameraya gider (etiket ne
+// diyorsa o — kullanıcı düzeltmesi, 1 Ağu).
 const CAMERA_ROUTE = '/capture/camera' as Href;
 const ASSISTANT_ROUTE = '/capture/assistant' as Href;
 
@@ -506,30 +509,22 @@ export default function MutfagimScreen() {
         {/* İş 2: bloğun son değişiklik tarihi — düşük görsel ağırlıklı satır. */}
         <LastUpdatedLabel timestamp={inventoryLastUpdatedAt} className="mt-1" />
 
-        {/* İki kompakt buton (referans satır 70-79): gap 8, alt margin 14;
-            kamera = size 'small' primary (videocam 18 beyaz), asistan =
-            size 'small' light (✦ 13px forest). Fiş/fotoğraf picker akışı
-            alttaki ikincil text-link'te yaşamaya devam ediyor. */}
-        <View className="mt-3 flex-row gap-2">
-          <View className="flex-1">
-            <PrimaryButton
-              size="small"
-              label={t('inventory.scanWithCamera')}
-              disabled={isAnalyzing}
-              icon={<Ionicons name="videocam" size={18} color="white" />}
-              onPress={() => router.push(CAMERA_ROUTE)}
-            />
-          </View>
-          <View className="flex-1">
-            <PrimaryButton
-              size="small"
-              variant="light"
-              label={t('inventory.addWithAssistant')}
-              disabled={isAnalyzing}
-              icon={<Text className="text-[13px] text-forest">✦</Text>}
-              onPress={() => router.push(ASSISTANT_ROUTE)}
-            />
-          </View>
+        {/* P8-1: TEK birleşik giriş — "Scan with camera" butonu kaldırıldı,
+            kamera taraması asistan ekranının içinden sunuluyor (bkz.
+            app/capture/assistant.tsx). Fiş/fotoğraf picker akışı alttaki
+            ikincil text-link'te yaşamaya devam ediyor. */}
+        <View className="mt-3">
+          {/* Açık (light) varyant — kullanıcı kararı (1 Ağu): buton dikkat
+              çekmesin, kullanıcı akış içindeki "Scan your fridge" / "Add
+              item" hedeflerine yönelsin. */}
+          <PrimaryButton
+            size="small"
+            variant="light"
+            label={t('inventory.addWithAssistant')}
+            disabled={isAnalyzing}
+            icon={<Text className="text-[13px] text-forest">✦</Text>}
+            onPress={() => router.push(ASSISTANT_ROUTE)}
+          />
         </View>
 
         {/* Fiş/fotoğraf yükleme: referansta YOK ama işlev kararıyla tutulan
@@ -674,7 +669,7 @@ export default function MutfagimScreen() {
         onRequestClose={() => setIsObservationModalVisible(false)}>
         <SafeAreaView className="flex-1 bg-white">
           <View className="flex-row items-center justify-between px-5 pb-2 pt-4">
-            <Text className="font-serif text-lg text-ink">[DEBUG] Aşama 1 — Ham Gözlem Metni</Text>
+            <Text className="font-serif text-lg text-ink">[DEBUG] Aşama 1: Ham Gözlem Metni</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => setIsObservationModalVisible(false)}

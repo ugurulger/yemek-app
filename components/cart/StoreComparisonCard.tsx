@@ -66,27 +66,43 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
       : null;
   const missingTotal = Math.max(...totals.map((t) => t.missingPriceCount), 0);
 
+  // P8-4: mağaza sütunları KENDİ marka renklerinde (logo yok, yalnız renk;
+  // landing .price-demo ile aynı tasarım): AH mavi + beyaz metin, Jumbo sarı
+  // + koyu metin. Kazanan "Best price" rozeti (forest) alır; kartın altında
+  // "✓ {store} wins today" karar bandı.
+  const STORE_STYLES: Record<StoreId, { bg: string; text: string; subtle: string }> = {
+    ah: { bg: colors.ahBlue, text: '#FFFFFF', subtle: 'rgba(255,255,255,0.85)' },
+    jumbo: { bg: colors.jumboYellow, text: colors.jumboInk, subtle: 'rgba(34,27,0,0.75)' },
+  };
+
   return (
     <View className="mx-5 mb-4 rounded-2xl bg-white p-4" style={cardShadow}>
       <View className="flex-row gap-3">
         {totals.map((storeTotals) => {
           const isCheapest = cheapest?.storeId === storeTotals.storeId && totals.length > 1;
+          const storeStyle = STORE_STYLES[storeTotals.storeId];
           return (
-            <View key={storeTotals.storeId} className="flex-1">
+            <View
+              key={storeTotals.storeId}
+              className="flex-1 rounded-2xl p-3"
+              style={{ backgroundColor: storeStyle.bg }}>
               <View className="flex-row items-center gap-[6px]">
-                <Text className="font-sans-semibold text-[11px] uppercase tracking-wide text-muted">
+                <Text
+                  numberOfLines={1}
+                  className="shrink font-sans-semibold text-[11px] uppercase tracking-wide"
+                  style={{ color: storeStyle.subtle }}>
                   {STORE_NAMES[storeTotals.storeId]}
                 </Text>
                 {isCheapest ? (
-                  <View className="rounded-full bg-softgreen-bg px-[7px] py-[1px]">
-                    <Text className="font-sans-semibold text-[9px] text-softgreen-text">
+                  <View className="rounded-full bg-forest px-[7px] py-[1px]">
+                    <Text className="font-sans-semibold text-[9px] text-white">
                       {t('market.cheapestBadge')}
                     </Text>
                   </View>
                 ) : null}
               </View>
-              <Text className="mt-1 font-serif text-[24px] text-forest">
-                {storeTotals.pricedCount > 0 ? formatPriceCents(storeTotals.totalCents) : '—'}
+              <Text className="mt-1 font-serif text-[24px]" style={{ color: storeStyle.text }}>
+                {storeTotals.pricedCount > 0 ? formatPriceCents(storeTotals.totalCents) : '–'}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -94,23 +110,23 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
                   store: STORE_NAMES[storeTotals.storeId],
                 })}
                 onPress={() => onPressStore(storeTotals.storeId)}
-                className={`mt-2 flex-row items-center justify-center gap-1 rounded-xl px-3 py-2 active:scale-[0.98] ${
-                  isCheapest ? 'bg-forest' : 'bg-cream'
-                }`}>
-                <Text
-                  className={`font-sans-semibold text-[11.5px] ${isCheapest ? 'text-white' : 'text-forest'}`}>
+                className="mt-2 flex-row items-center justify-center gap-1 rounded-xl bg-white px-3 py-2 active:scale-[0.98]">
+                <Text className="font-sans-semibold text-[11.5px] text-forest">
                   {t('market.buyFromStore')}
                 </Text>
-                <Ionicons
-                  name="open-outline"
-                  size={12}
-                  color={isCheapest ? '#fff' : colors.forest}
-                />
+                <Ionicons name="open-outline" size={12} color={colors.forest} />
               </Pressable>
             </View>
           );
         })}
       </View>
+      {cheapest ? (
+        <View className="mt-3 items-center rounded-full bg-softgreen-bg py-2">
+          <Text className="font-sans-semibold text-[12.5px] text-softgreen-text">
+            {t('market.winsToday', { store: STORE_NAMES[cheapest.storeId] })}
+          </Text>
+        </View>
+      ) : null}
       {missingTotal > 0 ? (
         <Text className="mt-3 font-sans text-[10.5px] text-muted">
           {t('market.missingPriceNote', { count: missingTotal })}

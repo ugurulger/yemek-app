@@ -21,7 +21,7 @@ import IngredientRow from '@/components/recipes/detail/IngredientRow';
 import PlanDayPickerSheet from '@/components/recipes/detail/PlanDayPickerSheet';
 import ServingsStepper from '@/components/recipes/detail/ServingsStepper';
 import RecipeHeroImage from '@/components/recipes/RecipeHeroImage';
-import { Card, MissingBadge } from '@/components/ui';
+import { Card, MacroPills, MissingBadge } from '@/components/ui';
 import { buildCartMissingInput } from '@/lib/recipes/cart-helpers';
 import { useRecipeById } from '@/lib/recipes/find-recipe';
 import {
@@ -312,12 +312,8 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
     }
   };
 
-  // Besin değerleri kişi sayısıyla ÖLÇEKLİ gösterilir (malzemelerle aynı çarpan).
-  const macroPills = [
-    { label: t('recipeDetail.macroProtein', { grams: scaled.macros.protein }), dot: colors.macroProtein },
-    { label: t('recipeDetail.macroCarb', { grams: scaled.macros.karb }), dot: colors.macroKarb },
-    { label: t('recipeDetail.macroFat', { grams: scaled.macros.yag }), dot: colors.macroYag },
-  ];
+  // Besin değerleri kişi sayısıyla ÖLÇEKLİ gösterilir (malzemelerle aynı
+  // çarpan). P8-3: piller ortak MacroPills bileşeninden basılır.
 
   /** Bilgi satırı parçaları — minimal muted metin, `·` ayraçlı (referans SCREEN 3). */
   const infoParts = [
@@ -446,20 +442,14 @@ function RecipeDetailContent({ recipe }: { recipe: Recipe }) {
               </Pressable>
             </View>
 
-            {/* Makro pilleri: soluk yeşil zemin, renkli nokta + değer */}
-            <View className="mb-[22px] flex-row gap-2">
-              {macroPills.map((macro) => (
-                <View
-                  key={macro.label}
-                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-[14px] bg-pillbg p-[9px]">
-                  <View
-                    className="h-[7px] w-[7px] rounded-full"
-                    style={{ backgroundColor: macro.dot }}
-                  />
-                  <Text className="font-sans-semibold text-[12px] text-body">{macro.label}</Text>
-                </View>
-              ))}
-            </View>
+            {/* Makro pilleri — P8-3: ortak bileşen (components/ui/MacroPills) */}
+            <MacroPills
+              className="mb-[22px]"
+              protein={scaled.macros.protein}
+              carbs={scaled.macros.karb}
+              fat={scaled.macros.yag}
+            />
+
 
             {/* Malzemeler + kişi sayısı stepper'ı */}
             <View className="mb-3 flex-row items-center justify-between">

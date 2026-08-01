@@ -49,17 +49,20 @@ export function PantrySection() {
     // (600 11.5px, 8×13, radius 20, ✦ 11px); ipucu 400 11.5px #8A9088
     // lh 1.35, ev ikonu 13, gap 6, alt margin 12; grid gap 9.
     <View className="mt-6">
-      <View className="flex-row items-center justify-between">
-        <Text className="font-serif text-[20px] text-ink">{t('pantry.title')}</Text>
+      {/* P8-1: buton başlık satırından BİR SATIR AŞAĞI alındı ve etiketi
+          "Add item" oldu (kullanıcı kararı) — başlık satırı sade kaldı. */}
+      <Text className="font-serif text-[20px] text-ink">{t('pantry.title')}</Text>
+      {/* İş 2: bloğun son değişiklik tarihi — düşük görsel ağırlıklı satır;
+          sağında kompakt "Add item" pili. */}
+      <View className="mt-1 flex-row items-center justify-between">
+        <LastUpdatedLabel timestamp={lastUpdatedAt} />
         <PrimaryButton
           size="pill"
-          label={t('inventory.addWithAssistant')}
+          label={t('pantry.addItem')}
           icon={<Text className="text-[11px] text-white">✦</Text>}
           onPress={() => router.push(PANTRY_ASSISTANT_ROUTE)}
         />
       </View>
-      {/* İş 2: bloğun son değişiklik tarihi — düşük görsel ağırlıklı satır. */}
-      <LastUpdatedLabel timestamp={lastUpdatedAt} className="mt-1" />
 
       {/* mb-[3px] + satırların mt-[9px]'i = referanstaki 12px alt margin. */}
       <View className="mb-[3px] mt-2 flex-row items-center">

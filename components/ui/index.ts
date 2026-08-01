@@ -7,6 +7,8 @@ export { Chip } from './Chip';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export type { ChipProps } from './Chip';
+export { MacroPills } from './MacroPills';
+export type { MacroPillsProps } from './MacroPills';
 export { MissingBadge } from './MissingBadge';
 export type { MissingBadgeProps } from './MissingBadge';
 export { PhotoPlaceholder } from './PhotoPlaceholder';

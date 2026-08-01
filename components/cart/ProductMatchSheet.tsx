@@ -214,7 +214,7 @@ function ProductRow({ product, selected = false, storeMatch, onPress }: ProductR
         ) : null}
       </View>
       <Text className={`font-sans-semibold text-[13px] ${selected ? 'text-white' : 'text-forest'}`}>
-        {product.priceCents != null ? formatPriceCents(product.priceCents) : '—'}
+        {product.priceCents != null ? formatPriceCents(product.priceCents) : '–'}
       </Text>
     </Pressable>
   );

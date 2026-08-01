@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -49,6 +49,12 @@ const SEARCH_BAR_SHADOW = {
   shadowRadius: 15,
   elevation: 8,
 } as const;
+
+// P8-1: kamera taraması artık asistan akışının içinden başlatılır (My
+// Kitchen'daki ayrı "Scan with camera" butonu kaldırıldı). `replace` ile
+// gidilir ki kamera kapanınca doğrudan My Kitchen'a dönülsün ve oradaki
+// pendingVideo köprüsü analizi başlatsın.
+const CAMERA_ROUTE = '/capture/camera' as Href;
 
 /** Chip metni: miktar 1'den büyükse "4× Domates", değilse sadece ad. */
 function chipLabel(item: InventoryItem): string {
@@ -257,6 +263,21 @@ export default function AssistantAddScreen() {
                   <Ionicons name="mic-outline" size={18} color={colors.forest} />
                 </Pressable>
               </View>
+
+              {/* P8-1: buzdolabı taraması bu akışın içinde — yalnız envanter
+                  modunda (kilerde kamera taraması anlamsız) ve henüz bir
+                  ayrıştırma başlamamışken gösterilir. */}
+              {targetMode === 'inventory' && !hasParsed && !isParsing ? (
+                <View className="mt-3 items-center">
+                  <PrimaryButton
+                    size="small"
+                    variant="light"
+                    label={t('inventory.scanWithCamera')}
+                    icon={<Ionicons name="videocam" size={16} color={colors.forest} />}
+                    onPress={() => router.replace(CAMERA_ROUTE)}
+                  />
+                </View>
+              ) : null}
             </View>
 
             {/* Ayrıştırılanlar barın altında aşağı doğru büyür (607-621). */}

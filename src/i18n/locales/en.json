@@ -20,8 +20,8 @@
   },
   "errors": {
     "generic": "Something went wrong, please try again.",
-    "analysisFailed": "Something went wrong during analysis — try again?",
-    "recipeGenerationFailed": "Couldn't generate recipes — try again?",
+    "analysisFailed": "Something went wrong during analysis. Try again?",
+    "recipeGenerationFailed": "Couldn't generate recipes. Try again?",
     "videoProcessing": "Couldn't process the video, please try again.",
     "galleryPermission": "Photo library access is required."
   },
@@ -40,7 +40,7 @@
   "onboarding": {
     "skip": "Skip",
     "s1Title": "Welcome to MyKitchen",
-    "s1Body": "Plan your week's meals in minutes. Recipes, menus and grocery lists — all in one place.",
+    "s1Body": "Plan your week's meals in minutes. Recipes, menus and grocery lists, all in one place.",
     "s1Cta": "Get started",
     "s2Title": "Your recipes, organized",
     "s2Body": "Save your favorites and find them the moment you need them.",
@@ -68,7 +68,7 @@
     "uncertainModalTitle": "Items we're not sure about",
     "reviewUncertainA11y": "Review uncertain items",
     "emptyTitle": "Let's stock your kitchen",
-    "emptyBody": "Scan your fridge with the camera or add a few items — everything starts here.",
+    "emptyBody": "Scan your fridge with the camera or add a few items. Everything starts here.",
     "emptyCta": "Scan your fridge",
     "deleteItemA11y": "Delete {{name}}",
     "confirmItem": "Add to inventory",
@@ -89,7 +89,8 @@
   },
   "pantry": {
     "title": "Pantry Staples",
-    "hint": "We assume these are at home — tap to remove what you don't have"
+    "hint": "We assume these are at home. Tap to remove what you don't have.",
+    "addItem": "Add item"
   },
   "recipes": {
     "title": "Recipes",
@@ -122,7 +123,7 @@
   "preferences": {
     "eyebrow": "A few preferences for better recipes",
     "title": "What kind of recipe do you want?",
-    "hint": "Pick what you like or leave it empty — up to you.",
+    "hint": "Pick what you like or leave it empty. Up to you.",
     "sections": {
       "profil": "Target Profile",
       "zamanlama": "Timing & Purpose",
@@ -187,8 +188,8 @@
     "inputPlaceholder": "Ask the chef anything…",
     "inputA11y": "Write a question for the chef",
     "sendA11y": "Send question to the chef",
-    "errorReply": "I couldn't answer right now — could you ask again in a minute?",
-    "example1": "No cream — what can I use?",
+    "errorReply": "I couldn't answer right now. Could you ask again in a minute?",
+    "example1": "No cream, what can I use?",
     "example2": "Can it be lighter?",
     "example3": "How many servings?",
     "exampleA11y": "Ask the chef: {{question}}"
@@ -211,19 +212,20 @@
     "cheapestBadge": "Best price",
     "buyFromStore": "Buy from this store",
     "buyFromStoreA11y": "Buy from {{store}}",
-    "missingPriceNote_one": "No price found for {{count}} item — totals exclude missing items.",
-    "missingPriceNote_other": "No price found for {{count}} items — totals exclude missing items.",
+    "missingPriceNote_one": "No price found for {{count}} item. Totals exclude missing items.",
+    "missingPriceNote_other": "No price found for {{count}} items. Totals exclude missing items.",
     "pricesLoading": "Fetching prices…",
     "matchDetailsA11y": "View and change product match",
     "recipePill_one": "{{count}} recipe",
     "recipePill_other": "{{count}} recipes",
     "matchSheetHint": "Check the matched product and change it if needed.",
-    "noMatchFound": "No suitable product found — search and pick one below.",
+    "noMatchFound": "No suitable product found. Search and pick one below.",
     "searchPlaceholder": "Search another product (in Dutch)…",
     "searchA11y": "Search products",
     "selectedProductA11y": "Selected product: {{name}}",
     "selectProductA11y": "Select {{name}}",
-    "lowConfidenceNote": "Double-check this match — we're not sure"
+    "lowConfidenceNote": "Double-check this match, we're not sure",
+    "winsToday": "✓ {{store}} wins today"
   },
   "plan": {
     "title": "Planner",
@@ -231,7 +233,7 @@
     "subtitle_other": "This week · {{count}} meals planned",
     "emptyDay": "Nothing planned",
     "emptyWeekTitle": "Let's plan your week",
-    "emptyWeekBody": "Pick a recipe and drop it on any day — dinner, sorted.",
+    "emptyWeekBody": "Pick a recipe and drop it on any day. Dinner, sorted.",
     "emptyWeekCta": "Pick a recipe",
     "pickerTitle": "Which day?",
     "pickerSubtitle": "Add the recipe to your weekly plan",
@@ -253,13 +255,13 @@
     "sortByName": "By name",
     "sortByCount": "Recipe count",
     "searchPlaceholder": "Search recipes",
-    "searchEmpty": "No cookbook matches your search — try another recipe name.",
+    "searchEmpty": "No cookbook matches your search. Try another recipe name.",
     "addRecipeA11y": "Add recipe",
     "emptyTitle": "Your cookbook shelf awaits",
     "emptyBody": "Import recipes from Instagram or the web and keep them forever.",
     "emptyCta": "Import your first recipe",
     "starterTitle": "Starter recipes to explore",
-    "starterBody": "We added {{count}} sample recipes so you can poke around — remove them whenever you like.",
+    "starterBody": "We added {{count}} sample recipes so you can poke around. Remove them whenever you like.",
     "starterRemove": "Remove samples",
     "starterRemoveA11y": "Remove the sample starter recipes",
     "starterRemovedToast": "Sample recipes removed"
@@ -278,7 +280,7 @@
     "emptyBody": "Save a recipe here with the Cookbooks button on any recipe page.",
     "emptyCta": "Find a recipe",
     "createdToast": "Cookbook \"{{name}}\" created",
-    "namePlaceholder": "Cookbook name — e.g. Desserts",
+    "namePlaceholder": "Cookbook name (e.g. Desserts)",
     "nameA11y": "Cookbook name",
     "createButton": "Create cookbook"
   },
@@ -295,7 +297,7 @@
     "fromPhoto": "From a photo",
     "fromPhotoHint": "Cookbook · screenshot",
     "comingSoon": "Coming soon",
-    "platformSoonA11y": "{{platform}} — coming soon",
+    "platformSoonA11y": "{{platform}}: coming soon",
     "igTitle": "Import from Instagram",
     "igPostPlaceholder": "recipe post",
     "igStep1Title": "1. Tap <hl>Send</hl> on the post",
@@ -340,7 +342,7 @@
     "remainingSeconds_other": "{{count}} sec",
     "photoRecipeSoon": "Recipe import from photos is coming soon",
     "recordFailedTitle": "Recording failed",
-    "recordFailedTooShort": "The video couldn't be saved — try holding a bit longer.",
+    "recordFailedTooShort": "The video couldn't be saved. Try holding a bit longer.",
     "recordFailedGeneric": "Something went wrong while recording. Try again.",
     "permissionNeededTitle": "Permission required",
     "galleryPermissionBody": "Photo library access is required to pick a video.",

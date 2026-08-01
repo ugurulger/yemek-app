@@ -20,8 +20,8 @@
   },
   "errors": {
     "generic": "Bir şeyler ters gitti, tekrar deneyin.",
-    "analysisFailed": "Analiz sırasında bir sorun oluştu — tekrar dener misin?",
-    "recipeGenerationFailed": "Tarifler üretilemedi — tekrar dener misin?",
+    "analysisFailed": "Analiz sırasında bir sorun oluştu, tekrar dener misin?",
+    "recipeGenerationFailed": "Tarifler üretilemedi, tekrar dener misin?",
     "videoProcessing": "Video işlenemedi, tekrar deneyin.",
     "galleryPermission": "Galeriye erişim izni gerekli."
   },
@@ -40,7 +40,7 @@
   "onboarding": {
     "skip": "Atla",
     "s1Title": "MyKitchen'a hoş geldin",
-    "s1Body": "Haftalık yemeklerini dakikalar içinde planla. Tarifler, menüler ve alışveriş listeleri — hepsi tek yerde.",
+    "s1Body": "Haftalık yemeklerini dakikalar içinde planla. Tarifler, menüler ve alışveriş listeleri, hepsi tek yerde.",
     "s1Cta": "Başlayalım",
     "s2Title": "Tariflerin hep düzenli",
     "s2Body": "Favorilerini kaydet, ihtiyacın olduğu anda hemen bul.",
@@ -68,7 +68,7 @@
     "uncertainModalTitle": "Emin olunamayan ürünler",
     "reviewUncertainA11y": "Emin olunamayan ürünleri gözden geçir",
     "emptyTitle": "Mutfağını dolduralım",
-    "emptyBody": "Buzdolabını kamerayla tara ya da birkaç ürün ekle — her şey buradan başlıyor.",
+    "emptyBody": "Buzdolabını kamerayla tara ya da birkaç ürün ekle, her şey buradan başlıyor.",
     "emptyCta": "Buzdolabını tara",
     "deleteItemA11y": "{{name}} ürününü sil",
     "confirmItem": "Envantere ekle",
@@ -89,7 +89,8 @@
   },
   "pantry": {
     "title": "Temel Malzemeler",
-    "hint": "Evinde hep var sayıyoruz — olmayana dokunup çıkar"
+    "hint": "Evinde hep var sayıyoruz, olmayana dokunup çıkar",
+    "addItem": "Ürün ekle"
   },
   "recipes": {
     "title": "Tarifler",
@@ -122,7 +123,7 @@
   "preferences": {
     "eyebrow": "Birkaç tercih, daha isabetli tarifler",
     "title": "Nasıl bir tarif istersin?",
-    "hint": "İstediğini seç ya da boş bırak — farketmez.",
+    "hint": "İstediğini seç ya da boş bırak, farketmez.",
     "sections": {
       "profil": "Hedeflenen Profil",
       "zamanlama": "Zamanlama & Amaç",
@@ -187,7 +188,7 @@
     "inputPlaceholder": "Şefe bir şey sor…",
     "inputA11y": "Şefe soru yaz",
     "sendA11y": "Soruyu şefe gönder",
-    "errorReply": "Şu an yanıt veremedim — bir dakika sonra tekrar sorar mısın?",
+    "errorReply": "Şu an yanıt veremedim, bir dakika sonra tekrar sorar mısın?",
     "example1": "Kremam yok, ne kullanabilirim?",
     "example2": "Daha hafif olur mu?",
     "example3": "Kaç kişilik?",
@@ -211,19 +212,20 @@
     "cheapestBadge": "En uygun",
     "buyFromStore": "Bu mağazadan al",
     "buyFromStoreA11y": "{{store}} mağazasından al",
-    "missingPriceNote_one": "{{count}} ürün için fiyat alınamadı — toplamlar eksik ürünleri içermez.",
-    "missingPriceNote_other": "{{count}} ürün için fiyat alınamadı — toplamlar eksik ürünleri içermez.",
+    "missingPriceNote_one": "{{count}} ürün için fiyat alınamadı; toplamlar eksik ürünleri içermez.",
+    "missingPriceNote_other": "{{count}} ürün için fiyat alınamadı; toplamlar eksik ürünleri içermez.",
     "pricesLoading": "Fiyatlar alınıyor…",
     "matchDetailsA11y": "Ürün eşleşmesini gör ve değiştir",
     "recipePill_one": "{{count}} tarif",
     "recipePill_other": "{{count}} tarif",
     "matchSheetHint": "Eşleşen ürünü kontrol et, gerekirse değiştir.",
-    "noMatchFound": "Uygun ürün bulunamadı — aşağıdan arayıp seçebilirsin.",
+    "noMatchFound": "Uygun ürün bulunamadı, aşağıdan arayıp seçebilirsin.",
     "searchPlaceholder": "Farklı ürün ara (Hollandaca)…",
     "searchA11y": "Ürün ara",
     "selectedProductA11y": "Seçili ürün: {{name}}",
     "selectProductA11y": "{{name}} ürününü seç",
-    "lowConfidenceNote": "Eşleşmeyi kontrol et — emin değiliz"
+    "lowConfidenceNote": "Eşleşmeyi kontrol et, emin değiliz",
+    "winsToday": "✓ Bugün {{store}} kazandı"
   },
   "plan": {
     "title": "Planlama",
@@ -231,7 +233,7 @@
     "subtitle_other": "Bu hafta · {{count}} öğün planlı",
     "emptyDay": "Plan boş",
     "emptyWeekTitle": "Haftanı planlayalım",
-    "emptyWeekBody": "Bir tarif seç, istediğin güne ekle — akşam yemeği hazır.",
+    "emptyWeekBody": "Bir tarif seç, istediğin güne ekle. Akşam yemeği hazır.",
     "emptyWeekCta": "Tarif seç",
     "pickerTitle": "Hangi güne?",
     "pickerSubtitle": "Tarifi haftalık planına ekle",
@@ -253,13 +255,13 @@
     "sortByName": "Ada göre",
     "sortByCount": "Tarif sayısı",
     "searchPlaceholder": "Tarif ara",
-    "searchEmpty": "Aramanla eşleşen defter yok — başka bir tarif adı dene.",
+    "searchEmpty": "Aramanla eşleşen defter yok. Başka bir tarif adı dene.",
     "addRecipeA11y": "Tarif ekle",
     "emptyTitle": "Defterlerin seni bekliyor",
     "emptyBody": "Instagram'dan ya da web'den tarif aktar, hep elinin altında dursun.",
     "emptyCta": "İlk tarifini ekle",
     "starterTitle": "Keşfetmen için örnek tarifler",
-    "starterBody": "Etrafa bakınabilmen için {{count}} örnek tarif ekledik — istediğin an kaldırabilirsin.",
+    "starterBody": "Etrafa bakınabilmen için {{count}} örnek tarif ekledik. İstediğin an kaldırabilirsin.",
     "starterRemove": "Örnekleri kaldır",
     "starterRemoveA11y": "Örnek başlangıç tariflerini kaldır",
     "starterRemovedToast": "Örnek tarifler kaldırıldı"
@@ -278,7 +280,7 @@
     "emptyBody": "Herhangi bir tarif sayfasındaki Defterler butonuyla tarifi buraya kaydet.",
     "emptyCta": "Tarif bul",
     "createdToast": "\"{{name}}\" defteri oluşturuldu",
-    "namePlaceholder": "Defter adı — örn. Tatlılar",
+    "namePlaceholder": "Defter adı (örn. Tatlılar)",
     "nameA11y": "Defter adı",
     "createButton": "Defteri oluştur"
   },
@@ -295,7 +297,7 @@
     "fromPhoto": "Fotoğraftan",
     "fromPhotoHint": "Kitap · ekran görüntüsü",
     "comingSoon": "Coming soon",
-    "platformSoonA11y": "{{platform}} — yakında",
+    "platformSoonA11y": "{{platform}}: yakında",
     "igTitle": "Instagram'dan içe aktar",
     "igPostPlaceholder": "tarif gönderisi",
     "igStep1Title": "1. Gönderide <hl>Gönder</hl>'e dokun",
@@ -340,7 +342,7 @@
     "remainingSeconds_other": "{{count}} sn",
     "photoRecipeSoon": "Fotoğraftan tarif aktarımı yakında",
     "recordFailedTitle": "Kayıt alınamadı",
-    "recordFailedTooShort": "Video kaydedilemedi — biraz daha uzun basılı tutmayı dene.",
+    "recordFailedTooShort": "Video kaydedilemedi. Biraz daha uzun basılı tutmayı dene.",
     "recordFailedGeneric": "Video kaydı sırasında bir sorun oluştu. Tekrar dene.",
     "permissionNeededTitle": "İzin gerekli",
     "galleryPermissionBody": "Galeriden video seçmek için galeri erişim izni gerekli.",
