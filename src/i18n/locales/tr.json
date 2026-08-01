@@ -16,7 +16,12 @@
     "next": "İleri",
     "goBack": "Geri dön",
     "backA11y": "Geri git",
-    "joinAnd": " ve "
+    "joinAnd": " ve ",
+    "hoursShort_one": "{{count}} saat",
+    "hoursShort_other": "{{count}} saat",
+    "daysShort_one": "{{count}} gün",
+    "daysShort_other": "{{count}} gün",
+    "justNow": "az önce"
   },
   "errors": {
     "generic": "Bir şeyler ters gitti, tekrar deneyin.",
@@ -79,7 +84,9 @@
       "title": "Envanter yenilenecek",
       "body": "Mevcut envanter yeni taramayla değiştirilecek, onaylıyor musun?",
       "confirm": "Değiştir"
-    }
+    },
+    "scanFridge": "Buzdolabını tara",
+    "lastScan": "Son tarama · {{time}}"
   },
   "categories": {
     "dairy": "Süt & Peynir",

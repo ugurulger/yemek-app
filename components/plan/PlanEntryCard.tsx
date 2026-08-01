@@ -14,10 +14,10 @@ interface PlanEntryCardProps {
   onRemove: () => void;
 }
 
-/** Görsel kutusu boyutu (48×48) ve zoom çarpanı — kullanıcı kararı (1 Ağu):
- * orijinal görüntünün 4x zoom'lu merkez kadrajı, bu boyutta tam net. */
+/** Görsel kutusu boyutu (48×48) ve zoom çarpanı — kullanıcı kararı (1 Ağu,
+ * revize): orijinal görüntünün ~2.5x zoom'lu merkez kadrajı, bu boyutta net. */
 const TILE_SIZE = 48;
-const TILE_ZOOM = 4;
+const TILE_ZOOM = 2.5;
 
 /**
  * Placeholder zemin tonu — `lib/theme.ts` `photoTones` paletinden tarif
@@ -66,9 +66,9 @@ export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCar
         onPress={onPress}
         className="flex-row items-center gap-[11px] rounded-2xl bg-white p-[9px] active:scale-95"
         style={cardShadow}>
-        {/* Görsel kutusu — 48×48 radius 12: tarif görseli varsa 4x zoom'lu
-            merkez kadraj (192×192 görsel, kutu overflow-hidden, kenarlardan
-            -72 ofset), yoksa pastel zemin + ortada emoji. */}
+        {/* Görsel kutusu — 48×48 radius 12: tarif görseli varsa TILE_ZOOM
+            kat büyütülmüş merkez kadraj (kutu overflow-hidden, negatif
+            margin'le ortalanır), yoksa pastel zemin + ortada emoji. */}
         {tileUri ? (
           <View className="h-12 w-12 overflow-hidden rounded-xl">
             <Image

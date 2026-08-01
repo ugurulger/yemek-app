@@ -13,6 +13,13 @@ interface InventoryState {
    */
   lastUpdatedAt: number | null;
   /**
+   * Son TAM TARAMA zamanı (epoch ms) — yalnız replaceItems (video/kamera
+   * taraması) günceller; asistan/fiş eklemeleri DOKUNMAZ. My Kitchen'daki
+   * "Scan your fridge" butonunun "Last scan · N hours/days" etiketi için
+   * (kullanıcı isteği, 1 Ağu). Hiç tarama yapılmamışsa null.
+   */
+  lastScanAt: number | null;
+  /**
    * EKLEME modu — fiş/fotoğraf akışı için: yeni ürünler mevcut envanterle
    * birleştirilir (aynı ad+birim varsa miktarlar toplanır).
    */
@@ -50,6 +57,7 @@ export const useInventoryStore = create<InventoryState>()(
     (set) => ({
       items: [],
       lastUpdatedAt: null,
+      lastScanAt: null,
       addItems: (newItems) =>
         set((state) => {
           const items = [...state.items];
@@ -74,7 +82,8 @@ export const useInventoryStore = create<InventoryState>()(
 
           return { items, lastUpdatedAt: Date.now() };
         }),
-      replaceItems: (newItems) => set({ items: newItems, lastUpdatedAt: Date.now() }),
+      replaceItems: (newItems) =>
+        set({ items: newItems, lastUpdatedAt: Date.now(), lastScanAt: Date.now() }),
       incrementQty: (id) =>
         set((state) => ({
           items: state.items.map((item) =>

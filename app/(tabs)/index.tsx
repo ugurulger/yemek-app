@@ -43,11 +43,28 @@ function countUncertain(items: InventoryItem[]): number {
 
 // Capture rotaları paralel geliştirildiği için typed-routes çıktısında henüz
 // olmayabilir — Href'e cast edilir (rota adları spec §2/§3 ile sabit).
-// P8-1: kamera girişi asistan ekranının İÇİNDE (tek birleşik akış); yalnız
-// "Scan your fridge" boş-durum CTA'sı DOĞRUDAN kameraya gider (etiket ne
-// diyorsa o — kullanıcı düzeltmesi, 1 Ağu).
+// 1 Ağu revizyonu: "Scan your fridge" (kalıcı buton + boş-durum CTA'sı)
+// DOĞRUDAN kameraya gider; asistan ikincil (light) giriş olarak kalır ve
+// içinde de kamera kısayolu vardır.
 const CAMERA_ROUTE = '/capture/camera' as Href;
 const ASSISTANT_ROUTE = '/capture/assistant' as Href;
+
+/**
+ * "Last scan" göreli zaman etiketi (kullanıcı isteği, 1 Ağu): gün içindeyse
+ * saat cinsinden ("3 hours", "17 hours"), gün geçtiyse gün cinsinden
+ * ("2 days"); ilk saat dolmadıysa "just now".
+ */
+function formatLastScan(timestamp: number): string {
+  const elapsedMs = Date.now() - timestamp;
+  const hours = Math.floor(elapsedMs / 3_600_000);
+  if (hours < 1) {
+    return i18n.t('common.justNow');
+  }
+  if (hours < 24) {
+    return i18n.t('common.hoursShort', { count: hours });
+  }
+  return i18n.t('common.daysShort', { count: Math.floor(hours / 24) });
+}
 
 // Bu skorun altındaki ürünler kategorili listede YER KAPLAMAZ — bunun yerine
 // listenin üstünde tek satırlık bir özet gösterilir, tıklanınca bir modalde
@@ -241,6 +258,7 @@ export default function MutfagimScreen() {
   const { t } = useTranslation();
   const items = useInventoryStore((state) => state.items);
   const inventoryLastUpdatedAt = useInventoryStore((state) => state.lastUpdatedAt);
+  const inventoryLastScanAt = useInventoryStore((state) => state.lastScanAt);
   const addItems = useInventoryStore((state) => state.addItems);
   const replaceItems = useInventoryStore((state) => state.replaceItems);
   const incrementQty = useInventoryStore((state) => state.incrementQty);
@@ -509,14 +527,39 @@ export default function MutfagimScreen() {
         {/* İş 2: bloğun son değişiklik tarihi — düşük görsel ağırlıklı satır. */}
         <LastUpdatedLabel timestamp={inventoryLastUpdatedAt} className="mt-1" />
 
-        {/* P8-1: TEK birleşik giriş — "Scan with camera" butonu kaldırıldı,
-            kamera taraması asistan ekranının içinden sunuluyor (bkz.
-            app/capture/assistant.tsx). Fiş/fotoğraf picker akışı alttaki
-            ikincil text-link'te yaşamaya devam ediyor. */}
-        <View className="mt-3">
-          {/* Açık (light) varyant — kullanıcı kararı (1 Ağu): buton dikkat
-              çekmesin, kullanıcı akış içindeki "Scan your fridge" / "Add
-              item" hedeflerine yönelsin. */}
+        {/* 1 Ağu revizyonu: KALICI "Scan your fridge" primary butonu (envanter
+            geldikten sonra da görünür) + üstünde son tarama zamanı etiketi;
+            altında ikincil (light) asistan girişi. Fiş/fotoğraf picker akışı
+            alttaki text-link'te yaşamaya devam ediyor. */}
+        <View className="mt-3 gap-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('inventory.scanFridge')}
+            disabled={isAnalyzing}
+            onPress={() => router.push(CAMERA_ROUTE)}
+            className="items-center rounded-[14px] bg-forest px-3 py-[9px] active:scale-[0.98]"
+            style={{
+              shadowColor: '#1F4A3D',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 3,
+              opacity: isAnalyzing ? 0.6 : 1,
+            }}>
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="videocam" size={16} color="white" />
+              <Text className="font-sans-semibold text-[12px] text-white">
+                {t('inventory.scanFridge')}
+              </Text>
+            </View>
+            {inventoryLastScanAt ? (
+              <Text
+                className="mt-[2px] font-sans text-[10px]"
+                style={{ color: 'rgba(255,255,255,0.72)' }}>
+                {t('inventory.lastScan', { time: formatLastScan(inventoryLastScanAt) })}
+              </Text>
+            ) : null}
+          </Pressable>
           <PrimaryButton
             size="small"
             variant="light"

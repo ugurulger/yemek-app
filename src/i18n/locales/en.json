@@ -16,7 +16,12 @@
     "next": "Next",
     "goBack": "Go back",
     "backA11y": "Go back",
-    "joinAnd": " and "
+    "joinAnd": " and ",
+    "hoursShort_one": "{{count}} hour",
+    "hoursShort_other": "{{count}} hours",
+    "daysShort_one": "{{count}} day",
+    "daysShort_other": "{{count}} days",
+    "justNow": "just now"
   },
   "errors": {
     "generic": "Something went wrong, please try again.",
@@ -79,7 +84,9 @@
       "title": "Inventory will be replaced",
       "body": "Your current inventory will be replaced by the new scan. Continue?",
       "confirm": "Replace"
-    }
+    },
+    "scanFridge": "Scan your fridge",
+    "lastScan": "Last scan · {{time}}"
   },
   "categories": {
     "dairy": "Dairy & Cheese",
