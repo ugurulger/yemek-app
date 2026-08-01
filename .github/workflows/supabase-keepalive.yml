@@ -1,0 +1,28 @@
+name: Supabase keep-alive
+
+# Free plandaki Supabase projeleri ~1 hafta işlem görmeyince duraklatılıyor
+# ve domain DNS'ten düşüyor (1 Ağu 2026'da yaşandı — tarif üretimi kırıldı).
+# Bu workflow her gün ucuz bir ping atar: edge function boş gövdeyle çağrılır
+# (hemen 400 döner, LLM çalışmaz, maliyet yok) + REST endpoint'i yoklanır.
+# Gerekli secret: SUPABASE_ANON_KEY (repo Settings → Secrets and variables →
+# Actions → New repository secret).
+
+on:
+  schedule:
+    - cron: '23 6 * * *' # her gün 06:23 UTC
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping edge function + REST
+        env:
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BASE: https://bwifrndcigjxdqvurltw.supabase.co
+        run: |
+          curl -sS -o /dev/null -w 'edge: %{http_code}\n' -X POST "$BASE/functions/v1/generate-recipe" \
+            -H "apikey: $KEY" -H "authorization: Bearer $KEY" \
+            -H "content-type: application/json" -d '{}' || true
+          curl -sS -o /dev/null -w 'rest: %{http_code}\n' "$BASE/rest/v1/" \
+            -H "apikey: $KEY" -H "authorization: Bearer $KEY" || true
