@@ -127,9 +127,18 @@ const PANTRY_BILINGUAL: { tr: string; en: string }[] = [
   { tr: 'bulgur', en: 'Bulgur' },
 ];
 
+/** 3 ürünlük DAR envanter (kota işi, 2026-08-02) — 2 dolu "ready" tarifin
+ * zor çıktığı senaryo: kota devretme yolunu (ör. 1/5/2) tetiklemeye aday. */
+const DAR3: InventoryItem[] = [
+  inv('d1', 'Somon Fileto', 'Salmon Fillet', 300, 'g', 'en'),
+  inv('d2', 'Çeri Domates', 'Cherry Tomatoes', 250, 'g', 'en'),
+  inv('d3', 'Limon', 'Lemon', 2, 'adet', 'en'),
+];
+
 const INVENTORIES: Record<string, { items: InventoryItem[]; appLanguage: 'tr' | 'en' }> = {
   tr12: { items: TR12, appLanguage: 'tr' },
   en8: { items: EN8, appLanguage: 'en' },
+  dar3: { items: DAR3, appLanguage: 'en' },
 };
 
 // ---------------------------------------------------------------------------

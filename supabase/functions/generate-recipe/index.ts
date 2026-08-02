@@ -58,6 +58,17 @@ const CONFIG = {
   retrievalJitter: Number(Deno.env.get('RAG_RETRIEVAL_JITTER') ?? '0.03'),
   /** Client'ın gönderdiği "son üretilen tarif adları" listesinin üst sınırı. */
   avoidMax: 24,
+  /** SABİT BÖLÜM KOTASI (kullanıcı kararı, 2026-08-02): Ready to Cook = 2,
+   * With a Quick Shop = 4 (+ Fine Dining = 2, fineDiningCount yukarıda).
+   * Üretim sonrası KOD doğrular; bölüm eksikse EN FAZLA 1 telafi çağrısı
+   * koşar (bkz. assembleQuota + handler'daki telafi bloğu). MVP-16'nın
+   * "dağılım KOD ZORLAMAZ" ilkesinin bilinçli revizyonu — kullanıcı kota
+   * garantisi istedi; zorlama yine "üret + seç" düzeyinde, tarif İÇERİĞİ
+   * değiştirilmez. Envanter 2 ready çıkarmıyorsa devretme: eksik ready
+   * kotası shopping'e aktarılır (ör. 1/5/2) — UI boş bölüm başlığını
+   * zaten gizliyor. */
+  quotaReady: Number(Deno.env.get('RAG_QUOTA_READY') ?? '2'),
+  quotaShopping: Number(Deno.env.get('RAG_QUOTA_SHOPPING') ?? '4'),
 };
 
 const CORS_HEADERS = {
@@ -500,6 +511,90 @@ function dedupeNearNames(recipes: Recipe[]): { kept: Recipe[]; droppedNames: str
   return { kept, droppedNames };
 }
 
+/**
+ * Tarifin "yıldız" envanter malzemesi (kota montajında bölüm içi yıldız
+ * tekilliği için): malzeme listesi genelde yıldız-önce yazıldığından, ilk
+ * in_inventory malzemenin eşleştiği envanter adı alınır. Kiler BİLİNÇLİ
+ * dışarıda (tuz/soğan yıldız sayılmasın diye yalnız envanter adları gelir).
+ */
+function starInventoryName(recipe: Recipe, inventoryNames: string[]): string | null {
+  for (const ingredient of recipe.ingredients) {
+    if (!ingredient.in_inventory) continue;
+    const match = inventoryNames.find((name) => namesMatch(ingredient.name, name));
+    if (match) return match.toLowerCase();
+  }
+  return null;
+}
+
+/**
+ * SABİT BÖLÜM KOTASI montajı (kullanıcı kararı, 2026-08-02 — bkz. CONFIG
+ * notu): havuzdan TAM kota kadar seçer. Seçim önceliği: (1) kota dolsun,
+ * (2) aynı bölümde aynı yıldız en fazla 1 kez (yeterli aday varsa; kota
+ * doldurmak yıldız tekilliğinden ÖNCE gelir — bölüm eksik kalmasın).
+ * `allowCarryOver` (telafi SONRASI): ready kotası dolmuyorsa eksik
+ * shopping'e devredilir (1/5/2), shopping da yetmiyorsa fazla ready
+ * doldurur (3/3/2) — toplam 6 normal hedefi korunur.
+ */
+function assembleQuota(
+  normal: Recipe[],
+  inventoryNames: string[],
+  allowCarryOver: boolean
+): { ready: Recipe[]; shopping: Recipe[] } {
+  const readyPool = normal.filter((recipe) => recipe.missing_count === 0);
+  const shoppingPool = normal
+    .filter((recipe) => recipe.missing_count > 0)
+    .sort((a, b) => a.missing_count - b.missing_count);
+
+  const pick = (pool: Recipe[], take: number): Recipe[] => {
+    const chosen: Recipe[] = [];
+    const stars = new Set<string>();
+    for (const recipe of pool) {
+      if (chosen.length >= take) break;
+      const star = starInventoryName(recipe, inventoryNames);
+      if (star && stars.has(star)) continue;
+      chosen.push(recipe);
+      if (star) stars.add(star);
+    }
+    for (const recipe of pool) {
+      if (chosen.length >= take) break;
+      if (!chosen.includes(recipe)) chosen.push(recipe);
+    }
+    return chosen;
+  };
+
+  const ready = pick(readyPool, CONFIG.quotaReady);
+  const shoppingTake =
+    CONFIG.quotaShopping + (allowCarryOver ? Math.max(0, CONFIG.quotaReady - ready.length) : 0);
+  const shopping = pick(shoppingPool, shoppingTake);
+  if (allowCarryOver && shopping.length < shoppingTake) {
+    // Ters devretme: shopping havuzu da dar — fazla ready varsa doldur.
+    for (const recipe of readyPool) {
+      if (ready.length + shopping.length >= CONFIG.quotaReady + CONFIG.quotaShopping) break;
+      if (!ready.includes(recipe)) ready.push(recipe);
+    }
+  }
+  return { ready, shopping };
+}
+
+/** Telafi çağrısının katman kuralı — eksik bölüm(ler)e hedefli. */
+function topUpLayerRule(readyNeed: number, shoppingNeed: number): string {
+  const parts: string[] = [];
+  if (readyNeed > 0) {
+    parts.push(
+      `the first ${readyNeed} recipe(s): cookable RIGHT NOW using ONLY inventory + pantry staples ` +
+        '(every ingredient in_inventory: true, zero shopping items). These must be SUBSTANTIAL: combine ' +
+        'as many different inventory items as genuinely fit (aim for at least 5 when the inventory allows)'
+    );
+  }
+  if (shoppingNeed > 0) {
+    parts.push(
+      `${readyNeed > 0 ? 'the remaining' : 'all'} ${shoppingNeed} recipe(s): each with exactly 1-4 ` +
+        'shopping ingredients (in_inventory: false) that genuinely improve the dish'
+    );
+  }
+  return `- LAYER DISTRIBUTION (strict — count shopping ingredients per recipe before submitting): ${parts.join('; ')}.\n`;
+}
+
 function countMissing(recipe: MatchedRecipe, availableNames: string[]): number {
   return recipe.ingredients.filter((ingredient) => !isAvailable(ingredient.name, availableNames))
     .length;
@@ -751,7 +846,9 @@ function buildSystemPrompt(
     // karşılığı — model gönderim öncesi kendi setini denetleyebilsin.
     '- DIVERSITY QUOTA (count before submitting): any single main ingredient may be the STAR of at most ' +
     '2 recipes in your set, and your set must span at least 3 different technique families ' +
-    '(oven/bake, stovetop/pan, soup/stew, salad/raw, egg dishes, grain/pasta dishes...).\n' +
+    '(oven/bake, stovetop/pan, soup/stew, salad/raw, egg dishes, grain/pasta dishes...). Within the same ' +
+    'shopping-count band (ready recipes; 1-2 shopping; 3-4 shopping), no two recipes may share the same ' +
+    'star ingredient.\n' +
     spec.dominantRule +
     '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
     'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
@@ -1205,23 +1302,102 @@ Deno.serve(async (request) => {
           avoidViolations.map((recipe) => recipe.name).join(' | ')
       );
     }
-    const fineDiningRecipes = reconcileRecipes(fineDiningResult.recipes, availableNames);
+    let fineDiningRecipes = reconcileRecipes(fineDiningResult.recipes, availableNames);
 
-    // Madde 5: mutabakat SONRASI katman dağılımı — sunucunun hedeflediği
-    // 2/2/2'nin tutup tutmadığı loglardan izlenebilsin.
-    const distribution = {
-      ready: recipes.filter((r) => r.missing_count === 0).length,
-      close: recipes.filter((r) => r.missing_count >= 1 && r.missing_count <= 2).length,
-      few: recipes.filter((r) => r.missing_count >= 3).length,
+    // SABİT BÖLÜM KOTASI (2/4/2, kullanıcı kararı 2026-08-02 — bkz. CONFIG
+    // notu): önce devretmesiz montajla açık ölçülür; bölüm eksikse EN FAZLA
+    // 1 telafi turu (normal top-up + gerekiyorsa FD retry, paralel) koşulur;
+    // final montaj devretme AÇIK yapılır (2 ready çıkmadıysa 1/5/2 gibi).
+    let pool = recipes;
+    let assembled = assembleQuota(pool, inventoryNames, false);
+    const readyNeed = Math.max(0, CONFIG.quotaReady - assembled.ready.length);
+    const shoppingNeed = Math.max(0, CONFIG.quotaShopping - assembled.shopping.length);
+    const fineDiningNeed = Math.max(0, CONFIG.fineDiningCount - fineDiningRecipes.length);
+    const topUpMeta = { ran: false, readyNeed, shoppingNeed, fineDiningRetry: false, added: 0 };
+    if (readyNeed + shoppingNeed > 0 || (fineDiningNeed > 0 && fineDiningMatches.length > 0)) {
+      // Telafi çağrısı mevcut TÜM adları avoid olarak görür — kendi setini
+      // tekrar üretmesin (yakın-ad dedupe yine emniyet kemeri).
+      const topUpInput: GenerateRecipeInput = {
+        ...input,
+        avoid: [
+          ...(input.avoid ?? []),
+          ...pool.map((recipe) => recipe.name),
+          ...fineDiningRecipes.map((recipe) => recipe.name),
+        ],
+      };
+      const topUpCount = readyNeed + shoppingNeed;
+      const [topUpResult, fdRetryResult] = await Promise.all([
+        topUpCount > 0
+          ? generateWithClaude(topUpInput, {
+              count: topUpCount,
+              systemPrompt: buildSystemPrompt(topUpInput, matches, {
+                count: topUpCount,
+                layerRule: topUpLayerRule(readyNeed, shoppingNeed),
+                dominantRule: '',
+              }),
+            }).catch((error): GenerationResult => {
+              console.warn('[rag-gen] kota telafi çağrısı düştü — mevcutla devam:', error);
+              return { recipes: [], meta: EMPTY_META };
+            })
+          : Promise.resolve({ recipes: [], meta: EMPTY_META }),
+        fineDiningNeed > 0 && fineDiningMatches.length > 0
+          ? generateWithClaude(topUpInput, {
+              count: CONFIG.fineDiningCount,
+              systemPrompt: buildFineDiningSystemPrompt(topUpInput, fineDiningMatches),
+              category: 'fine-dining',
+            }).catch((error): GenerationResult => {
+              console.warn('[rag-gen] fine dining telafi çağrısı düştü:', error);
+              return { recipes: [], meta: EMPTY_META };
+            })
+          : Promise.resolve({ recipes: [], meta: EMPTY_META }),
+      ]);
+      topUpMeta.ran = true;
+      topUpMeta.added = topUpResult.recipes.length + fdRetryResult.recipes.length;
+      if (topUpResult.recipes.length > 0) {
+        pool = dedupeNearNames([
+          ...pool,
+          ...reconcileRecipes(topUpResult.recipes, availableNames),
+        ]).kept;
+      }
+      if (fdRetryResult.recipes.length > 0) {
+        topUpMeta.fineDiningRetry = true;
+        fineDiningRecipes = reconcileRecipes(fdRetryResult.recipes, availableNames).slice(
+          0,
+          CONFIG.fineDiningCount
+        );
+      }
+      normalMeta.inputTokens += topUpResult.meta.inputTokens + fdRetryResult.meta.inputTokens;
+      normalMeta.outputTokens += topUpResult.meta.outputTokens + fdRetryResult.meta.outputTokens;
+    }
+    assembled = assembleQuota(pool, inventoryNames, true);
+    const finalNormal = [...assembled.ready, ...assembled.shopping];
+    const droppedExcess = pool.length - finalNormal.length;
+    if (droppedExcess > 0) {
+      const finalSet = new Set(finalNormal);
+      console.log(
+        `[rag-gen] kota fazlası düşürüldü (${droppedExcess}): ` +
+          pool.filter((recipe) => !finalSet.has(recipe)).map((recipe) => recipe.name).join(' | ')
+      );
+    }
+    const quota = {
+      target: { ready: CONFIG.quotaReady, shopping: CONFIG.quotaShopping, fineDining: CONFIG.fineDiningCount },
+      final: {
+        ready: assembled.ready.length,
+        shopping: assembled.shopping.length,
+        fineDining: fineDiningRecipes.length,
+      },
+      topUp: topUpMeta,
+      droppedExcess,
     };
     console.log(
-      `[rag-gen] dağılım (reconcile sonrası): ready=${distribution.ready} 1-2=${distribution.close} 3+=${distribution.few}`
+      `[rag-gen] kota: hedef 2/4/2 → final ${quota.final.ready}/${quota.final.shopping}/${quota.final.fineDining}` +
+        (topUpMeta.ran ? ` (telafi: +${topUpMeta.added}, ready açığı ${topUpMeta.readyNeed}, shopping açığı ${topUpMeta.shoppingNeed})` : '')
     );
 
     return new Response(
       JSON.stringify({
         source: 'llm',
-        recipes: [...recipes, ...fineDiningRecipes],
+        recipes: [...finalNormal, ...fineDiningRecipes],
         retrieval: {
           topSimilarity: top?.similarity ?? null,
           matchedTitles: matches.map((m) => m.title),
@@ -1237,6 +1413,7 @@ Deno.serve(async (request) => {
             droppedNearDup: droppedNames.length,
             avoidViolations: avoidViolations.length,
           },
+          quota,
         },
       }),
       { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }

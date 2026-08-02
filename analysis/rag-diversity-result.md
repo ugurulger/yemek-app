@@ -110,3 +110,29 @@ Notlar / kalan açıklar:
 - FD "sürpriz" kuralı ikinci (alışveriş-katmanlı) FD tarifinde envanter
   dışı yıldıza kayabiliyor (en8: scallops/halibut) — tasarım içi (2-3
   alışveriş hakkı) ama göze batarsa kural yumuşatılabilir.
+
+## 4) Sabit bölüm kotası 2/4/2 (aynı gün, kullanıcı kararı)
+
+Kural: her üretimde Ready=2, Quick Shop=4, Fine Dining=2 (toplam 8).
+Uygulama (edge): üretim sonrası `assembleQuota` devretmesiz ölçer; bölüm
+eksikse EN FAZLA 1 telafi çağrısı (`topUpLayerRule`, mevcut adlar avoid'e
+eklenir; FD<2 ise paralel FD retry); final montaj devretme AÇIK — 2 ready
+çıkmazsa 1/5/2, shopping havuzu darsa 3/3/2. Fazlalık düşürülür (loglanır),
+bölüm içi yıldız tekilliği montajda tercih edilir + prompt kuralı. Hibrit
+kısayol kota istisnası (A5). Meta: `generation.quota`.
+
+Doğrulama (3 demo envanter × 2 koşu, canlı — ham veri:
+`tests/rag-tuning/results/quota-2026-08-02T00-45-37-297Z.json`):
+
+| Koşu | Sonuç (R/S/FD) | Telafi | Not |
+|---|---|---|---|
+| tr12#1 | 2/4/2 ✓ | +2 shopping | 1 fazlalık düşürüldü |
+| tr12#2 | 2/4/2 ✓ | — | yenileme, avoid=8 |
+| en8#1 | 2/4/2 ✓ | — | |
+| en8#2 | 2/4/2 ✓ | +1 shopping | yenileme |
+| dar3#1 | 3/3/2 (devretme) | +2 (ready'ye düştü) | 3 ürünlü dar envanter: shopping havuzu dar — ters devretme, boş bölüm yok |
+| dar3#2 | 2/4/2 ✓ | — | yenileme |
+
+Telafi yalnız açık olan koşularda ~+10-14s ekliyor (2/6 koşu 31-36s,
+telafisizler 18-23s). Kotalar yenilemede korunuyor; bölüm içi yıldız
+tekilliği montaj tarafından uygulanıyor (kota doldurmak önce gelir).

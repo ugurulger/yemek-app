@@ -54,6 +54,7 @@ const INVENTORY_NAMES: Record<string, string[]> = {
     'Salmon Fillet', 'Spinach', 'Heavy Cream', 'Parmesan', 'Cherry Tomatoes',
     'Eggs', 'Potatoes', 'Red Bell Pepper',
   ],
+  dar3: ['Salmon Fillet', 'Cherry Tomatoes', 'Lemon'],
 };
 
 /** Tek kelimelik yıldız anahtarı ("Chicken Breast" → "chicken"). */

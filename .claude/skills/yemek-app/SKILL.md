@@ -105,10 +105,25 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   altına düşmesin). Ready tarifler DOLU olmalı (envanterden ≥5 malzeme
 >   hedefi — iki aşamalı yoldaki ready-zenginlik kuralıyla aynı, bkz.
 >   "Envanter → tarif"). Fine dining İKİLİSİ zıt kurgulu (biri 0, diğeri 2-3 eksik) ve
->   aynı yıldız malzemeyi PAYLAŞAMAZ. Dağılım prompt-yönlendirmeli, KOD
->   ZORLAMAZ (MVP-16 ilkesi). "Prefer recipes the user can cook NOW" satırı
->   kaldırılmıştı; tek-çağrılı üretim de aynı nedenle (4-6 ready'ye
->   yığılma, ölçüldü) terk edildi.
+>   aynı yıldız malzemeyi PAYLAŞAMAZ. "Prefer recipes the user can cook
+>   NOW" satırı kaldırılmıştı; tek-çağrılı üretim de aynı nedenle (4-6
+>   ready'ye yığılma, ölçüldü) terk edildi.
+> - **SABİT BÖLÜM KOTASI 2/4/2 (kullanıcı kararı 2026-08-02 — RAG yolunda
+>   MVP-16'nın "dağılım KOD ZORLAMAZ" ilkesinin bilinçli revizyonu; iki
+>   aşamalı geri-dönüş yolunda ilke aynen durur):** Ready=2, Quick Shop=4,
+>   Fine Dining=2. Üretim sonrası `assembleQuota` doğrular (devretmesiz
+>   ölçüm → bölüm eksikse EN FAZLA 1 telafi çağrısı `topUpLayerRule` ile,
+>   FD<2 ise paralel FD retry → final montaj devretme AÇIK). Zorlama
+>   "üret + seç" düzeyinde: tarif içeriği değiştirilmez; fazlalık düşürülür
+>   (loglanır), 2 ready çıkmazsa eksik shopping'e devredilir (1/5/2; ters
+>   yön 3/3/2) — UI boş bölüm başlığını zaten gizler (RecipeList). Bölüm
+>   İÇİ yıldız ≤1: montaj yıldız tekilliğini TERCİH eder (kota doldurmak
+>   önce gelir), prompt'a "aynı katmanda aynı yıldız yasak" satırı eklendi.
+>   Kota metası `generation.quota`'da; telafi maliyeti yalnız açık koşularda
+>   (~+10-14s; ölçüm: 3 envanter × 2 koşuda 3 telafi, 5/6 birebir 2/4/2,
+>   1 geçerli devretme — rapor: analysis/rag-diversity-result.md §4).
+>   Hibrit kısayol (`source: database`, tek tarif) kota İSTİSNASI (A5
+>   kararı korunur). Env: `RAG_QUOTA_READY`/`RAG_QUOTA_SHOPPING`.
 > - **KURAL: RAG çeşitlilik savunması ÜÇ katmanlı** (tek başına prompt
 >   YETMEDİ — 8/8 somon referansı somut BAN'ı bile eziyordu, ölçüldü):
 >   (1) retrieval 24 aday → başlık-token tavanıyla 8 referans
