@@ -292,7 +292,22 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   detay ekranı bunu kullanır.
 > - **Plan** (`app/(tabs)/plan.tsx`, `store/planStore.ts`): Pzt–Paz
 >   ajanda; `PlanEntry` ad/kcal/emoji DENORMALİZE taşır (tarif objesi
->   çözülemese de kart çizilir).
+>   çözülemese de kart çizilir). 2026-08-02 revizyonu: (1) SÜRÜKLE-BIRAK —
+>   kart uzun basışla (280ms, haptic) kalkar, gün içi sıralanır/güne
+>   taşınır (`react-native-gesture-handler` + reanimated; paketler bu işle
+>   eklendi, kök `GestureHandlerRootView` app/_layout.tsx'te). Ölçümler
+>   sürükleme BAŞINDA `measureInWindow` ile (scroll sürüklemede KİLİTLİ —
+>   kareler bayatlamaz); bırakış kuralı "hedef kartın merkez üstü = önüne".
+>   `planStore.moveEntry` atomik — SEPETE DOKUNMAZ (sepet yalnız kalıcı
+>   silmede güncellenir). expo-haptics web'de no-op (Platform guard).
+>   (2) DİKEY DOLULUK: liste `flexGrow:1`, gün ağırlığı = öğün sayısı; az
+>   öğünde ekran dolar, çokta doğal scroll. (3) Kart görsel kutusu 2x
+>   (`TILE_SIZE` 96, TILE_ZOOM 2.5 sabit — kadraj aynı), öğün chip'i +
+>   meta ALT ALTA. **KURAL (Toast dersinin genellemesi): REANIMATED
+>   Animated.View'a da NativeWind className GÜVENİLMEZ** — overlay'de
+>   "absolute" uygulanmadı (canlı gözlem); sürükleme bileşenlerinde layout
+>   düz style ile. Native cihazda `// DOĞRULA`: haptic titreşimler +
+>   uzun-bas his ayarı.
 > - **Tarif detayı:** bilgi pilleri minimal tek satır; 4 ikon buton
 >   (Defterler=CookbookPickerSheet · Plan=PlanDayPickerSheet ·
 >   Market=eksikleri sepete+toast · Paylaş=toast); Şefe Sor'da geçmiş

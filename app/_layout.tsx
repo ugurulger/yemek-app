@@ -11,6 +11,7 @@ import { Redirect, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import '../global.css';
@@ -185,6 +186,9 @@ function RootLayout() {
   }
 
   return (
+    // Sürükle-bırak (Plan ekranı) için gesture-handler kök sarmalayıcısı —
+    // uygulamada TEK kök GestureHandlerRootView olmalı, ekran içine konmaz.
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <View className="flex-1">
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
@@ -208,6 +212,7 @@ function RootLayout() {
       {/* Global toast (referans TOAST bloğu) — tüm ekranların üstünde. */}
       <ToastHost />
     </View>
+    </GestureHandlerRootView>
   );
 }
 
