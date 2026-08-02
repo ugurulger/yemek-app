@@ -22,19 +22,24 @@ export interface StoreComparisonCardProps {
  * Sepet toplamlarının iki mağazalı karşılaştırma kartı — grid'in üstünde.
  * Ucuz mağaza yumuşak yeşil "En uygun" pili alır; fiyatı eksik satır sayısı
  * alt notta belirtilir. Yüklenirken iskelet, hata durumunda "Tekrar dene".
+ *
+ * KOMPAKT oran (tarif şeridi işi): ekranın yıldızı Recipes şeridi + kategori
+ * listesi — bu kart destekleyici kaldığı için dikeyde sıkıştırıldı (fiyat
+ * 24→18px, buton tek satır kısa etiketli, karar bandı + fiyat notu tek
+ * satırda birleşik).
  */
 export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: StoreComparisonCardProps) {
   const { t } = useTranslation();
   if (status === 'loading' || status === 'idle') {
     return (
-      <View className="mx-5 mb-4 rounded-2xl bg-white p-4" style={cardShadow}>
+      <View className="mx-5 mb-3 rounded-2xl bg-white p-3" style={cardShadow}>
         <Text className="font-sans-medium text-[11px] text-muted">{t('market.comparingPrices')}</Text>
-        <View className="mt-3 flex-row gap-3">
+        <View className="mt-2 flex-row gap-2.5">
           {[0, 1].map((i) => (
-            <View key={i} className="flex-1 gap-2">
+            <View key={i} className="flex-1 gap-1.5">
               <View className="h-3 w-20 rounded-full bg-cream" />
-              <View className="h-6 w-16 rounded-lg bg-cream" />
-              <View className="h-8 rounded-xl bg-cream" />
+              <View className="h-5 w-16 rounded-lg bg-cream" />
+              <View className="h-6 rounded-lg bg-cream" />
             </View>
           ))}
         </View>
@@ -44,7 +49,7 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
 
   if (status === 'error') {
     return (
-      <View className="mx-5 mb-4 rounded-2xl bg-white p-4" style={cardShadow}>
+      <View className="mx-5 mb-3 rounded-2xl bg-white p-3" style={cardShadow}>
         <Text className="font-sans-medium text-[12.5px] text-ink">{t('market.pricesUnavailable')}</Text>
         <Text className="mt-1 font-sans text-[11px] text-muted">
           {t('market.pricesUnavailableBody')}
@@ -76,20 +81,20 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
   };
 
   return (
-    <View className="mx-5 mb-4 rounded-2xl bg-white p-4" style={cardShadow}>
-      <View className="flex-row gap-3">
+    <View className="mx-5 mb-3 rounded-2xl bg-white p-3" style={cardShadow}>
+      <View className="flex-row gap-2.5">
         {totals.map((storeTotals) => {
           const isCheapest = cheapest?.storeId === storeTotals.storeId && totals.length > 1;
           const storeStyle = STORE_STYLES[storeTotals.storeId];
           return (
             <View
               key={storeTotals.storeId}
-              className="flex-1 rounded-2xl p-3"
+              className="flex-1 rounded-xl px-2.5 py-2"
               style={{ backgroundColor: storeStyle.bg }}>
               <View className="flex-row items-center gap-[6px]">
                 <Text
                   numberOfLines={1}
-                  className="shrink font-sans-semibold text-[11px] uppercase tracking-wide"
+                  className="shrink font-sans-semibold text-[10px] uppercase tracking-wide"
                   style={{ color: storeStyle.subtle }}>
                   {STORE_NAMES[storeTotals.storeId]}
                 </Text>
@@ -101,7 +106,7 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
                   </View>
                 ) : null}
               </View>
-              <Text className="mt-1 font-serif text-[24px]" style={{ color: storeStyle.text }}>
+              <Text className="mt-[2px] font-serif text-[18px]" style={{ color: storeStyle.text }}>
                 {storeTotals.pricedCount > 0 ? formatPriceCents(storeTotals.totalCents) : '–'}
               </Text>
               <Pressable
@@ -110,27 +115,32 @@ export function StoreComparisonCard({ totals, status, onPressStore, onRetry }: S
                   store: STORE_NAMES[storeTotals.storeId],
                 })}
                 onPress={() => onPressStore(storeTotals.storeId)}
-                className="mt-2 flex-row items-center justify-center gap-1 rounded-xl bg-white px-3 py-2 active:scale-[0.98]">
-                <Text className="font-sans-semibold text-[11.5px] text-forest">
-                  {t('market.buyFromStore')}
+                className="mt-1.5 flex-row items-center justify-center gap-1 rounded-lg bg-white px-2 py-[5px] active:scale-[0.98]">
+                <Text numberOfLines={1} className="font-sans-semibold text-[10.5px] text-forest">
+                  {t('market.buyFromStoreShort')}
                 </Text>
-                <Ionicons name="open-outline" size={12} color={colors.forest} />
+                <Ionicons name="open-outline" size={11} color={colors.forest} />
               </Pressable>
             </View>
           );
         })}
       </View>
-      {cheapest ? (
-        <View className="mt-3 items-center rounded-full bg-softgreen-bg py-2">
-          <Text className="font-sans-semibold text-[12.5px] text-softgreen-text">
-            {t('market.winsToday', { store: STORE_NAMES[cheapest.storeId] })}
-          </Text>
+      {/* Karar bandı + fiyat notu TEK kompakt satırda (dikey oran kararı). */}
+      {cheapest || missingTotal > 0 ? (
+        <View className="mt-2 flex-row items-center gap-2">
+          {cheapest ? (
+            <View className="rounded-full bg-softgreen-bg px-2.5 py-1">
+              <Text className="font-sans-semibold text-[11px] text-softgreen-text">
+                {t('market.winsToday', { store: STORE_NAMES[cheapest.storeId] })}
+              </Text>
+            </View>
+          ) : null}
+          {missingTotal > 0 ? (
+            <Text className="flex-1 font-sans text-[9.5px] leading-[13px] text-muted" numberOfLines={2}>
+              {t('market.missingPriceNote', { count: missingTotal })}
+            </Text>
+          ) : null}
         </View>
-      ) : null}
-      {missingTotal > 0 ? (
-        <Text className="mt-3 font-sans text-[10.5px] text-muted">
-          {t('market.missingPriceNote', { count: missingTotal })}
-        </Text>
       ) : null}
     </View>
   );

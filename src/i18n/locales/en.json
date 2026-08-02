@@ -238,7 +238,13 @@
     "selectedProductA11y": "Selected product: {{name}}",
     "selectProductA11y": "Select {{name}}",
     "lowConfidenceNote": "Double-check this match, we're not sure",
-    "winsToday": "✓ {{store}} wins today"
+    "winsToday": "✓ {{store}} wins today",
+    "recipesSection": "Recipes",
+    "recipesCollapseA11y": "Collapse recipes strip",
+    "recipesExpandA11y": "Expand recipes strip",
+    "viewRecipe": "View recipe",
+    "viewRecipeA11y": "Open recipe {{name}}",
+    "buyFromStoreShort": "Buy from store"
   },
   "plan": {
     "title": "Planner",
