@@ -283,6 +283,7 @@
     "starterBody": "We added {{count}} sample recipes so you can poke around. Remove them whenever you like.",
     "starterRemove": "Remove samples",
     "starterRemoveA11y": "Remove the sample starter recipes",
+    "starterDismissA11y": "Dismiss the starter recipes card",
     "starterRemovedToast": "Sample recipes removed"
   },
   "cookbooks": {

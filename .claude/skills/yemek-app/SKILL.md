@@ -289,7 +289,10 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   savedRecipeIds + **importedRecipes** — **KURAL: deftere eklenen
 >   üretilmiş tarif KOPYALANIR** (envanter değişip liste yeniden üretilince
 >   kaybolmasın); `lib/recipes/find-recipe.ts` iki kaynağı birleştirir,
->   detay ekranı bunu kullanır.
+>   detay ekranı bunu kullanır. Starter bilgi kartı (2026-08-02 kararı):
+>   EN FAZLA ilk 2 görüntüleme (`starterBannerViews`, odak başına 1 sayım)
+>   + X veya "Örnekleri kaldır" → `starterBannerDismissed` KALICI —
+>   görünürlük tarif listesinden bağımsız bu bayraklara bağlıdır.
 > - **Plan** (`app/(tabs)/plan.tsx`, `store/planStore.ts`): Pzt–Paz
 >   ajanda; `PlanEntry` ad/kcal/emoji DENORMALİZE taşır (tarif objesi
 >   çözülemese de kart çizilir). 2026-08-02 revizyonu: (1) SÜRÜKLE-BIRAK —

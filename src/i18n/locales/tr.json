@@ -283,6 +283,7 @@
     "starterBody": "Etrafa bakınabilmen için {{count}} örnek tarif ekledik. İstediğin an kaldırabilirsin.",
     "starterRemove": "Örnekleri kaldır",
     "starterRemoveA11y": "Örnek başlangıç tariflerini kaldır",
+    "starterDismissA11y": "Örnek tarifler bilgi kartını kapat",
     "starterRemovedToast": "Örnek tarifler kaldırıldı"
   },
   "cookbooks": {
