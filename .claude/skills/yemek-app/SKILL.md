@@ -1186,7 +1186,14 @@ dahil aşama-süre ölçer; run-eval bu yolu HİÇ çağırmaz). Uygulanan karar
 - **Aşamalı ilerleme:** sağlayıcılar `onProgress(stage)` yayar
   (`ScanProgressStage`: preparing/uploading/analyzing/structuring);
   Mutfağım spinner'ı aşama metnini gösterir (`inventory.stage*`
-  anahtarları), bitişte "N ürün bulundu" toast'u. Aşama süreleri
+  anahtarları). Bitiş bildirimi (2026-08-02, eski "N ürün bulundu"
+  toast'unun yerine): tek satırlık softgreen ONAY BANDI (`scanSummary`,
+  tarama başına bir kez, X'le kapanır) — dokununca kategori listesine
+  kaydırır + yeni satırlar ~1.7s parlar (ProductRow `highlighted`;
+  id'ler yazma SONRASI store'dan ad+birim eşlemesiyle çözülür, addItems
+  birleştirmesi mevcut id'yi koruduğu için). Emin olunamayan ürün varsa
+  mesaj BİRLEŞİK ("N eklendi · M kontrol bekliyor") ve bant açıkken
+  amber kart GİZLİ (tek mesaj kuralı). Aşama süreleri
   `inventory.capture_completed`'a `prep_ms`/`model_ms` olarak yazılır
   (tracking-plan v1.1). Gerçek token-streaming HÂLÂ YOK (üstteki
   `generateContentStream` kuralı geçerli) — "akan sonuç" yerine erken

@@ -1,5 +1,14 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
@@ -20,7 +29,6 @@ import {
   InventoryVisionError,
   type ScanProgressStage,
 } from '@/services/vision';
-import { showToast } from '@/store/toastStore';
 import { extractVideoFramesAsBase64 } from '@/lib/media/extractVideoFrames';
 import { resizeImageToBase64 } from '@/lib/media/resizeImageToBase64';
 import { colors } from '@/lib/theme';
@@ -186,16 +194,45 @@ function groupItemsByCategoryGroup(
 // Satır: ürün adı (varsa marka küçük gri altta, mevcut davranış) + sağda
 // çöp ikonu — birebir referans (Mutfagim.dc.html satır 88-93): padding 6px 0,
 // ad 500 13px #3A463F, çöp ikonu 15px #C7B7A8.
+// `highlighted` true olduğunda satır ~1.7s yumuşak yeşil parlama animasyonu
+// oynar (tarama onay bandına dokununca yeni eklenen ürünler; Animated.View'a
+// className GÜVENİLMEZ — Plan overlay dersi — stiller düz style).
 function ProductRow({
   item,
   onDelete,
+  highlighted = false,
 }: {
   item: InventoryItem;
   onDelete: (id: string) => void;
+  highlighted?: boolean;
 }) {
   const { t } = useTranslation();
+  const glow = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!highlighted) return;
+    glow.setValue(0);
+    Animated.sequence([
+      // bg rengi animasyonu native driver'da desteklenmez — kısa ve az
+      // satırlı olduğu için JS driver bilinçli kabul.
+      Animated.timing(glow, { toValue: 1, duration: 250, useNativeDriver: false }),
+      Animated.timing(glow, { toValue: 0, duration: 1200, delay: 300, useNativeDriver: false }),
+    ]).start();
+  }, [highlighted, glow]);
   return (
-    <View className="flex-row items-center py-1.5">
+    <Animated.View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+        // Parlama satır kutusunu hafif taşsın diye negatif yatay margin.
+        marginHorizontal: -6,
+        paddingHorizontal: 6,
+        borderRadius: 8,
+        backgroundColor: glow.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['rgba(46,125,91,0)', 'rgba(46,125,91,0.16)'],
+        }),
+      }}>
       <View className="flex-1">
         <Text numberOfLines={1} className="font-sans-medium text-[13px] text-body">
           {inventoryDisplayName(item)}
@@ -214,7 +251,7 @@ function ProductRow({
         className="ml-2 active:scale-95">
         <Ionicons name="trash-outline" size={15} color={colors.trashIcon} />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -225,10 +262,13 @@ function CategoryCard({
   group,
   items: groupItems,
   onDelete,
+  highlightIds,
 }: {
   group: CategoryGroup;
   items: InventoryItem[];
   onDelete: (id: string) => void;
+  /** Tarama onay bandından gelen "yeni eklendi" parlatması (bkz. ProductRow). */
+  highlightIds?: ReadonlySet<string>;
 }) {
   const meta = GROUP_META[group];
   const { t } = useTranslation();
@@ -252,7 +292,11 @@ function CategoryCard({
       </View>
       {groupItems.map((item) => (
         <View key={item.id} className="border-t" style={{ borderTopColor: colors.divider }}>
-          <ProductRow item={item} onDelete={onDelete} />
+          <ProductRow
+            item={item}
+            onDelete={onDelete}
+            highlighted={highlightIds?.has(item.id) ?? false}
+          />
         </View>
       ))}
     </Card>
@@ -292,6 +336,57 @@ export default function MutfagimScreen() {
   const [observationText, setObservationText] = useState<string | null>(null);
   const [isObservationModalVisible, setIsObservationModalVisible] = useState(false);
   const [isUncertainModalVisible, setIsUncertainModalVisible] = useState(false);
+
+  // Tarama onay bandı (kullanıcı isteği, 2026-08-02): tarama bitince tek
+  // satırlık, kapatılabilir, TARAMA BAŞINA BİR KEZ görünen bant. Emin
+  // olunamayan ürün varsa mesaj BİRLEŞİK ("N eklendi · M kontrol bekliyor")
+  // ve bant görünürken amber kart gizlenir (çakışma olmasın — tek mesaj).
+  // Dokununca envanter listesinin başına kaydırır + yeni eklenen satırlar
+  // ~1.7s yumuşak yeşille parlar. Eski "N ürün bulundu" toast'ının yerini
+  // aldı (aynı bilgiye iki bildirim olmasın).
+  const [scanSummary, setScanSummary] = useState<{
+    ids: string[];
+    added: number;
+    uncertain: number;
+  } | null>(null);
+  const [highlightIds, setHighlightIds] = useState<ReadonlySet<string>>(new Set());
+  const scrollRef = useRef<ScrollView | null>(null);
+  /** Kategori kartları bloğunun scroll içeriğindeki y'si (onLayout). */
+  const inventoryTopYRef = useRef(0);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    },
+    []
+  );
+
+  /**
+   * Taranan ürünlerin STORE'daki satır id'leri: addItems aynı ad+birim
+   * kaydını birleştirip MEVCUT id'yi korur — bu yüzden id'ler yazma
+   * SONRASI store'dan ad+birim eşlemesiyle çözülür (highlight doğru satırı
+   * bulsun; inventoryStore.normalizeName ile aynı kural).
+   */
+  function resolveScannedIds(scanned: InventoryItem[]): string[] {
+    const key = (name: string, unit: string) => `${name.trim().toLowerCase()}|${unit}`;
+    const wanted = new Set(scanned.map((item) => key(item.name, item.unit)));
+    return useInventoryStore
+      .getState()
+      .items.filter((item) => wanted.has(key(item.name, item.unit)))
+      .map((item) => item.id);
+  }
+
+  const handleScanBandPress = () => {
+    if (!scanSummary) return;
+    scrollRef.current?.scrollTo({
+      y: Math.max(inventoryTopYRef.current - 8, 0),
+      animated: true,
+    });
+    setHighlightIds(new Set(scanSummary.ids));
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightIds(new Set()), 2000);
+    setScanSummary(null);
+  };
 
   // Kamera köprüsü (spec §3): tam ekran kamera rotası kaydı bitirince videoyu
   // captureStore'a bırakıp geri döner — burada yakalanır, temizlenir ve
@@ -392,8 +487,13 @@ export default function MutfagimScreen() {
       const tBeforeReplace = performance.now();
       // Video = TAM TARAMA → değiştir (bkz. store/inventoryStore.ts).
       replaceItems(extractedItems);
-      // Algılanan hız: sonuç anında görünür + sayılı geri bildirim.
-      showToast(t('inventory.scanFoundToast', { count: extractedItems.length }));
+      // Algılanan hız: sonuç anında görünür + sayılı geri bildirim
+      // (onay bandı — toast yerine, bkz. scanSummary).
+      setScanSummary({
+        ids: resolveScannedIds(extractedItems),
+        added: extractedItems.length,
+        uncertain: countUncertain(extractedItems),
+      });
       console.log(
         `[perf] state güncelleme (replaceItems): ${(performance.now() - tBeforeReplace).toFixed(0)}ms`
       );
@@ -494,7 +594,12 @@ export default function MutfagimScreen() {
       const tBeforeAddItems = performance.now();
       // Fiş/fotoğraf = EKLEME → birleştir (bkz. store/inventoryStore.ts).
       addItems(bilingualItems);
-      showToast(t('inventory.scanFoundToast', { count: bilingualItems.length }));
+      // Onay bandı — toast yerine (bkz. scanSummary).
+      setScanSummary({
+        ids: resolveScannedIds(bilingualItems),
+        added: bilingualItems.length,
+        uncertain: countUncertain(bilingualItems),
+      });
       console.log(
         `[perf] state güncelleme (addItems): ${(performance.now() - tBeforeAddItems).toFixed(0)}ms`
       );
@@ -541,6 +646,7 @@ export default function MutfagimScreen() {
   return (
     <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}>
@@ -674,9 +780,45 @@ export default function MutfagimScreen() {
           </Pressable>
         )}
 
+        {/* Tarama onay bandı — tek satır, hafif softgreen vurgu; dokununca
+            listeye kaydırıp yeni satırları parlatır, X kalıcı kapatır.
+            Emin olunamayan sayısı varsa mesaja gömülür (amber kartla aynı
+            anda İKİ mesaj gösterilmez). */}
+        {scanSummary ? (
+          <View className="mt-4 flex-row items-center rounded-2xl bg-softgreen-bg py-2 pl-3.5 pr-1">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('inventory.scanBandA11y')}
+              onPress={handleScanBandPress}
+              className="flex-1 flex-row items-center gap-1.5 active:opacity-70">
+              <Text
+                numberOfLines={1}
+                className="flex-1 font-sans-semibold text-[12.5px] text-softgreen-text">
+                {scanSummary.uncertain > 0
+                  ? t('inventory.scanBandCombined', {
+                      count: scanSummary.added,
+                      uncertain: scanSummary.uncertain,
+                    })
+                  : t('inventory.scanBand', { count: scanSummary.added })}
+              </Text>
+              {/* softgreen.text — tailwind token'ının hex'i (ikonlar className almaz). */}
+              <Ionicons name="arrow-down-circle-outline" size={16} color="#2E7D5B" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('inventory.scanBandDismissA11y')}
+              onPress={() => setScanSummary(null)}
+              hitSlop={8}
+              className="p-1.5 active:scale-90">
+              <Ionicons name="close" size={14} color="#2E7D5B" />
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* "Emin olunamayan ürünler" uyarı kartı — amber tonları yeni
-            paletten (bg-amber-soft, text-amber-text), akış AYNEN korundu. */}
-        {uncertainItems.length > 0 && (
+            paletten (bg-amber-soft, text-amber-text), akış AYNEN korundu.
+            Onay bandı görünürken GİZLİ (bilgisi banda gömülü — tek mesaj). */}
+        {uncertainItems.length > 0 && !scanSummary && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('inventory.reviewUncertainA11y')}
@@ -689,30 +831,38 @@ export default function MutfagimScreen() {
           </Pressable>
         )}
 
-        {/* Kategori kartları — İKİ SÜTUN (spec §2, görsel 01). */}
+        {/* Kategori kartları — İKİ SÜTUN (spec §2, görsel 01). Dış sarmalayıcı
+            onLayout: onay bandının "listeye kaydır" hedefi (scroll içeriği y). */}
         {hasItems ? (
-          chunkPairs(categorizedSections).map(([leftSection, rightSection]) => (
-            <View key={leftSection.group} className="mt-3 flex-row gap-3">
-              <View className="flex-1">
-                <CategoryCard
-                  group={leftSection.group}
-                  items={leftSection.items}
-                  onDelete={removeItem}
-                />
-              </View>
-              {rightSection ? (
+          <View
+            onLayout={(event) => {
+              inventoryTopYRef.current = event.nativeEvent.layout.y;
+            }}>
+            {chunkPairs(categorizedSections).map(([leftSection, rightSection]) => (
+              <View key={leftSection.group} className="mt-3 flex-row gap-3">
                 <View className="flex-1">
                   <CategoryCard
-                    group={rightSection.group}
-                    items={rightSection.items}
+                    group={leftSection.group}
+                    items={leftSection.items}
                     onDelete={removeItem}
+                    highlightIds={highlightIds}
                   />
                 </View>
-              ) : (
-                <View className="flex-1" />
-              )}
-            </View>
-          ))
+                {rightSection ? (
+                  <View className="flex-1">
+                    <CategoryCard
+                      group={rightSection.group}
+                      items={rightSection.items}
+                      onDelete={removeItem}
+                      highlightIds={highlightIds}
+                    />
+                  </View>
+                ) : (
+                  <View className="flex-1" />
+                )}
+              </View>
+            ))}
+          </View>
         ) : (
           <EmptyState
             className="mt-3"
