@@ -753,7 +753,12 @@ function buildSharedRules(input: GenerateRecipeInput): string {
         'ingredient prepared with the same technique counts as a repeat even under a different name. ' +
         'Deliberately pick different dishes, cuisines, techniques or star ingredients this time.\n'
       : '';
-  return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule + avoidRule;
+  const noEmDashRule =
+    '- Never use em dashes (—) in any text field (name, ingredient names, steps, chef_tip); use a comma, ' +
+    'colon, or separate sentences instead.\n';
+  return (
+    servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule + avoidRule + noEmDashRule
+  );
 }
 
 /**

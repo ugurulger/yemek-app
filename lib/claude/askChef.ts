@@ -14,7 +14,8 @@ const CHEF_INSTRUCTIONS =
   '- Malzeme değişimi/ikamesi önerirken etkilenen miktarları da güncelle. ' +
   '- Kısa ve pratik yanıtla — uzun teori değil, mutfakta hemen uygulanabilir öneri. ' +
   '- Markdown biçimlendirmesi KULLANMA (yıldız, başlık işareti vb.) — sohbet balonu düz ' +
-  'metin gösterir; madde gerekiyorsa satır başına "• " koy.';
+  'metin gösterir; madde gerekiyorsa satır başına "• " koy. ' +
+  '- Never use em dashes (—) in your answers; use a comma, colon, or separate sentences instead.';
 
 /**
  * Tarifin tamamını (ad, malzemeler miktar/kcal ile, adımlar, şef tüyosu)

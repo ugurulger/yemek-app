@@ -38,7 +38,7 @@ export const STARTER_RECIPES: Recipe[] = [
       'Pour in the cream, loosen with pasta water and simmer for 2-3 minutes.',
       'Toss the pasta in the sauce and finish with grated parmesan.',
     ],
-    chef_tip: 'The starchy pasta water is the secret — it turns the sauce silky and helps it cling.',
+    chef_tip: 'The starchy pasta water is the secret: it turns the sauce silky and helps it cling.',
     image_prompt_en:
       'Creamy tomato pasta in a rustic bowl, topped with shaved parmesan and basil leaf.',
   },
@@ -68,7 +68,7 @@ export const STARTER_RECIPES: Recipe[] = [
       'Pour in the eggs and cook gently, pulling the edges toward the center.',
       'Fold in half when just set and slide onto a plate.',
     ],
-    chef_tip: 'Take it off the heat while the center still looks a little wet — it finishes cooking on the plate.',
+    chef_tip: 'Take it off the heat while the center still looks a little wet: it finishes cooking on the plate.',
     image_prompt_en:
       'Fluffy folded omelette with bell peppers and tomatoes on a white plate, morning light.',
   },
@@ -98,7 +98,7 @@ export const STARTER_RECIPES: Recipe[] = [
       'Lower the heat, add butter and garlic, and baste the chicken for 2 minutes.',
       'Scatter chopped parsley over the top and serve hot.',
     ],
-    chef_tip: "Don't crowd the pan — sear in two batches so the bites brown instead of steaming.",
+    chef_tip: "Don't crowd the pan: sear in two batches so the bites brown instead of steaming.",
     image_prompt_en:
       'Golden garlic butter chicken bites in a cast-iron skillet, garnished with parsley.',
   },
