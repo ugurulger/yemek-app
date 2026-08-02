@@ -51,6 +51,23 @@ interface CookbookState {
   seedStarterRecipes: () => void;
   /** Kayıtlı ekranındaki banner'ın tek dokunuşluk "örnekleri kaldır" aksiyonu. */
   removeStarterRecipes: () => void;
+  /**
+   * Starter bilgi kartının görüntülenme sayacı (kalıcı) — kart EN FAZLA ilk
+   * 2 görüntülemede gösterilir, sonra kendiliğinden bir daha çıkmaz
+   * (kullanıcı kararı, 2026-08-02).
+   */
+  starterBannerViews: number;
+  /**
+   * Kartın kalıcı kapanma bayrağı: X ile kapatma VE "örnekleri kaldır" bunu
+   * set eder. Görünürlük bu bayrağa bağlı olduğu için kartın kaybolması
+   * tarif listelerinin durumundan BAĞIMSIZ garantidir (eski "Remove
+   * samples'a rağmen kart duruyor" şikayetinin kalıcı sigortası).
+   */
+  starterBannerDismissed: boolean;
+  /** Ekran odaklandığında kart gösterildiyse sayacı bir artırır. */
+  recordStarterBannerView: () => void;
+  /** X butonu — kartı kalıcı kapatır (tarifler durmaya devam eder). */
+  dismissStarterBanner: () => void;
 }
 
 /**
@@ -170,8 +187,15 @@ export const useCookbookStore = create<CookbookState>()(
               cookbooks,
               savedRecipeIds
             ),
+            // Kart da kalıcı kapanır — tarif listesi ne durumda olursa olsun.
+            starterBannerDismissed: true,
           };
         }),
+      starterBannerViews: 0,
+      starterBannerDismissed: false,
+      recordStarterBannerView: () =>
+        set((state) => ({ starterBannerViews: state.starterBannerViews + 1 })),
+      dismissStarterBanner: () => set({ starterBannerDismissed: true }),
     }),
     {
       name: 'yemek-app-cookbooks',

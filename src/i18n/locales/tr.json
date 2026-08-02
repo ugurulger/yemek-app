@@ -72,8 +72,12 @@
     "stageUploading": "Video yükleniyor…",
     "stageAnalyzing": "Buzdolabın okunuyor…",
     "stageStructuring": "Ürün listesi çıkarılıyor…",
-    "scanFoundToast_one": "{{count}} ürün bulundu",
-    "scanFoundToast_other": "{{count}} ürün bulundu",
+    "scanBand_one": "{{count}} ürün eklendi · Göz atmak ister misin?",
+    "scanBand_other": "{{count}} ürün eklendi · Göz atmak ister misin?",
+    "scanBandCombined_one": "{{count}} ürün eklendi · {{uncertain}} ürün kontrol bekliyor",
+    "scanBandCombined_other": "{{count}} ürün eklendi · {{uncertain}} ürün kontrol bekliyor",
+    "scanBandA11y": "Yeni eklenen ürünlere kaydır",
+    "scanBandDismissA11y": "Tarama onay bandını kapat",
     "uncertainWaiting_one": "⚠️ {{count}} ürün kontrol bekliyor",
     "uncertainWaiting_other": "⚠️ {{count}} ürün kontrol bekliyor",
     "uncertainModalTitle": "Emin olunamayan ürünler",
@@ -238,7 +242,13 @@
     "selectedProductA11y": "Seçili ürün: {{name}}",
     "selectProductA11y": "{{name}} ürününü seç",
     "lowConfidenceNote": "Eşleşmeyi kontrol et, emin değiliz",
-    "winsToday": "✓ Bugün {{store}} kazandı"
+    "winsToday": "✓ Bugün {{store}} kazandı",
+    "recipesSection": "Tarifler",
+    "recipesCollapseA11y": "Tarif şeridini daralt",
+    "recipesExpandA11y": "Tarif şeridini genişlet",
+    "viewRecipe": "Tarife git",
+    "viewRecipeA11y": "{{name}} tarifini aç",
+    "buyFromStoreShort": "Mağazadan al"
   },
   "plan": {
     "title": "Planlama",
@@ -277,6 +287,7 @@
     "starterBody": "Etrafa bakınabilmen için {{count}} örnek tarif ekledik. İstediğin an kaldırabilirsin.",
     "starterRemove": "Örnekleri kaldır",
     "starterRemoveA11y": "Örnek başlangıç tariflerini kaldır",
+    "starterDismissA11y": "Örnek tarifler bilgi kartını kapat",
     "starterRemovedToast": "Örnek tarifler kaldırıldı"
   },
   "cookbooks": {

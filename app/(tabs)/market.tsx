@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { CartCategorySection } from '@/components/cart/CartCategorySection';
+import { CartRecipesCarousel } from '@/components/cart/CartRecipesCarousel';
 import ProductMatchSheet from '@/components/cart/ProductMatchSheet';
 import { StoreComparisonCard } from '@/components/cart/StoreComparisonCard';
 import { EmptyState, PrimaryButton } from '@/components/ui';
@@ -74,6 +75,15 @@ export default function MarketScreen() {
 
   const items = useMemo(() => mergeCartEntries(entries, checkedKeys), [entries, checkedKeys]);
   const [leftColumn, rightColumn] = useMemo(() => distributeColumns(buildSections(items)), [items]);
+  // Tarif şeridi girdisi — sepete katkısı olan tariflerin kanonik adları
+  // (kayıt sırası korunur: son eklenen tarif şeridin sonunda).
+  const cartRecipeNames = useMemo(() => {
+    const names: string[] = [];
+    for (const entry of entries) {
+      if (!names.includes(entry.recipeName)) names.push(entry.recipeName);
+    }
+    return names;
+  }, [entries]);
 
   const isEmpty = items.length === 0;
   const checkedCount = items.filter((item) => item.checked).length;
@@ -150,7 +160,11 @@ export default function MarketScreen() {
               </View>
             ) : null}
 
-            {/* AH vs Jumbo toplam karşılaştırması. */}
+            {/* Tarif şeridi — sepete malzeme ekleyen tariflerin yatay carousel'i
+                (referans: design/reference/grocery-recipes-carousel.jpg). */}
+            <CartRecipesCarousel recipeNames={cartRecipeNames} />
+
+            {/* AH vs Jumbo toplam karşılaştırması — kompakt, destekleyici. */}
             <StoreComparisonCard
               totals={totals}
               status={status}

@@ -289,10 +289,28 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   savedRecipeIds + **importedRecipes** — **KURAL: deftere eklenen
 >   üretilmiş tarif KOPYALANIR** (envanter değişip liste yeniden üretilince
 >   kaybolmasın); `lib/recipes/find-recipe.ts` iki kaynağı birleştirir,
->   detay ekranı bunu kullanır.
+>   detay ekranı bunu kullanır. Starter bilgi kartı (2026-08-02 kararı):
+>   EN FAZLA ilk 2 görüntüleme (`starterBannerViews`, odak başına 1 sayım)
+>   + X veya "Örnekleri kaldır" → `starterBannerDismissed` KALICI —
+>   görünürlük tarif listesinden bağımsız bu bayraklara bağlıdır.
 > - **Plan** (`app/(tabs)/plan.tsx`, `store/planStore.ts`): Pzt–Paz
 >   ajanda; `PlanEntry` ad/kcal/emoji DENORMALİZE taşır (tarif objesi
->   çözülemese de kart çizilir).
+>   çözülemese de kart çizilir). 2026-08-02 revizyonu: (1) SÜRÜKLE-BIRAK —
+>   kart uzun basışla (280ms, haptic) kalkar, gün içi sıralanır/güne
+>   taşınır (`react-native-gesture-handler` + reanimated; paketler bu işle
+>   eklendi, kök `GestureHandlerRootView` app/_layout.tsx'te). Ölçümler
+>   sürükleme BAŞINDA `measureInWindow` ile (scroll sürüklemede KİLİTLİ —
+>   kareler bayatlamaz); bırakış kuralı "hedef kartın merkez üstü = önüne".
+>   `planStore.moveEntry` atomik — SEPETE DOKUNMAZ (sepet yalnız kalıcı
+>   silmede güncellenir). expo-haptics web'de no-op (Platform guard).
+>   (2) DİKEY DOLULUK: liste `flexGrow:1`, gün ağırlığı = öğün sayısı; az
+>   öğünde ekran dolar, çokta doğal scroll. (3) Kart görsel kutusu 2x
+>   (`TILE_SIZE` 96, TILE_ZOOM 2.5 sabit — kadraj aynı), öğün chip'i +
+>   meta ALT ALTA. **KURAL (Toast dersinin genellemesi): REANIMATED
+>   Animated.View'a da NativeWind className GÜVENİLMEZ** — overlay'de
+>   "absolute" uygulanmadı (canlı gözlem); sürükleme bileşenlerinde layout
+>   düz style ile. Native cihazda `// DOĞRULA`: haptic titreşimler +
+>   uzun-bas his ayarı.
 > - **Tarif detayı:** bilgi pilleri minimal tek satır; 4 ikon buton
 >   (Defterler=CookbookPickerSheet · Plan=PlanDayPickerSheet ·
 >   Market=eksikleri sepete+toast · Paylaş=toast); Şefe Sor'da geçmiş
@@ -1168,7 +1186,14 @@ dahil aşama-süre ölçer; run-eval bu yolu HİÇ çağırmaz). Uygulanan karar
 - **Aşamalı ilerleme:** sağlayıcılar `onProgress(stage)` yayar
   (`ScanProgressStage`: preparing/uploading/analyzing/structuring);
   Mutfağım spinner'ı aşama metnini gösterir (`inventory.stage*`
-  anahtarları), bitişte "N ürün bulundu" toast'u. Aşama süreleri
+  anahtarları). Bitiş bildirimi (2026-08-02, eski "N ürün bulundu"
+  toast'unun yerine): tek satırlık softgreen ONAY BANDI (`scanSummary`,
+  tarama başına bir kez, X'le kapanır) — dokununca kategori listesine
+  kaydırır + yeni satırlar ~1.7s parlar (ProductRow `highlighted`;
+  id'ler yazma SONRASI store'dan ad+birim eşlemesiyle çözülür, addItems
+  birleştirmesi mevcut id'yi koruduğu için). Emin olunamayan ürün varsa
+  mesaj BİRLEŞİK ("N eklendi · M kontrol bekliyor") ve bant açıkken
+  amber kart GİZLİ (tek mesaj kuralı). Aşama süreleri
   `inventory.capture_completed`'a `prep_ms`/`model_ms` olarak yazılır
   (tracking-plan v1.1). Gerçek token-streaming HÂLÂ YOK (üstteki
   `generateContentStream` kuralı geçerli) — "akan sonuç" yerine erken

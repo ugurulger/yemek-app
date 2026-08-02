@@ -123,11 +123,32 @@ export default function SavedScreen() {
   const totalRecipes = views.reduce((sum, view) => sum + view.recipes.length, 0);
   const openView = views.find((view) => view.cookbook.id === openCookbookId) ?? null;
 
-  // İlk açılış tohumunun örnekleri hâlâ duruyor mu — banner görünürlüğü.
+  // İlk açılış tohumunun örnekleri hâlâ duruyor mu — banner ön koşulu.
   const hasStarterRecipes = useMemo(() => {
     const starterIds = new Set<string>(STARTER_RECIPE_IDS);
     return importedRecipes.some((recipe) => starterIds.has(recipe.id));
   }, [importedRecipes]);
+
+  // Banner görünürlüğü (kullanıcı kararı, 2026-08-02): örnekler duruyor +
+  // kalıcı kapatılmamış + EN FAZLA ilk 2 görüntüleme. Karar her ODAKTA bir
+  // kez verilir ve ziyaret boyunca sabit kalır (görüntüleme sayacı kalıcı,
+  // cookbookStore persist'inde) — kart ziyaretin ortasında kaybolmaz;
+  // dismissed bayrağı ise anlık gizler (X / Remove samples).
+  const starterBannerDismissed = useCookbookStore((state) => state.starterBannerDismissed);
+  const dismissStarterBanner = useCookbookStore((state) => state.dismissStarterBanner);
+  const [bannerVisibleThisVisit, setBannerVisibleThisVisit] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      const { starterBannerViews, starterBannerDismissed: dismissed } =
+        useCookbookStore.getState();
+      const eligible = hasStarterRecipes && !dismissed && starterBannerViews < 2;
+      setBannerVisibleThisVisit(eligible);
+      if (eligible) {
+        useCookbookStore.getState().recordStarterBannerView();
+      }
+    }, [hasStarterRecipes])
+  );
+  const showStarterBanner = bannerVisibleThisVisit && hasStarterRecipes && !starterBannerDismissed;
 
   const handleRemoveStarters = () => {
     removeStarterRecipes();
@@ -192,11 +213,12 @@ export default function SavedScreen() {
               />
             </View>
 
-            {/* Starter banner — örnek tarifler durdukça görünür; tek dokunuş
-                hepsini kaldırır (ilk açılış tohumu, bkz. cookbookStore). */}
-            {hasStarterRecipes ? (
+            {/* Starter banner — en fazla ilk 2 görüntüleme + X ile kalıcı
+                kapanır; "Remove samples" örnekleri VE kartı kaldırır
+                (görünürlük kuralları: showStarterBanner, cookbookStore). */}
+            {showStarterBanner ? (
               <View
-                className="mb-4 flex-row items-center gap-3 rounded-2xl bg-white px-4 py-3"
+                className="mb-4 flex-row items-center gap-3 rounded-2xl bg-white py-3 pl-4 pr-2"
                 style={cardShadow}>
                 <Text className="text-[22px]">✨</Text>
                 <View className="min-w-0 flex-1">
@@ -216,6 +238,15 @@ export default function SavedScreen() {
                   <Text className="font-sans-semibold text-[11.5px] text-forest">
                     {t('saved.starterRemove')}
                   </Text>
+                </Pressable>
+                {/* X — kartı kalıcı kapatır, örnek tarifler DURUR. */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('saved.starterDismissA11y')}
+                  onPress={dismissStarterBanner}
+                  hitSlop={8}
+                  className="p-1 active:scale-90">
+                  <Ionicons name="close" size={16} color={colors.trashIcon} />
                 </Pressable>
               </View>
             ) : null}

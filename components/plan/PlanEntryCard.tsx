@@ -14,9 +14,11 @@ interface PlanEntryCardProps {
   onRemove: () => void;
 }
 
-/** Görsel kutusu boyutu (48×48) ve zoom çarpanı — kullanıcı kararı (1 Ağu,
- * revize): orijinal görüntünün ~2.5x zoom'lu merkez kadrajı, bu boyutta net. */
-const TILE_SIZE = 48;
+/** Görsel kutusu boyutu ve zoom çarpanı — kullanıcı kararı (2 Ağu, dikey
+ * doluluk işi): 48×48 kutu 2x'e (96×96) büyütüldü, liste görsel ağırlıklı;
+ * TILE_ZOOM aynı kaldı ki merkez KADRAJ (1 Ağu revizesi) değişmesin —
+ * matematik TILE_SIZE'a görece olduğundan aynı kesit sadece büyür. */
+const TILE_SIZE = 96;
 const TILE_ZOOM = 2.5;
 
 /**
@@ -59,18 +61,20 @@ export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCar
     }
   });
   return (
-    <View>
+    <View className="flex-1">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('recipes.openRecipeA11y', { name: entry.name })}
         onPress={onPress}
-        className="flex-row items-center gap-[11px] rounded-2xl bg-white p-[9px] active:scale-95"
+        className="flex-1 flex-row items-center gap-[12px] rounded-2xl bg-white p-[10px] active:scale-95"
         style={cardShadow}>
-        {/* Görsel kutusu — 48×48 radius 12: tarif görseli varsa TILE_ZOOM
-            kat büyütülmüş merkez kadraj (kutu overflow-hidden, negatif
-            margin'le ortalanır), yoksa pastel zemin + ortada emoji. */}
+        {/* Görsel kutusu — 96×96 radius 14 (2x kararı): tarif görseli varsa
+            TILE_ZOOM kat büyütülmüş merkez kadraj (kutu overflow-hidden,
+            negatif margin'le ortalanır), yoksa pastel zemin + ortada emoji. */}
         {tileUri ? (
-          <View className="h-12 w-12 overflow-hidden rounded-xl">
+          <View
+            className="overflow-hidden rounded-[14px]"
+            style={{ width: TILE_SIZE, height: TILE_SIZE }}>
             <Image
               source={{ uri: tileUri }}
               style={{
@@ -85,28 +89,31 @@ export default function PlanEntryCard({ entry, onPress, onRemove }: PlanEntryCar
           </View>
         ) : (
           <View
-            className="h-12 w-12 items-center justify-center rounded-xl"
-            style={{ backgroundColor: toneForRecipe(entry.name) }}>
-            <Text className="text-[22px]">{entry.emoji}</Text>
+            className="items-center justify-center rounded-[14px]"
+            style={{ width: TILE_SIZE, height: TILE_SIZE, backgroundColor: toneForRecipe(entry.name) }}>
+            <Text className="text-[40px]">{entry.emoji}</Text>
           </View>
         )}
 
         <View className="min-w-0 flex-1">
-          <Text className="font-sans-medium text-[14px] text-ink" numberOfLines={1}>
+          {/* Kart 2x görselle yükseldi — ad iki satıra çıkabilir (kırpma azalır). */}
+          <Text className="font-sans-medium text-[14.5px] text-ink" numberOfLines={2}>
             {entry.name}
           </Text>
-          <View className="mt-[3px] flex-row items-center gap-[7px]">
+          {/* 2x görselle metin sütunu daraldı — chip ve meta ALT ALTA
+              (aynı satırda meta "2 servin…" diye kırpılıyordu). */}
+          <View className="mt-[4px] flex-row">
             {/* Öğün chip'i — 600 10px #5C6B60, bg #EFF3EC (pillbg), radius 20. */}
             <View className="rounded-[20px] bg-pillbg px-2 py-[2px]">
               <Text className="font-sans-semibold text-[10px] text-[#5C6B60]">
                 {t(`data.meal.${entry.meal}`, { defaultValue: entry.meal })}
               </Text>
             </View>
-            <Text className="font-sans-medium text-[10.5px] text-qtymuted" numberOfLines={1}>
-              {t('recipeDetail.servingsLabel', { count: entry.servings })} ·{' '}
-              {t('recipeDetail.infoKcal', { kcal: entry.kcal })}
-            </Text>
           </View>
+          <Text className="mt-[4px] font-sans-medium text-[10.5px] text-qtymuted" numberOfLines={1}>
+            {t('recipeDetail.servingsLabel', { count: entry.servings })} ·{' '}
+            {t('recipeDetail.infoKcal', { kcal: entry.kcal })}
+          </Text>
         </View>
 
         {/* X butonunun kapladığı alan için boşluk (buton kardeş Pressable). */}

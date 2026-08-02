@@ -72,8 +72,12 @@
     "stageUploading": "Uploading your video…",
     "stageAnalyzing": "Reading your fridge…",
     "stageStructuring": "Building your item list…",
-    "scanFoundToast_one": "{{count}} item found",
-    "scanFoundToast_other": "{{count}} items found",
+    "scanBand_one": "{{count}} item added · Take a quick look?",
+    "scanBand_other": "{{count}} items added · Take a quick look?",
+    "scanBandCombined_one": "{{count}} item added · {{uncertain}} awaiting review",
+    "scanBandCombined_other": "{{count}} items added · {{uncertain}} awaiting review",
+    "scanBandA11y": "Scroll to the newly added items",
+    "scanBandDismissA11y": "Dismiss the scan confirmation",
     "uncertainWaiting_one": "⚠️ {{count}} item needs review",
     "uncertainWaiting_other": "⚠️ {{count}} items need review",
     "uncertainModalTitle": "Items we're not sure about",
@@ -238,7 +242,13 @@
     "selectedProductA11y": "Selected product: {{name}}",
     "selectProductA11y": "Select {{name}}",
     "lowConfidenceNote": "Double-check this match, we're not sure",
-    "winsToday": "✓ {{store}} wins today"
+    "winsToday": "✓ {{store}} wins today",
+    "recipesSection": "Recipes",
+    "recipesCollapseA11y": "Collapse recipes strip",
+    "recipesExpandA11y": "Expand recipes strip",
+    "viewRecipe": "View recipe",
+    "viewRecipeA11y": "Open recipe {{name}}",
+    "buyFromStoreShort": "Buy from store"
   },
   "plan": {
     "title": "Planner",
@@ -277,6 +287,7 @@
     "starterBody": "We added {{count}} sample recipes so you can poke around. Remove them whenever you like.",
     "starterRemove": "Remove samples",
     "starterRemoveA11y": "Remove the sample starter recipes",
+    "starterDismissA11y": "Dismiss the starter recipes card",
     "starterRemovedToast": "Sample recipes removed"
   },
   "cookbooks": {
