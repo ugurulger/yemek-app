@@ -152,6 +152,9 @@ interface RecipeMetric {
   inventoryUsed: number;
   topIngredients: string[];
   stepCount: number;
+  /** Çeşitlilik analizi (diversity-metrics.ts): teknik anahtar kelimeleri
+   * adım metninden aranır — ilk 600 karakter yeterli, JSON şişmesin. */
+  stepsText: string;
 }
 
 /** Uygulamanın CANLI rozet hesabı: iki dilli genişletilmiş envanter + kiler. */
@@ -190,6 +193,7 @@ function toMetric(recipe: Recipe, items: InventoryItem[]): RecipeMetric {
     inventoryUsed: usedIds.size,
     topIngredients: recipe.ingredients.slice(0, 5).map((i) => i.name),
     stepCount: recipe.steps.length,
+    stepsText: recipe.steps.join(' ').slice(0, 600),
   };
 }
 
@@ -279,17 +283,24 @@ interface RunResult {
   error?: string;
 }
 
+/** Çeşitlilik ayarı (2026-08-02): client recipeStore.recentNames davranışının
+ * kopyası — aynı envanterin ardışık koşularında önceki tarif adları `avoid`
+ * olarak gönderilir (en yeni 24). Eski edge function alanı yok sayar. */
+const ragRecentNames = new Map<string, string[]>();
+
 async function runRag(inventoryKey: string, runIndex: number): Promise<RunResult> {
   const { items } = INVENTORIES[inventoryKey];
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
+  const recentNames = ragRecentNames.get(inventoryKey) ?? [];
   const payload = {
     inventory: items.map((item) => ({ name: item.nameEn ?? item.name, qty: item.qty, unit: item.unit })),
     preferences: [] as string[],
     pantry: PANTRY_BILINGUAL.map((p) => p.en),
     language: 'English',
     count: 6,
+    ...(recentNames.length > 0 ? { avoid: recentNames.slice(-24) } : {}),
   };
 
   const t0 = performance.now();
@@ -332,6 +343,12 @@ async function runRag(inventoryKey: string, runIndex: number): Promise<RunResult
   const fineDining = withLanguage.filter((r) => r.category === 'fine-dining');
   const normal = withLanguage.filter((r) => r.category !== 'fine-dining');
   const finalList = [...mergeRecipeLayers([normal]), ...fineDining];
+
+  // Rolling avoid geçmişi (recipeStore.setRecipes davranışı — cap 24).
+  ragRecentNames.set(
+    inventoryKey,
+    [...recentNames, ...finalList.map((r) => r.name)].slice(-24)
+  );
 
   const metrics = finalList.map((r) => toMetric(r, items));
   return {

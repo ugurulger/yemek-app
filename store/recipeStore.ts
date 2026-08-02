@@ -21,9 +21,11 @@ import type { Recipe, RecipeTexts } from '@/types/recipe';
  * computeMissing'le güncellenir — + 6 standart + 2 fine dining = 8 tarif;
  * v5: İş 3b — prompt'lara aktif dildeki envanter adları + "ismi AYNEN kullan"
  * kuralı + üretim sonrası deterministik envanter eşleştirme katmanı, eski
- * mantıkla üretilmiş cache atılır).
+ * mantıkla üretilmiş cache atılır; v6: çeşitlilik ayarı 2026-08-02 —
+ * retrieval jitter + son-N tekrar yasağı (recentNames → edge avoid) +
+ * yakın-ad dedupe; eski monotonlukla üretilmiş cache'ler bir kez yenilensin).
  */
-const GENERATION_VERSION = 'v5';
+const GENERATION_VERSION = 'v6';
 
 /**
  * Envanterin + tercihlerin tarif üretimini etkileyen halinin parmak izi.
@@ -60,6 +62,14 @@ interface RecipeState {
    * setRecipes'te SIFIRLANIR (yeni üretim yeni id'ler getirir).
    */
   translations: Record<string, Partial<Record<AppLanguage, RecipeTexts>>>;
+  /**
+   * Çeşitlilik ayarı (2026-08-02): son üretilen tarif adlarının yuvarlanan
+   * geçmişi (en yeni sonda, en fazla 24). RAG çağrısına `avoid` olarak gider —
+   * edge function prompt'ta tekrarını yasaklar. setRecipes'te SIFIRLANMAZ,
+   * birikir (amaç tam da önceki üretimleri hatırlamak); ad bazlı olduğu için
+   * id sıfırlamasından etkilenmez.
+   */
+  recentNames: string[];
   setRecipes: (recipes: Recipe[], fingerprint: string) => void;
   getRecipeById: (id: string) => Recipe | undefined;
   setPreferences: (preferences: RecipePreferences) => void;
@@ -75,12 +85,27 @@ export const useRecipeStore = create<RecipeState>()(
       preferences: EMPTY_PREFERENCES,
       selectedServings: {},
       translations: {},
+      recentNames: [],
       setRecipes: (recipes, fingerprint) =>
-        set({
-          recipes,
-          generatedForFingerprint: fingerprint,
-          selectedServings: {},
-          translations: {},
+        set((state) => {
+          // Yeni adlar geçmişe eklenir (case-insensitive tekilleştirme, en
+          // yeni kayıt kazanır), 24 ile sınırlanır — bkz. recentNames notu.
+          const merged = [...state.recentNames, ...recipes.map((recipe) => recipe.name)];
+          const seen = new Set<string>();
+          const deduped: string[] = [];
+          for (let i = merged.length - 1; i >= 0; i--) {
+            const key = merged[i].trim().toLowerCase();
+            if (key.length === 0 || seen.has(key)) continue;
+            seen.add(key);
+            deduped.unshift(merged[i]);
+          }
+          return {
+            recipes,
+            generatedForFingerprint: fingerprint,
+            selectedServings: {},
+            translations: {},
+            recentNames: deduped.slice(-24),
+          };
         }),
       getRecipeById: (id) => get().recipes.find((recipe) => recipe.id === id),
       setPreferences: (preferences) => set({ preferences }),

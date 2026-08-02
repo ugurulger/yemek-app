@@ -129,7 +129,14 @@ export default function TariflerScreen() {
       // Supabase edge function'ına gider (tek çağrı, canlı slot gösterimi yok —
       // ekran genel iskeletlerde bekler); kapalıyken mevcut akış AYNEN çalışır.
       const merged = RAG_ENABLED
-        ? await generateRecipesRag(inventoryItems, { preferences, activePantry: activePantryItems })
+        ? await generateRecipesRag(inventoryItems, {
+            preferences,
+            activePantry: activePantryItems,
+            // Çeşitlilik ayarı (2026-08-02): son üretilen adlar edge'e gider,
+            // prompt tekrarını yasaklar (store'dan anlık okuma — abonelik
+            // gereksiz, yalnız üretim anında lazım).
+            recentNames: useRecipeStore.getState().recentNames,
+          })
         : await generateRecipesTwoPhase(inventoryItems, {
         // Tercihler + aktif kiler üretim promptuna girer (servis kontratı —
         // bkz. services/contracts.ts, GenerateRecipesOptions).

@@ -1,0 +1,1455 @@
+[
+  {
+    "path": "rag",
+    "inventory": "tr12",
+    "run": 1,
+    "durationS": 26.263356583,
+    "source": "llm",
+    "retrieval": {
+      "topSimilarity": 0.760676457841609,
+      "matchedTitles": [
+        "Feta Eggs",
+        "Lamb Feta Peppers",
+        "Chicken with Quinoa and Veggies",
+        "Greek Chicken Pasta",
+        "Turkish Eggs (Cilbir)",
+        "Greek Pita Pockets",
+        "Tilapia and Mizithra Pasta",
+        "Moussaka"
+      ],
+      "fineDiningTitles": [
+        "Feta Veggie Quiche",
+        "Mediterranean Frittata",
+        "Tomato and Feta Galette",
+        "Poached Eggs Mytilene",
+        "Ratatouille"
+      ]
+    },
+    "generation": {
+      "normal": {
+        "stopReason": "tool_use/tool_use",
+        "inputTokens": 10180,
+        "outputTokens": 6636
+      },
+      "fineDining": {
+        "stopReason": "tool_use",
+        "inputTokens": 3939,
+        "outputTokens": 2885
+      }
+    },
+    "layerDist": {
+      "ready": 3,
+      "close": 3,
+      "few": 0
+    },
+    "fineDiningCount": 2,
+    "recipeCount": 8,
+    "metrics": [
+      {
+        "name": "Herb-Roasted Chicken with Potatoes and Vegetables",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 45,
+        "servings": 4,
+        "kcal": 520,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 9,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Carrot",
+          "Zucchini",
+          "Olive Oil"
+        ],
+        "stepCount": 7,
+        "stepsText": "Preheat oven to 200°C (400°F). Peel and cut potatoes into 3 cm chunks. Cut carrots into batons and zucchini into thick rounds. Pat chicken breasts dry and place in a large roasting pan. Arrange potato, carrot, and zucchini pieces around the chicken. Drizzle all vegetables and chicken with olive oil. Squeeze lemon juice over everything. Sprinkle thyme, salt, and black pepper over the entire dish. Roast in the preheated oven for 40-45 minutes until the chicken is cooked through and vegetables are tender and golden. Remove from oven and let rest for 5 minutes before serving."
+      },
+      {
+        "name": "Creamy Mushroom and Egg Skillet with Potatoes",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 3,
+        "kcal": 380,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Eggs",
+          "Mushrooms",
+          "Potatoes",
+          "Yogurt",
+          "Butter"
+        ],
+        "stepCount": 9,
+        "stepsText": "Peel potatoes and cut into small 1 cm cubes. Boil in salted water for 8-10 minutes until tender. Drain and set aside. Slice mushrooms and dice onion. Mince garlic. Melt butter in a large skillet over medium-high heat. Add onion and garlic, sauté for 2 minutes until fragrant. Add mushrooms and cook for 5 minutes, stirring occasionally, until mushrooms release their moisture and begin to brown. Add the cooked potato cubes to the skillet and stir to combine. In a bowl, whisk together eggs with yogurt, salt, pepper, and thyme. Pour the egg mixture into the skillet, stirring gently as the eggs begi"
+      },
+      {
+        "name": "Beef and Potato Bake with Yogurt Sauce",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 50,
+        "servings": 2,
+        "kcal": 420,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 6,
+        "topIngredients": [
+          "Ground Beef",
+          "Potatoes",
+          "Carrot",
+          "Zucchini",
+          "Onion"
+        ],
+        "stepCount": 13,
+        "stepsText": "Preheat oven to 375°F (190°C). Peel and cut potatoes into 1-inch cubes. Dice carrots, zucchini, onion, and tomatoes. Heat olive oil in a large skillet over medium-high heat. Add diced onion and garlic, cook until fragrant, about 1 minute. Add ground beef and brown, breaking it apart with a spoon, until no pink remains, about 5-7 minutes. Stir in cumin and paprika powder, cook for 30 seconds. Add potatoes, carrots, zucchini, and diced tomatoes. Mix well. Transfer to a greased baking dish and cover with foil. Bake for 25-30 minutes until potatoes are nearly tender. In a bowl, mix yogurt with min"
+      },
+      {
+        "name": "Spiced Beef and Tomato Rice Pilaf with Feta",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Fresh Parsley"
+        ],
+        "timeMin": 40,
+        "servings": 4,
+        "kcal": 470,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 14,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Ground Beef",
+          "Rice",
+          "Tomato",
+          "Feta Cheese",
+          "Onion"
+        ],
+        "stepCount": 10,
+        "stepsText": "Heat olive oil in a large pot over medium-high heat. Add diced onion and minced garlic, sauté for 3 minutes until softened. Add ground beef to the pot, breaking it up with a spoon. Cook for 5-6 minutes until browned. Drain excess fat if needed. Stir in cumin and paprika, cook for 1 minute until fragrant. Add tomato paste and stir to coat the meat. Cook for 1 minute. Chop the fresh tomatoes and add to the pot. Stir well. Add rice and stir to coat with the oil and spices. Pour in water and add salt and black pepper. Bring to a boil. Reduce heat to low, cover with a lid, and simmer for 18-20 minu"
+      },
+      {
+        "name": "Feta Scrambled Eggs with Tomato",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Fresh Dill"
+        ],
+        "timeMin": 15,
+        "servings": 2,
+        "kcal": 280,
+        "nutritionTag": "Protein",
+        "ingredientCount": 6,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Eggs",
+          "Feta Cheese",
+          "Tomato",
+          "Onion",
+          "Butter"
+        ],
+        "stepCount": 8,
+        "stepsText": "Melt butter in a skillet over medium heat. Dice the onion finely and sauté until translucent, about 2 minutes. Beat the eggs in a bowl and pour into the skillet. Cook, stirring occasionally, until eggs begin to set. Dice the tomato and add to the skillet along with crumbled feta cheese. Continue cooking, stirring gently, until eggs are fully cooked and feta is warmed through, about 3-4 minutes. Finish with fresh dill and season with salt and black pepper to taste. Serve hot."
+      },
+      {
+        "name": "Chicken and Mushroom Pasta",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Heavy Cream",
+          "Parmesan Cheese"
+        ],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 450,
+        "nutritionTag": "Protein",
+        "ingredientCount": 9,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Pasta",
+          "Chicken Breast",
+          "Mushrooms",
+          "Garlic",
+          "Olive Oil"
+        ],
+        "stepCount": 9,
+        "stepsText": "Bring a large pot of salted water to a boil and cook pasta according to package directions. Drain and set aside. Cut chicken breast into bite-sized pieces. Slice mushrooms. Heat olive oil in a large skillet over medium-high heat. Add minced garlic and cook for 30 seconds until fragrant. Add chicken pieces and cook, stirring occasionally, until golden and cooked through, about 8-10 minutes. Add sliced mushrooms and fresh thyme, cooking for another 4-5 minutes until mushrooms soften. Pour in heavy cream and stir well. Squeeze in lemon juice and season with salt and pepper. Toss the cooked pasta "
+      },
+      {
+        "name": "Pan-Seared Chicken Breast with Tomato Emulsion and Crispy Potato Cake",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 45,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Tomato",
+          "Lemon",
+          "Olive Oil"
+        ],
+        "stepCount": 11,
+        "stepsText": "Pat the chicken breasts dry with paper towels and season generously with salt and freshly ground black pepper on both sides. Heat olive oil in a large stainless steel skillet over medium-high heat until just smoking. Carefully lay the chicken breasts away from you into the hot pan and sear for 4-5 minutes without moving, until a golden crust forms. Flip the breasts and sear the other side for 3-4 minutes until the internal temperature reaches 165°F (74°C); transfer to a warm plate to rest for 5 minutes. In the same skillet, reduce heat to medium and sauté minced garlic and thyme for 1 minute u"
+      },
+      {
+        "name": "Feta and Zucchini Tartine with Caramelized Mushrooms and Herb Oil",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Sourdough Bread",
+          "Burrata Cheese"
+        ],
+        "timeMin": 50,
+        "servings": 2,
+        "kcal": 385,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Zucchini",
+          "Mushrooms",
+          "Feta Cheese",
+          "Lemon",
+          "Yogurt"
+        ],
+        "stepCount": 12,
+        "stepsText": "Slice mushrooms into quarters and heat 15ml olive oil in a wide skillet over medium heat. Add mushrooms with a pinch of salt and sauté undisturbed for 3-4 minutes to develop caramelization, then stir and cook another 4-5 minutes until deeply golden and all moisture has evaporated. Add 2 minced garlic cloves and fresh thyme to the mushrooms, sauté for 1 minute until fragrant, then set aside. Slice zucchini lengthwise into thin ribbons using a mandoline; season with salt and pepper. Heat 15ml olive oil in another skillet over medium-high heat and quickly sauté zucchini ribbons in batches for 1-2"
+      }
+    ]
+  },
+  {
+    "path": "rag",
+    "inventory": "tr12",
+    "run": 2,
+    "durationS": 21.625091375,
+    "source": "llm",
+    "retrieval": {
+      "topSimilarity": 0.760676457841609,
+      "matchedTitles": [
+        "Feta Eggs",
+        "Lamb Feta Peppers",
+        "Chicken with Quinoa and Veggies",
+        "Greek Chicken Pasta",
+        "Turkish Eggs (Cilbir)",
+        "Greek Pita Pockets",
+        "Tilapia and Mizithra Pasta",
+        "Moussaka"
+      ],
+      "fineDiningTitles": [
+        "Feta Veggie Quiche",
+        "Mediterranean Frittata",
+        "Tomato and Feta Galette",
+        "Poached Eggs Mytilene",
+        "Ratatouille"
+      ]
+    },
+    "generation": {
+      "normal": {
+        "stopReason": "tool_use/tool_use",
+        "inputTokens": 10180,
+        "outputTokens": 7051
+      },
+      "fineDining": {
+        "stopReason": "tool_use",
+        "inputTokens": 3939,
+        "outputTokens": 2657
+      }
+    },
+    "layerDist": {
+      "ready": 3,
+      "close": 3,
+      "few": 0
+    },
+    "fineDiningCount": 2,
+    "recipeCount": 8,
+    "metrics": [
+      {
+        "name": "Loaded Shakshuka with Vegetables",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 4,
+        "kcal": 285,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 11,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Eggs",
+          "Tomato",
+          "Zucchini",
+          "Mushrooms",
+          "Feta Cheese"
+        ],
+        "stepCount": 10,
+        "stepsText": "Heat olive oil in a large skillet over medium heat. Add minced garlic and diced onion, sauté until soft, about 3 minutes. Chop tomatoes, zucchini, and mushrooms, then add to the skillet. Cook vegetables for 5-7 minutes, stirring occasionally, until they begin to soften. Season with cumin, salt, and black pepper. Make 8 small wells in the vegetable mixture. Crack eggs into the wells and cover the skillet. Cook until egg whites are set but yolks remain runny, about 5-8 minutes. Crumble feta cheese over the top and cook for 1 more minute. Serve directly from the skillet while hot."
+      },
+      {
+        "name": "Pan-Seared Chicken with Creamy Mushroom and Potato Skillet",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 40,
+        "servings": 4,
+        "kcal": 420,
+        "nutritionTag": "Protein",
+        "ingredientCount": 13,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Mushrooms",
+          "Milk",
+          "Carrot"
+        ],
+        "stepCount": 11,
+        "stepsText": "Cut potatoes into 2cm cubes and boil in salted water for 8 minutes until just tender; drain. Cut chicken breasts into bite-sized pieces and season with salt and pepper. Heat olive oil in a large skillet over medium-high heat. Cook chicken pieces until golden on all sides, about 8 minutes; remove and set aside. In the same skillet, melt butter and sauté diced onion and garlic until fragrant, about 2 minutes. Add sliced mushrooms and diced carrot, cook for 5 minutes. Sprinkle flour over the vegetables and stir to coat, cooking for 1 minute. Gradually pour in milk while stirring to create a smoot"
+      },
+      {
+        "name": "Beef and Vegetable Stuffed Potato Boats",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 50,
+        "servings": 4,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 16,
+        "inventoryUsed": 7,
+        "topIngredients": [
+          "Potatoes",
+          "Ground Beef",
+          "Zucchini",
+          "Carrot",
+          "Tomato"
+        ],
+        "stepCount": 14,
+        "stepsText": "Preheat oven to 190°C (375°F). Bake potatoes directly on oven rack for 35-40 minutes until tender. While potatoes bake, heat olive oil in a large skillet over medium-high heat. Add diced onion and minced garlic, sauté until soft, about 3 minutes. Add ground beef and cook, breaking it apart, until fully browned, about 8-10 minutes. Add finely diced zucchini, carrot, and tomato; cook for 5 minutes. Season the beef mixture with paprika, cumin, salt, and black pepper. Stir in half of the feta cheese and squeeze fresh lemon juice over the mixture. When potatoes are done, halve them lengthwise and s"
+      },
+      {
+        "name": "Creamy Mushroom Feta Eggs",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Heavy Cream"
+        ],
+        "timeMin": 20,
+        "servings": 2,
+        "kcal": 380,
+        "nutritionTag": "Protein",
+        "ingredientCount": 7,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Eggs",
+          "Mushrooms",
+          "Feta Cheese",
+          "Butter",
+          "Onion"
+        ],
+        "stepCount": 8,
+        "stepsText": "Melt butter in a skillet over medium heat. Add diced onion and cook until softened, about 2 minutes. Add sliced mushrooms and thyme, cook for 5 minutes until mushrooms release their liquid. Pour in heavy cream and bring to a gentle simmer. Crack eggs into the skillet and stir gently until scrambled, about 3-4 minutes. When eggs are almost cooked, sprinkle crumbled feta cheese over the top. Cook for another 1-2 minutes until eggs are set and cheese is warmed through. Season with salt and black pepper to taste and serve hot."
+      },
+      {
+        "name": "Herb-Roasted Chicken with Potato and Zucchini",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Rosemary",
+          "Dijon Mustard"
+        ],
+        "timeMin": 50,
+        "servings": 4,
+        "kcal": 420,
+        "nutritionTag": "Protein",
+        "ingredientCount": 9,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Zucchini",
+          "Olive Oil",
+          "Garlic"
+        ],
+        "stepCount": 9,
+        "stepsText": "Preheat oven to 200°C (400°F). Cut chicken breasts into 4 portions and pat dry. Cut potatoes into bite-sized chunks and slice zucchini into half-moons. In a small bowl, mix olive oil, minced garlic, thyme, rosemary, Dijon mustard, salt, and black pepper. Rub half of the herb mixture over the chicken breasts and arrange on a baking sheet. Toss potatoes and zucchini with the remaining herb mixture and arrange around the chicken. Squeeze lemon juice over everything. Roast for 35-40 minutes until chicken is cooked through (internal temperature 75°C) and vegetables are tender. Let rest for 5 minute"
+      },
+      {
+        "name": "Spiced Beef and Carrot Stew with Yogurt",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Beef Stock",
+          "Cinnamon"
+        ],
+        "timeMin": 65,
+        "servings": 4,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 11,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Ground Beef",
+          "Carrot",
+          "Onion",
+          "Tomato",
+          "Yogurt"
+        ],
+        "stepCount": 10,
+        "stepsText": "Heat olive oil in a large pot over medium-high heat. Add diced onion and minced garlic, cook until fragrant, about 2 minutes. Brown the ground beef, breaking it up as it cooks, about 5-6 minutes. Stir in paprika, cumin, and cinnamon, and cook for 1 minute until fragrant. Add diced carrots, chopped tomatoes, and beef stock. Bring to a boil, then reduce heat and simmer covered for 45 minutes until carrots are tender. Remove from heat and let cool slightly. Stir in yogurt gently to combine, being careful not to break it up too much. Season with salt and black pepper to taste. Serve hot, warm, or "
+      },
+      {
+        "name": "Pan-Seared Chicken Breast with Lemon Beurre Blanc and Roasted Root Vegetables",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 35,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Protein",
+        "ingredientCount": 9,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Carrot",
+          "Butter",
+          "Lemon"
+        ],
+        "stepCount": 7,
+        "stepsText": "Preheat oven to 200°C (400°F). Dice potatoes and carrots into uniform 1cm cubes. Toss diced vegetables with 5ml olive oil, salt, pepper, and fresh thyme. Spread on a baking sheet and roast for 20 minutes until golden and tender. Pat chicken breasts dry with paper towels. Season generously with salt and pepper on both sides. Heat 5ml olive oil in a heavy-bottomed skillet over medium-high heat until shimmering. Sear chicken breasts for 6-7 minutes per side, developing a golden crust. The internal temperature should reach 165°F (74°C). Transfer to a warm plate and rest for 5 minutes. Deglaze the "
+      },
+      {
+        "name": "Beef Tenderloin Medallions with Mushroom Duxelles, Feta Cream, and Truffle Oil",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Truffle Oil",
+          "Shallot"
+        ],
+        "timeMin": 40,
+        "servings": 2,
+        "kcal": 580,
+        "nutritionTag": "Protein",
+        "ingredientCount": 12,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Ground Beef",
+          "Mushrooms",
+          "Feta Cheese",
+          "Milk",
+          "Truffle Oil"
+        ],
+        "stepCount": 7,
+        "stepsText": "Finely mince mushrooms, shallots, and garlic. Heat 3ml olive oil in a skillet over medium-high heat and add the minced mixture. Cook, stirring frequently, until completely dry and fragrant, about 10 minutes. Season with salt, pepper, and fresh thyme. This is your mushroom duxelles. Form ground beef into two tight, compact patties (100g each). Using a spoon, create a small indent in the center of each patty. Fill the indent with mushroom duxelles and seal the beef around it. Flatten gently into medallions approximately 3cm thick. Prepare the feta cream: combine feta cheese, milk, and 3ml olive "
+      }
+    ]
+  },
+  {
+    "path": "rag",
+    "inventory": "tr12",
+    "run": 3,
+    "durationS": 20.616466667,
+    "source": "llm",
+    "retrieval": {
+      "topSimilarity": 0.760676457841609,
+      "matchedTitles": [
+        "Feta Eggs",
+        "Lamb Feta Peppers",
+        "Chicken with Quinoa and Veggies",
+        "Greek Chicken Pasta",
+        "Turkish Eggs (Cilbir)",
+        "Greek Pita Pockets",
+        "Tilapia and Mizithra Pasta",
+        "Moussaka"
+      ],
+      "fineDiningTitles": [
+        "Feta Veggie Quiche",
+        "Mediterranean Frittata",
+        "Tomato and Feta Galette",
+        "Poached Eggs Mytilene",
+        "Ratatouille"
+      ]
+    },
+    "generation": {
+      "normal": {
+        "stopReason": "tool_use/tool_use",
+        "inputTokens": 10180,
+        "outputTokens": 6874
+      },
+      "fineDining": {
+        "stopReason": "tool_use",
+        "inputTokens": 3939,
+        "outputTokens": 2862
+      }
+    },
+    "layerDist": {
+      "ready": 3,
+      "close": 3,
+      "few": 0
+    },
+    "fineDiningCount": 2,
+    "recipeCount": 8,
+    "metrics": [
+      {
+        "name": "Mediterranean Chicken and Potato Skillet",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 40,
+        "servings": 4,
+        "kcal": 520,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 11,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Tomato",
+          "Feta Cheese",
+          "Lemon"
+        ],
+        "stepCount": 9,
+        "stepsText": "Cut chicken breasts into bite-sized chunks and season with salt, pepper, and thyme. Peel and dice potatoes into 1-inch cubes. Heat olive oil in a large skillet over medium-high heat. Add diced onion and minced garlic; sauté until fragrant, about 2 minutes. Add chicken pieces and cook until golden and cooked through, about 8-10 minutes. Add diced potatoes and cook, stirring occasionally, until potatoes are tender, about 15 minutes. Dice tomatoes and add to the skillet along with crumbled feta cheese. Squeeze lemon juice over everything and cook for another 3-4 minutes until tomatoes soften and "
+      },
+      {
+        "name": "Turkish Baked Eggs with Yogurt and Spiced Butter",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 4,
+        "kcal": 380,
+        "nutritionTag": "Protein",
+        "ingredientCount": 11,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Eggs",
+          "Yogurt",
+          "Butter",
+          "Garlic",
+          "Lemon"
+        ],
+        "stepCount": 8,
+        "stepsText": "Preheat oven to 200°C (400°F). In a bowl, combine yogurt with minced garlic, salt, pepper, and a squeeze of lemon juice. Mix until smooth and spread on the bottom of a baking dish. Crack eggs into the baking dish over the yogurt layer, spacing them evenly. Melt butter in a small pan over medium heat. Add paprika, cumin, and chili flakes. Stir constantly for about 1-2 minutes until fragrant and the spices infuse the butter. Drizzle the spiced butter over the eggs and yogurt. Bake in the preheated oven for 12-15 minutes until the egg whites are set but yolks remain slightly runny. Remove from ov"
+      },
+      {
+        "name": "Beef and Mushroom Pasta with Zucchini",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 35,
+        "servings": 4,
+        "kcal": 480,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Ground Beef",
+          "Pasta",
+          "Mushrooms",
+          "Zucchini",
+          "Tomato"
+        ],
+        "stepCount": 10,
+        "stepsText": "Bring a large pot of salted water to a boil and cook pasta according to package directions until al dente. Drain and set aside. While pasta cooks, heat olive oil in a large skillet over medium-high heat. Add diced onion and minced garlic; sauté until fragrant, about 2 minutes. Add ground beef and cook, breaking it up with a spoon, until browned, about 5-6 minutes. Drain excess fat if needed. Chop mushrooms and add to the skillet. Cook for 3-4 minutes until softened. Dice zucchini and tomato. Add both to the skillet and stir. Stir in tomato paste and cook for 1 minute until it darkens slightly."
+      },
+      {
+        "name": "Feta Egg Scramble with Fresh Herbs",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Fresh Dill"
+        ],
+        "timeMin": 15,
+        "servings": 2,
+        "kcal": 320,
+        "nutritionTag": "Protein",
+        "ingredientCount": 8,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Eggs",
+          "Feta Cheese",
+          "Tomato",
+          "Onion",
+          "Fresh Dill"
+        ],
+        "stepCount": 7,
+        "stepsText": "Melt butter in a non-stick skillet over medium heat. Add finely chopped onion and sauté until softened, about 2 minutes. Pour in beaten eggs and stir gently, scrambling as they cook. When eggs are almost set, add diced tomato, crumbled feta cheese, and chopped fresh dill. Season with salt and pepper to taste. Cook for another minute until the cheese softens and eggs are fully cooked. Serve immediately while hot."
+      },
+      {
+        "name": "Herb-Roasted Chicken with Root Vegetables",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Fresh Rosemary"
+        ],
+        "timeMin": 50,
+        "servings": 4,
+        "kcal": 420,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Chicken Breast",
+          "Potatoes",
+          "Carrot",
+          "Lemon",
+          "Garlic"
+        ],
+        "stepCount": 8,
+        "stepsText": "Preheat oven to 200°C (390°F). Cut potatoes and carrots into 2-3 cm chunks and place in a roasting pan. Pat chicken breasts dry and season generously with salt and pepper. Place chicken on top of the vegetables. Drizzle everything with olive oil and squeeze lemon juice over the top. Scatter minced garlic, fresh rosemary sprigs, and thyme around the pan. Roast in the preheated oven for 40-45 minutes until chicken is cooked through and vegetables are tender. Let rest for 5 minutes before serving."
+      },
+      {
+        "name": "Beef and Mushroom Pasta in Cream Tomato Sauce",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Heavy Cream",
+          "Parmesan Cheese"
+        ],
+        "timeMin": 35,
+        "servings": 4,
+        "kcal": 520,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Pasta",
+          "Ground Beef",
+          "Mushrooms",
+          "Tomato",
+          "Onion"
+        ],
+        "stepCount": 11,
+        "stepsText": "Bring a large pot of salted water to a boil and cook pasta according to package directions until al dente; drain and set aside. While pasta cooks, heat olive oil in a large skillet over medium-high heat. Add diced onion and minced garlic; sauté until fragrant, about 2 minutes. Add ground beef, breaking it into small pieces, and cook until browned, about 5-6 minutes. Stir in chopped mushrooms and cook for another 3 minutes until softened. Add tomato paste and stir well to coat the meat and mushrooms. Add diced tomatoes and cook for 5 minutes, stirring occasionally. Reduce heat to medium-low and"
+      },
+      {
+        "name": "Pan-Seared Chicken Breast with Mushroom Reduction and Roasted Root Vegetables",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 40,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Protein",
+        "ingredientCount": 11,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Chicken Breast",
+          "Mushrooms",
+          "Potatoes",
+          "Carrot",
+          "Lemon"
+        ],
+        "stepCount": 8,
+        "stepsText": "Pat chicken breasts dry with paper towels and season generously with salt and freshly cracked black pepper on both sides. Heat olive oil in a large skillet over medium-high heat until shimmering. Place chicken breasts in the pan and sear for 6-7 minutes on the first side, resisting the urge to move them—this develops a golden, caramelized crust. Flip the chicken and sear the second side for 5-6 minutes until golden. Transfer to a plate and rest. Toss potato and carrot chunks with olive oil, salt, pepper, and fresh thyme. Roast in a 200°C oven for 25 minutes until golden and tender. In the same"
+      },
+      {
+        "name": "Herb-Crusted Beef Tartare with Crispy Potato Tuiles and Yogurt Emulsion",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 3,
+        "liveMissing": 3,
+        "liveMissingNames": [
+          "Capers",
+          "Dijon Mustard",
+          "Chives"
+        ],
+        "timeMin": 35,
+        "servings": 2,
+        "kcal": 380,
+        "nutritionTag": "Protein",
+        "ingredientCount": 12,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Ground Beef",
+          "Potatoes",
+          "Yogurt",
+          "Capers",
+          "Dijon Mustard"
+        ],
+        "stepCount": 6,
+        "stepsText": "Prepare crispy potato tuiles: Thinly slice potatoes on a mandoline into 1mm rounds. Arrange on parchment-lined baking sheets, brush lightly with olive oil, season with salt and pepper. Bake at 190°C for 15-18 minutes until golden and crispy. Cool on a wire rack to achieve maximum crispness. Create the yogurt emulsion: Whisk egg yolk gently in a small bowl. Slowly drizzle olive oil while whisking constantly to emulsify. Add Greek yogurt, Dijon mustard, and a squeeze of fresh lemon juice. Season with salt and white pepper. The emulsion should be silky and hold its shape. Prepare the tartare: Fin"
+      }
+    ]
+  },
+  {
+    "path": "rag",
+    "inventory": "en8",
+    "run": 1,
+    "durationS": 19.396390708000006,
+    "source": "llm",
+    "retrieval": {
+      "topSimilarity": 0.761495686724914,
+      "matchedTitles": [
+        "Salmon Pasta in Cream Sauce",
+        "Quick Pasta with Salmon and Tomatoes in Cream Sauce",
+        "Jason's Salmon Florentine",
+        "Salmon Florentine",
+        "Salmon Wellington",
+        "Feta-Spinach Stuffed Salmon",
+        "Salmon with Tomatoes",
+        "Cheesy Salmon Pasta"
+      ],
+      "fineDiningTitles": [
+        "Jason's Salmon Florentine",
+        "Salmon Florentine",
+        "Salmon Wellington",
+        "Salmon with White Wine Sauce and Fettuccini",
+        "Smoked Salmon Frittata"
+      ]
+    },
+    "generation": {
+      "normal": {
+        "stopReason": "tool_use/tool_use",
+        "inputTokens": 6696,
+        "outputTokens": 6693
+      },
+      "fineDining": {
+        "stopReason": "tool_use",
+        "inputTokens": 3697,
+        "outputTokens": 2718
+      }
+    },
+    "layerDist": {
+      "ready": 2,
+      "close": 4,
+      "few": 0
+    },
+    "fineDiningCount": 2,
+    "recipeCount": 8,
+    "metrics": [
+      {
+        "name": "Creamy Salmon and Spinach Pasta",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 9,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Pasta",
+          "Salmon Fillet",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan"
+        ],
+        "stepCount": 7,
+        "stepsText": "Bring a large pot of salted water to a boil and cook pasta until al dente, about 10 minutes. Drain and set aside. Cut salmon into bite-sized cubes and season with salt and black pepper. Heat olive oil in a large skillet over medium-high heat. Add minced garlic and cook for 30 seconds until fragrant. Add salmon cubes and cook for 3–4 minutes until opaque on the outside. Pour in heavy cream and reduce heat to medium. Add fresh spinach and stir until wilted, about 2 minutes. Toss the cooked pasta into the cream sauce. Sprinkle Parmesan cheese over the top and mix gently. Season to taste with salt"
+      },
+      {
+        "name": "Pan-Seared Salmon with Roasted Potatoes and Bell Peppers",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 480,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 9,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Potatoes",
+          "Red Bell Pepper",
+          "Cherry Tomatoes",
+          "Olive Oil"
+        ],
+        "stepCount": 8,
+        "stepsText": "Preheat oven to 200°C (400°F). Cut potatoes into 2 cm cubes and bell peppers into chunks. Toss with 15 ml olive oil, salt, pepper, and fresh thyme. Spread on a baking sheet and roast for 15 minutes. Pat salmon dry and season with salt and black pepper on both sides. Heat 5 ml olive oil in a large skillet over medium-high heat. Place salmon skin-side up and sear for 4 minutes until golden. Flip salmon and cook for another 3 minutes until just cooked through. Remove salmon from the skillet and add to the roasting pan with vegetables. Scatter cherry tomatoes and minced garlic around the salmon. R"
+      },
+      {
+        "name": "Spinach and Salmon Frittata with Potato Base",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Dill"
+        ],
+        "timeMin": 28,
+        "servings": 2,
+        "kcal": 420,
+        "nutritionTag": "Protein",
+        "ingredientCount": 11,
+        "inventoryUsed": 6,
+        "topIngredients": [
+          "Eggs",
+          "Salmon Fillet",
+          "Spinach",
+          "Potatoes",
+          "Parmesan"
+        ],
+        "stepCount": 10,
+        "stepsText": "Preheat oven to 190°C (375°F). Slice potatoes thinly (about 3 mm) and dice the red bell pepper. Dice the onion finely. Melt butter in a 25 cm oven-safe skillet over medium heat. Add diced onion and cook until translucent, about 3 minutes. Layer the sliced potatoes in the skillet, season with salt and pepper, and cook for 5 minutes until starting to soften. Cut salmon into bite-sized pieces. Scatter salmon pieces over potatoes and add fresh spinach. In a bowl, whisk together eggs with salt, black pepper, and fresh dill. Pour egg mixture evenly over the salmon and vegetables. Sprinkle diced bell"
+      },
+      {
+        "name": "Creamy Spinach and Egg Pasta",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Nutmeg"
+        ],
+        "timeMin": 20,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Pasta",
+          "Spinach",
+          "Eggs",
+          "Heavy Cream",
+          "Parmesan"
+        ],
+        "stepCount": 8,
+        "stepsText": "Cook pasta in salted boiling water until al dente, then drain. Heat butter in a large pan and sauté minced garlic for 1 minute. Pour in heavy cream and bring to a gentle simmer. Add fresh spinach to the cream sauce and stir until wilted. Season with salt, black pepper, and a pinch of nutmeg. Add cooked pasta to the sauce and toss well. Poach 2 eggs in a separate pot with simmering water. Divide pasta between plates, top with a poached egg, and finish with grated Parmesan."
+      },
+      {
+        "name": "Roasted Salmon with Cherry Tomato and Potato Hash",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Lemon"
+        ],
+        "timeMin": 35,
+        "servings": 2,
+        "kcal": 610,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Potatoes",
+          "Cherry Tomatoes",
+          "Olive Oil",
+          "Garlic"
+        ],
+        "stepCount": 8,
+        "stepsText": "Preheat oven to 200°C (390°F). Cut potatoes into 1.5 cm cubes and toss with 25 ml olive oil, salt, pepper, and thyme. Spread on a baking tray and roast for 20 minutes until golden. Pat salmon dry and season with salt, pepper, and paprika. Add salmon to the tray, drizzle with remaining olive oil, and roast for 8 minutes. Add halved cherry tomatoes and minced garlic to the tray. Roast for another 5–7 minutes until salmon is cooked through. Finish with a squeeze of fresh lemon juice and serve immediately."
+      },
+      {
+        "name": "Stuffed Bell Peppers with Rice and Creamy Parmesan Filling",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Pine Nuts",
+          "Fresh Parsley"
+        ],
+        "timeMin": 40,
+        "servings": 2,
+        "kcal": 480,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 14,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Red Bell Pepper",
+          "Rice",
+          "Parmesan",
+          "Heavy Cream",
+          "Spinach"
+        ],
+        "stepCount": 11,
+        "stepsText": "Preheat oven to 180°C (355°F). Cut the tops off the red peppers and remove seeds carefully. Parboil for 3 minutes, then drain. Cook rice in salted water until tender, about 15 minutes. Drain and set aside. Sauté diced onion and minced garlic in butter until soft. Add fresh spinach and cook until wilted. Stir in cooked rice, heavy cream, and 40 g Parmesan. Season with salt and pepper. Fold in toasted pine nuts gently. Fill the parboiled peppers with the rice mixture. Mix tomato paste with 250 ml water and pour around the peppers in a baking dish. Top each pepper with remaining Parmesan and bake"
+      },
+      {
+        "name": "Pan-Seared Salmon with Creamed Spinach and Parmesan Crust",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan",
+          "Garlic"
+        ],
+        "stepCount": 8,
+        "stepsText": "Pat the salmon fillets dry with paper towels and season generously with sea salt, black pepper, and fresh thyme on both sides. Heat olive oil in a large stainless steel skillet over medium-high heat until the surface shimmers. Sear the salmon skin-side up for 4-5 minutes until a golden crust forms, then flip and cook for another 3-4 minutes. Remove and rest on a warm plate. In the same skillet, melt butter over medium heat; add minced garlic and sauté for 30 seconds until fragrant. Add fresh spinach in batches, stirring gently until completely wilted, about 3-4 minutes. Pour in heavy cream, st"
+      },
+      {
+        "name": "Roasted Bell Pepper and Potato Frittata with Crispy Herb Oil",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Fresh Basil"
+        ],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 11,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Eggs",
+          "Red Bell Pepper",
+          "Potatoes",
+          "Cherry Tomatoes",
+          "Olive Oil"
+        ],
+        "stepCount": 9,
+        "stepsText": "Cut potatoes into thin 3mm slices and toss with 20ml olive oil, salt, and pepper. Roast at 200°C for 12 minutes until the edges are crispy and golden. Core and slice red bell peppers into thin strips. Arrange on a separate tray with 10ml olive oil, salt, and pepper; roast at 200°C for 8 minutes until blistered at the edges. Meanwhile, whisk together eggs with a pinch of salt and white pepper in a medium bowl. In an oven-safe non-stick skillet, heat 15ml olive oil over medium-high heat. Layer roasted potatoes and peppers evenly across the base. Pour egg mixture over vegetables and allow to cook"
+      }
+    ]
+  },
+  {
+    "path": "rag",
+    "inventory": "en8",
+    "run": 2,
+    "durationS": 19.893027457999995,
+    "source": "llm",
+    "retrieval": {
+      "topSimilarity": 0.761495686724914,
+      "matchedTitles": [
+        "Salmon Pasta in Cream Sauce",
+        "Quick Pasta with Salmon and Tomatoes in Cream Sauce",
+        "Jason's Salmon Florentine",
+        "Salmon Florentine",
+        "Salmon Wellington",
+        "Feta-Spinach Stuffed Salmon",
+        "Salmon with Tomatoes",
+        "Cheesy Salmon Pasta"
+      ],
+      "fineDiningTitles": [
+        "Jason's Salmon Florentine",
+        "Salmon Florentine",
+        "Salmon Wellington",
+        "Salmon with White Wine Sauce and Fettuccini",
+        "Smoked Salmon Frittata"
+      ]
+    },
+    "generation": {
+      "normal": {
+        "stopReason": "tool_use/tool_use",
+        "inputTokens": 6696,
+        "outputTokens": 6434
+      },
+      "fineDining": {
+        "stopReason": "tool_use",
+        "inputTokens": 3697,
+        "outputTokens": 2912
+      }
+    },
+    "layerDist": {
+      "ready": 3,
+      "close": 3,
+      "few": 0
+    },
+    "fineDiningCount": 2,
+    "recipeCount": 8,
+    "metrics": [
+      {
+        "name": "Creamy Salmon and Spinach Pasta",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 580,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Pasta",
+          "Salmon Fillet",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan"
+        ],
+        "stepCount": 10,
+        "stepsText": "Bring a large pot of salted water to a boil and cook pasta until al dente, about 10 minutes. Drain and set aside. Cut salmon fillet into bite-sized cubes and season with salt and pepper. Heat olive oil in a large skillet over medium heat. Add diced onion and cook until softened, about 3 minutes. Add minced garlic and cook for 30 seconds until fragrant. Add salmon cubes to the skillet and cook for 3-4 minutes until opaque. Stir in spinach and cook for 2 minutes until wilted. Pour in heavy cream and bring to a gentle simmer. Cook for 2 minutes. Add cooked pasta to the skillet and toss gently to "
+      },
+      {
+        "name": "Baked Salmon with Roasted Vegetables and Cream",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 35,
+        "servings": 2,
+        "kcal": 450,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 10,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Potatoes",
+          "Red Bell Pepper",
+          "Cherry Tomatoes",
+          "Heavy Cream"
+        ],
+        "stepCount": 10,
+        "stepsText": "Preheat oven to 200°C (400°F). Cut potatoes into 2 cm cubes, red bell pepper into chunks, and halve the cherry tomatoes. In a baking dish, toss potatoes and bell pepper with olive oil, minced garlic, thyme, salt, and pepper. Roast for 15 minutes until potatoes begin to soften. Remove from oven and nestle salmon fillet on top of the vegetables. Scatter cherry tomatoes around the salmon and drizzle with remaining olive oil. Season salmon with salt, pepper, and more thyme. Bake for 12-15 minutes until salmon flakes easily with a fork. Drizzle heavy cream around the salmon and vegetables. Return t"
+      },
+      {
+        "name": "Spinach and Egg Frittata with Roasted Potatoes",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 6,
+        "topIngredients": [
+          "Eggs",
+          "Spinach",
+          "Potatoes",
+          "Red Bell Pepper",
+          "Cherry Tomatoes"
+        ],
+        "stepCount": 12,
+        "stepsText": "Preheat oven to 190°C (375°F). Cut potatoes into small cubes and red bell pepper into chunks. Dice onion. Heat olive oil in a 25 cm oven-safe skillet over medium heat. Add diced potatoes and cook for 8 minutes until starting to soften. Add onion, bell pepper, and minced garlic. Cook for 3 minutes. Add spinach and halved cherry tomatoes, stirring until spinach wilts, about 2 minutes. In a bowl, whisk together eggs, salt, pepper, and thyme. Pour egg mixture evenly over vegetables in the skillet. Sprinkle Parmesan cheese on top. Cook on stovetop for 2 minutes until edges start to set, then transf"
+      },
+      {
+        "name": "Creamed Spinach with Poached Eggs",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Nutmeg"
+        ],
+        "timeMin": 20,
+        "servings": 2,
+        "kcal": 320,
+        "nutritionTag": "Protein",
+        "ingredientCount": 8,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan",
+          "Eggs",
+          "Garlic"
+        ],
+        "stepCount": 9,
+        "stepsText": "Heat olive oil in a large pan over medium-high heat. Add minced garlic and sauté for 30 seconds until fragrant. Add spinach in batches, stirring until completely wilted (about 5 minutes). Pour in heavy cream and reduce heat to medium. Stir in grated Parmesan and a pinch of nutmeg; season with salt and black pepper to taste. Simmer for 2 minutes until the sauce coats the spinach. In a separate pot of simmering salted water, poach the eggs (about 3-4 minutes each). Divide creamed spinach between two plates and top each with two poached eggs. Serve immediately."
+      },
+      {
+        "name": "Creamy Potato and Egg Gratin",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Gruyère Cheese"
+        ],
+        "timeMin": 50,
+        "servings": 3,
+        "kcal": 320,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 9,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Potatoes",
+          "Eggs",
+          "Heavy Cream",
+          "Parmesan",
+          "Gruyère Cheese"
+        ],
+        "stepCount": 11,
+        "stepsText": "Preheat oven to 190°C (375°F). Peel and thinly slice potatoes (about 3 mm thick) using a mandoline or sharp knife. Soak sliced potatoes in cold water for 10 minutes to remove excess starch, then pat dry. Lightly butter a 23 cm (9 inch) gratin dish and arrange a layer of potato slices on the bottom. In a bowl, whisk together eggs, heavy cream, salt, black pepper, and thyme. Sprinkle a mixture of grated Parmesan and Gruyère over the potato layer. Pour a portion of the cream mixture over the cheese. Repeat layers: potatoes, cheese mixture, then cream—until all ingredients are used, ending with ch"
+      },
+      {
+        "name": "Roasted Salmon with Cherry Tomato and Bell Pepper Salsa",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Fresh Coriander",
+          "Lime"
+        ],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 385,
+        "nutritionTag": "Protein",
+        "ingredientCount": 8,
+        "inventoryUsed": 3,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Cherry Tomatoes",
+          "Red Bell Pepper",
+          "Fresh Coriander",
+          "Lime"
+        ],
+        "stepCount": 10,
+        "stepsText": "Preheat oven to 200°C (400°F). Pat salmon fillets dry and place on a baking tray lined with parchment paper. Drizzle with olive oil and season with salt and black pepper. Roast for 12-14 minutes until the flesh is cooked through and flakes easily. While salmon cooks, dice cherry tomatoes and red bell pepper finely. Finely chop fresh coriander. In a bowl, combine diced tomatoes, bell pepper, and coriander. Squeeze fresh lime juice over the salsa and season with salt and pepper; toss gently. Plate the roasted salmon and top with a generous spoonful of fresh salsa. Serve immediately."
+      },
+      {
+        "name": "Pan-Seared Salmon with Creamed Spinach and Crispy Potato Nest",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 485,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan",
+          "Potatoes"
+        ],
+        "stepCount": 6,
+        "stepsText": "Mandoline the potatoes into thin, uniform slices (approximately 2 mm). Toss with salt and olive oil, then layer into a non-stick pan over medium-high heat, pressing gently to form a compact nest. Cook for 8-10 minutes until golden and crispy on both sides, then transfer to a plate lined with paper towels. Season the salmon fillet with salt and black pepper on both skin and flesh sides. Heat olive oil in a large skillet over medium-high heat until shimmering. Place salmon skin-side up in the hot skillet and sear for 4 minutes without moving, allowing the skin to render and crisp. Flip gently an"
+      },
+      {
+        "name": "Roasted Red Pepper and Tomato Confit Frittata with Aged Gouda",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Aged Gouda"
+        ],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Eggs",
+          "Red Bell Pepper",
+          "Cherry Tomatoes",
+          "Aged Gouda",
+          "Heavy Cream"
+        ],
+        "stepCount": 7,
+        "stepsText": "Char the red bell peppers directly over a gas flame or under a broiler until the skin is blackened and blistered on all sides. Transfer to a covered bowl for 5 minutes to steam, then peel away the charred skin carefully. Remove seeds and cut into elegant strips, set aside. Halve the cherry tomatoes and arrange on a parchment-lined tray. Drizzle lightly with olive oil, season with salt, black pepper, and fresh thyme. Roast at 160°C (320°F) for 15-18 minutes until the tomatoes begin to concentrate and wrinkle slightly, creating a delicate confit. Preheat your oven to 180°C (350°F). In a medium b"
+      }
+    ]
+  },
+  {
+    "path": "rag",
+    "inventory": "en8",
+    "run": 3,
+    "durationS": 20.73871645800001,
+    "source": "llm",
+    "retrieval": {
+      "topSimilarity": 0.761495686724914,
+      "matchedTitles": [
+        "Salmon Pasta in Cream Sauce",
+        "Quick Pasta with Salmon and Tomatoes in Cream Sauce",
+        "Jason's Salmon Florentine",
+        "Salmon Florentine",
+        "Salmon Wellington",
+        "Feta-Spinach Stuffed Salmon",
+        "Salmon with Tomatoes",
+        "Cheesy Salmon Pasta"
+      ],
+      "fineDiningTitles": [
+        "Jason's Salmon Florentine",
+        "Salmon Florentine",
+        "Salmon Wellington",
+        "Salmon with White Wine Sauce and Fettuccini",
+        "Smoked Salmon Frittata"
+      ]
+    },
+    "generation": {
+      "normal": {
+        "stopReason": "tool_use/tool_use",
+        "inputTokens": 6696,
+        "outputTokens": 6564
+      },
+      "fineDining": {
+        "stopReason": "tool_use",
+        "inputTokens": 3697,
+        "outputTokens": 2925
+      }
+    },
+    "layerDist": {
+      "ready": 4,
+      "close": 1,
+      "few": 1
+    },
+    "fineDiningCount": 2,
+    "recipeCount": 8,
+    "metrics": [
+      {
+        "name": "Pan-Seared Salmon with Creamy Spinach and Tomato",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Protein",
+        "ingredientCount": 9,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Spinach",
+          "Cherry Tomatoes",
+          "Heavy Cream",
+          "Parmesan"
+        ],
+        "stepCount": 10,
+        "stepsText": "Pat salmon fillets dry with paper towels and season with salt and black pepper on both sides. Heat olive oil in a large skillet over medium-high heat until shimmering. Place salmon skin-side up in the skillet and cook for 4-5 minutes until golden. Flip and cook another 3-4 minutes until cooked through. Transfer to a plate. In the same skillet, add minced garlic and cook for 30 seconds until fragrant. Add spinach to the skillet and cook, stirring frequently, for 2-3 minutes until wilted. Season with salt and pepper. Pour in heavy cream and stir well. Simmer for 2-3 minutes. Add halved cherry to"
+      },
+      {
+        "name": "Roasted Potato and Egg Skillet with Bell Peppers",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 9,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Potatoes",
+          "Eggs",
+          "Red Bell Pepper",
+          "Onion",
+          "Parmesan"
+        ],
+        "stepCount": 10,
+        "stepsText": "Cut potatoes into small cubes (about 1 cm) and peel them if desired. Dice the red bell pepper and onion into bite-sized pieces. Heat 25 ml olive oil in a large cast-iron or oven-safe skillet over medium-high heat. Add potato cubes and cook for 8-10 minutes, stirring occasionally, until edges are golden and potatoes are nearly tender. Push potatoes to the side, add remaining olive oil, and sauté diced onion and bell pepper for 4-5 minutes until softened. Stir everything together. Season with salt, black pepper, and paprika. In a bowl, whisk together the 4 eggs with 2 tablespoons water. Pour the"
+      },
+      {
+        "name": "Creamy Tomato Pasta with Spinach and Parmesan",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 20,
+        "servings": 2,
+        "kcal": 450,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Pasta",
+          "Cherry Tomatoes",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan"
+        ],
+        "stepCount": 9,
+        "stepsText": "Bring a large pot of salted water to a boil. Add pasta and cook according to package directions, usually 8-10 minutes, until al dente. Reserve 120 ml pasta water before draining. While pasta cooks, heat olive oil and butter in a skillet over medium heat. Add minced garlic and cook for 30 seconds until fragrant. Halve the cherry tomatoes and add them to the skillet. Cook for 2-3 minutes until they begin to soften and release their juices. Stir in tomato paste and cook for 1 minute to deepen the flavor. Pour in heavy cream and stir well. Simmer for 2 minutes, then add the fresh spinach and stir "
+      },
+      {
+        "name": "Roasted Red Bell Pepper and Potato Frittata",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 30,
+        "servings": 2,
+        "kcal": 280,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 9,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Eggs",
+          "Potatoes",
+          "Red Bell Pepper",
+          "Heavy Cream",
+          "Parmesan"
+        ],
+        "stepCount": 7,
+        "stepsText": "Preheat oven to 200°C (180°C fan). Cut potatoes into thin slices and roast with olive oil, salt, and pepper for 15 minutes until parboiled. Slice the red bell pepper and add to the potatoes, roasting for another 3 minutes. Whisk eggs with heavy cream, salt, black pepper, and fresh thyme. Transfer roasted vegetables to an oven-safe pan, pour egg mixture over, and sprinkle Parmesan on top. Bake in the preheated oven for 12–15 minutes until the eggs are set and the top is lightly golden. Cool slightly, slice into wedges, and serve warm or at room temperature."
+      },
+      {
+        "name": "Creamy Spinach and Egg Breakfast Scramble",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 1,
+        "liveMissing": 1,
+        "liveMissingNames": [
+          "Chives"
+        ],
+        "timeMin": 15,
+        "servings": 2,
+        "kcal": 320,
+        "nutritionTag": "Protein",
+        "ingredientCount": 8,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Eggs",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan",
+          "Chives"
+        ],
+        "stepCount": 7,
+        "stepsText": "Heat butter in a non-stick pan over medium heat. Add fresh spinach and sauté until wilted, about 2 minutes. Whisk eggs with heavy cream, salt, and black pepper in a bowl. Pour the egg mixture into the pan with spinach. Stir gently until eggs are softly scrambled, about 3–4 minutes. Fold in grated Parmesan cheese and chives just before serving. Serve immediately while warm."
+      },
+      {
+        "name": "Herb-Crusted Salmon with Cherry Tomato Reduction",
+        "source": "llm",
+        "fineDining": false,
+        "reconciledMissing": 3,
+        "liveMissing": 3,
+        "liveMissingNames": [
+          "Panko Breadcrumbs",
+          "Fresh Dill",
+          "Lemon Zest"
+        ],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 420,
+        "nutritionTag": "Protein",
+        "ingredientCount": 11,
+        "inventoryUsed": 2,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Cherry Tomatoes",
+          "Panko Breadcrumbs",
+          "Fresh Dill",
+          "Lemon Zest"
+        ],
+        "stepCount": 9,
+        "stepsText": "Preheat oven to 200°C (180°C fan). Mix panko breadcrumbs, fresh dill, lemon zest, salt, and black pepper in a small bowl. Pat salmon dry and place skin-side down on a parchment-lined baking sheet. Press the breadcrumb mixture firmly onto the top of the salmon. Drizzle with olive oil and bake for 12–15 minutes until the crust is golden and salmon is cooked through. While salmon bakes, halve cherry tomatoes and sauté in butter with minced garlic over medium heat for 2 minutes. Add balsamic vinegar and simmer for 3–4 minutes until tomatoes begin to break down and form a light reduction. Season th"
+      },
+      {
+        "name": "Pan-Seared Salmon with Creamed Spinach and Parmesan Crust",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 0,
+        "liveMissing": 0,
+        "liveMissingNames": [],
+        "timeMin": 25,
+        "servings": 2,
+        "kcal": 520,
+        "nutritionTag": "Protein",
+        "ingredientCount": 10,
+        "inventoryUsed": 4,
+        "topIngredients": [
+          "Salmon Fillet",
+          "Spinach",
+          "Heavy Cream",
+          "Parmesan",
+          "Garlic"
+        ],
+        "stepCount": 10,
+        "stepsText": "Pat salmon fillets dry with paper towels and season generously on both sides with salt, black pepper, and fresh thyme. Heat olive oil in a large stainless steel skillet over medium-high heat until just smoking. Place salmon skin-side up in the hot pan and sear for 4 minutes until a golden crust forms, resisting the urge to move the fish. Flip the salmon carefully and sear the flesh side for 3 minutes. Remove to a warm plate and tent loosely with foil to rest. In the same pan, melt butter over medium heat and add minced garlic, cooking until fragrant and golden, about 1 minute. Add spinach in b"
+      },
+      {
+        "name": "Roasted Bell Pepper and Potato Terrine with Herb Oil and Tomato Gastrique",
+        "source": "llm",
+        "fineDining": true,
+        "reconciledMissing": 2,
+        "liveMissing": 2,
+        "liveMissingNames": [
+          "Fresh Basil",
+          "Balsamic Reduction"
+        ],
+        "timeMin": 50,
+        "servings": 4,
+        "kcal": 380,
+        "nutritionTag": "Dengeli",
+        "ingredientCount": 12,
+        "inventoryUsed": 5,
+        "topIngredients": [
+          "Red Bell Pepper",
+          "Potatoes",
+          "Cherry Tomatoes",
+          "Heavy Cream",
+          "Eggs"
+        ],
+        "stepCount": 10,
+        "stepsText": "Preheat oven to 200°C (400°F). Char the red bell peppers directly over a flame or under the broiler until blackened on all sides, about 8 minutes. Place charred peppers in a covered bowl to steam for 5 minutes, then peel away the skin carefully and remove seeds. Cut into thin, even strips and set aside. Slice potatoes into thin, even rounds using a mandoline. Blanch in salted boiling water for 5 minutes until just tender, then drain and pat dry thoroughly. Whisk together eggs, heavy cream, minced garlic, salt, pepper, and fresh thyme until fully emulsified. Line a terrine mold with plastic wra"
+      }
+    ]
+  }
+]

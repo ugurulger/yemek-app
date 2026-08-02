@@ -47,6 +47,12 @@ export interface GenerateRecipesRagOptions {
   activePantry: PantryNameFields[];
   /** Kişi sayısı — verilmezse model tarif başına makul bir servings seçer. */
   servings?: number;
+  /**
+   * Çeşitlilik ayarı (2026-08-02): son üretilen tarif adları
+   * (recipeStore.recentNames) — edge function prompt'ta tekrarını yasaklar.
+   * Ekran geçirir; lib katmanı store IMPORT ETMEZ (mevcut kural).
+   */
+  recentNames?: string[];
 }
 
 interface RagResponse {
@@ -121,6 +127,10 @@ export async function generateRecipesRag(
         servings: options.servings,
         language: 'English',
         count: RECIPE_COUNT,
+        // Çeşitlilik: son üretimlerin tekrar yasağı (edge 24 ile sınırlar).
+        ...(options.recentNames && options.recentNames.length > 0
+          ? { avoid: options.recentNames.slice(-24) }
+          : {}),
       }),
     });
   } catch (cause) {

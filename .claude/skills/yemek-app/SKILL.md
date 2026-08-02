@@ -127,6 +127,26 @@ Buradaki bir kuralı değiştirmen gerekiyorsa önce kullanıcıya sor.
 >   `[rag-gen]` etiketiyle loglanır ve yanıtın `generation` alanında döner
 >   (ölçüm harness'i `tests/rag-tuning/run-compare.ts` okur); max_tokens
 >   12288 (6 tarif tek çıktıda 7.6K'ya dayanmıştı, ölçüldü).
+> - **KOŞULAR ARASI çeşitlilik katmanı (2026-08-02 — edge DEPLOY EDİLDİ,
+>   ölçüldü: retrieval örtüşmesi %100→%28-45, arketip tekrarı %75→%44-56,
+>   süre değişmedi; ölçüm: `analysis/rag-diversity-result.md`, metrik aracı
+>   `tests/rag-tuning/diversity-metrics.ts`):** baseline'da
+>   retrieval %100 deterministikti, arketip (yıldız+teknik) tekrarı %75 —
+>   ad bazlı benzersizlik (%92-96) YANILTICI (model adı değiştiriyor,
+>   yemeği değiştirmiyor; FD 3/3 koşuda pan-seared yıldız protein).
+>   Katmanlar: (1) retrieval jitter (`RAG_RETRIEVAL_JITTER` varsayılan
+>   0.03, 0=eski davranış; `matches[0]` MUAF — hibrit kısayol eşiği
+>   bozulmaz), (2) son-N tekrar yasağı: `recipeStore.recentNames`
+>   (yuvarlanan 24, persist, setRecipes biriktirir) → edge `avoid` →
+>   prompt'ta "aynı yıldız+teknik = tekrar" yasağı + FD "bariz tabaktan
+>   kaçın" kuralı, (3) prompt kotası ("tek ana malzeme ≤2 tarif, ≥3 teknik
+>   ailesi"), (4) set içi yakın-ad dedupe — **KURAL: `tokenize`+
+>   `tokenMatches` ile, `titleTokens` DEĞİL** (≥4-harf filtresi "egg"i
+>   düşürüp dedupe'u sessizce etkisizleştiriyordu, lokal doğrulamada
+>   yakalandı). Avoid ihlali DÜŞÜRÜLMEZ (liste 6'nın altına inmesin) —
+>   loglanır + `generation.diversity`'de sayılır. `GENERATION_VERSION` v6.
+>   Embedding-tabanlı dedupe BİLİNÇLİ yok (RPC embedding döndürmüyor;
+>   token yolu gözlemlenen tekrar sınıfını yakalıyor).
 > - **Kiler retrieval sorgusunda + kiler-yıldız kuralı:** queryText'e
 >   "Pantry staples: ..." satırı; prompt'ta "makarna/pirinç/bulgur gerçek
 >   malzemedir, uygunsa taşıyıcı yap". Önceki "kilere yaslanma" ifadesi
@@ -874,7 +894,7 @@ canlı görünüm için bkz. altta "Tek-tek/canlı gösterim".
 yeniden ÜRETİLMEZ** — üret/yenile API'ye gitmeden mevcut listeyi kullanır.
 Cache edilen her zaman üretim adımlarından BAĞIMSIZ final BİRLEŞMİŞ
 listedir; ara slot/katman state'i yalnız UI'da yaşar, kalıcı değildir.
-**Parmak izi `GENERATION_VERSION` önekli ve GÜNCEL SÜRÜM v5**
+**Parmak izi `GENERATION_VERSION` önekli ve GÜNCEL SÜRÜM v6**
 (`store/recipeStore.ts`): parmak izi =
 `sürüm | tercihler | sadeleştirilmiş envanter` — KİLER DAHİL DEĞİL.
 Üretim mantığı değiştiğinde sürüm artırılır ki envanteri değişmeyen
@@ -884,7 +904,9 @@ başladı) → v3 = MVP-22 (şema v3 + tercihler/kiler parmak izine girdi) →
 **v4 = kiler parmak izinden ÇIKARILDI** (kiler değişimi üretimi baştan
 başlatmaz; eksik rozetleri zaten canlı `computeMissing` ile güncellenir) →
 **v5 = iki dilli envanter/tarif adları** (ENVANTER-2DİL — eski tek dilli
-cache atılır).
+cache atılır) → **v6 = koşular arası çeşitlilik katmanı** (2026-08-02,
+RAG-EN bloğundaki çeşitlilik maddesi — eski monotonlukla üretilmiş
+cache'ler bir kez yenilensin).
 
 **MVP-14 dersi (1 satır):** katmanlar birbirinden HABERSİZ paralel
 planlanırsa çeşitlilik düşer — tarifler önce TEK çağrıda birlikte
@@ -1102,6 +1124,40 @@ references/HISTORY.md#mvp-9-2026-07-05-performans-profili):
   cihazda transcode için yeni native paket gerekir → uygulanmadı; n>1
   doğruluk teyidi + paket onayıyla güçlü aday. Files API poll aralığı
   1000ms'e indirildi (uygulandı, etki küçük).
+
+**Tarama hızlandırma (2026-08-02) — ölçüm aracı:
+`npx tsx tests/vision-eval/measure-stages.ts [A|B|C|hepsi]`** (native-video
+dahil aşama-süre ölçer; run-eval bu yolu HİÇ çağırmaz). Uygulanan kararlar:
+
+- **KURAL: Gemini vision çağrılarında thinking KISILIR**
+  (`detectionThinkingConfig`, `gemini-provider.ts`): flash'ta
+  `thinkingBudget: 0`, pro'da `128` (pro'nun izin verdiği minimum; 0 pro'da
+  GEÇERSİZ — model adına göre seçilir). Gerekçe: 2.5 ailesinde dynamic
+  thinking varsayılan AÇIK ve tespit görevinde süreyi katlıyordu (ölçüm:
+  foto iki aşama 23.7s→~10s, video 10s 24.8s→13.5s, 25MB video
+  48.6s→28.3s; video şemasındaki `reasoning` alanı zaten kısa CoT sağlar).
+  Claude gözlemindeki `thinking: disabled` (MVP-3) kararının Gemini
+  karşılığıdır.
+- **KURAL: tarama sonrası karşı-dil çevirisi KRİTİK YOLDA DEĞİL** —
+  `bilingualizeItemsDeferred` (src/i18n/inventoryI18n.ts) kaynak dil
+  alanını senkron doldurur, çeviriyi (~1.1s haiku) arka planda id bazlı
+  `applyNameTranslations` ile yamalar; sonuçlar çeviri beklemeden ekrana
+  yazılır (eski `await bilingualizeItems` kaldırıldı; backfill emniyet
+  ağı aynen durur).
+- **Kamera kaydı ~5 Mbps'e sabitlendi** (`camera.tsx`: `videoBitrate` +
+  iOS için `recordAsync`'te `codec: 'avc1'` ŞART, Android'de
+  `videoQuality="1080p"`): 10sn kayıt ≈ 6MB → 18MB Files API eşiğinden
+  (+~17s upload/poll) güvenle uzak, inline yükleme yarı boyut.
+  `// DOĞRULA`: gerçek cihazda bitrate'in uygulandığı + etiket
+  okunurluğu doğrulanmadı.
+- **Aşamalı ilerleme:** sağlayıcılar `onProgress(stage)` yayar
+  (`ScanProgressStage`: preparing/uploading/analyzing/structuring);
+  Mutfağım spinner'ı aşama metnini gösterir (`inventory.stage*`
+  anahtarları), bitişte "N ürün bulundu" toast'u. Aşama süreleri
+  `inventory.capture_completed`'a `prep_ms`/`model_ms` olarak yazılır
+  (tracking-plan v1.1). Gerçek token-streaming HÂLÂ YOK (üstteki
+  `generateContentStream` kuralı geçerli) — "akan sonuç" yerine erken
+  yazım + aşama metni bilinçli tercih.
 
 ## Çalışma kuralları
 

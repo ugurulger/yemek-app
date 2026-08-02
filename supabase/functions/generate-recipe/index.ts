@@ -49,6 +49,15 @@ const CONFIG = {
   embeddingModel: 'gemini-embedding-001',
   embeddingDimensions: 768,
   defaultLanguage: 'English',
+  /** Çeşitlilik ayarı (2026-08-02): retrieval benzerlik sırasına eklenen
+   * gürültü genliği — 0 = kapalı (eski deterministik davranış). Baseline
+   * ölçümünde retrieval örtüşmesi %100'dü (aynı envanter → her koşuda AYNI
+   * 8 referans) ve arketip tekrarı %75'e taşıyordu; bkz.
+   * analysis/rag-diversity-result.md. En-benzer aday (matches[0]) jitter'dan
+   * MUAF — hibrit kısayolun eşik kontrolü deterministik kalır. */
+  retrievalJitter: Number(Deno.env.get('RAG_RETRIEVAL_JITTER') ?? '0.03'),
+  /** Client'ın gönderdiği "son üretilen tarif adları" listesinin üst sınırı. */
+  avoidMax: 24,
 };
 
 const CORS_HEADERS = {
@@ -126,6 +135,10 @@ interface GenerateRecipeInput {
   count?: number;
   /** Evde var kabul edilen kiler malzemeleri (aktif kiler listesi). */
   pantry?: string[];
+  /** Çeşitlilik ayarı (2026-08-02): kullanıcı için SON üretilen tarif adları
+   * (client recipeStore.recentNames) — prompt'ta tekrar YASAĞI olarak
+   * kullanılır. Opsiyonel; eski client'lar göndermez, akış değişmez. */
+  avoid?: string[];
 }
 
 function parseInput(raw: unknown): GenerateRecipeInput {
@@ -163,6 +176,10 @@ function parseInput(raw: unknown): GenerateRecipeInput {
         ? Math.round(obj.count)
         : CONFIG.defaultRecipeCount,
     pantry: asStringArray(obj.pantry),
+    avoid: asStringArray(obj.avoid)
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0 && name.length <= 120)
+      .slice(-CONFIG.avoidMax),
   };
 }
 
@@ -391,6 +408,31 @@ function dominantReferenceToken(matches: MatchedRecipe[]): string | null {
   return best !== null && bestCount > matches.length / 2 ? best : null;
 }
 
+/**
+ * Çeşitlilik ayarı (2026-08-02, baseline: analysis/rag-diversity-result.md):
+ * HNSW retrieval deterministik — aynı envanter sorgusu her koşuda AYNI
+ * referans kümesini getiriyor (ölçüm: 3 koşuda örtüşme %100) ve sabit
+ * referanslar üretimi aynı arketiplere ("pan-seared salmon + creamed
+ * spinach") kilitliyordu. Benzerlik skoruna küçük uniform gürültü ekleyip
+ * yeniden sıralar: komşu adaylar (benzerlik farkı ~0.005-0.02) yer
+ * değiştirir, alakasız adaylar öne GEÇEMEZ (gürültü genliği 0.03 —
+ * benzerlik bandının kuyruğunu başa taşıyamaz). İLK aday muaf: matches[0]
+ * global en-benzer kalır (hibrit kısayol eşiği + dominantToken tespiti
+ * deterministik zeminini korur).
+ */
+function jitterCandidates(candidates: MatchedRecipe[]): MatchedRecipe[] {
+  if (CONFIG.retrievalJitter <= 0 || candidates.length <= 2) return candidates;
+  const [top, ...rest] = candidates;
+  const jittered = rest
+    .map((candidate) => ({
+      candidate,
+      score: candidate.similarity + Math.random() * CONFIG.retrievalJitter,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.candidate);
+  return [top, ...jittered];
+}
+
 function diversifyMatches(candidates: MatchedRecipe[], take: number): MatchedRecipe[] {
   const tokenCount = new Map<string, number>();
   const selected: MatchedRecipe[] = [];
@@ -408,6 +450,54 @@ function diversifyMatches(candidates: MatchedRecipe[], take: number): MatchedRec
     if (!selected.includes(candidate)) selected.push(candidate);
   }
   return selected;
+}
+
+/**
+ * Set içi YAKIN-AD tekilleştirme (çeşitlilik ayarı, 2026-08-02): birebir ad
+ * eşitliği byName map'iyle zaten yakalanıyor; bu katman "Feta Egg Scramble" /
+ * "Scrambled Eggs with Feta" sınıfı varyantları yakalar (tuning gözlemi:
+ * tr12#2'de iki scrambled-eggs varyantı — rapor "Kalan açıklar" #3).
+ * Başlık token'ları Jaccard ≥ 0.6 ise aynı yemek sayılır; eksik sayısı düşük
+ * olan tutulur. Embedding tabanlı dedupe BİLİNÇLİ kurulmadı: match_recipes
+ * embedding döndürmüyor ve tarif başına ek embed çağrısı latency/maliyet
+ * getirir — gözlemlenen tekrar sınıfını token Jaccard'ı yakalıyor.
+ */
+// titleTokens KULLANILMAZ (≥4 harf filtresi "egg"i düşürüyor, "scramble"/
+// "scrambled" eki eşleşmiyor — lokal doğrulamada yakalandı); namesMatch'in
+// tokenize+tokenMatches'i (yazım/çoğul/ek toleranslı) kullanılır, yalnız
+// bağlaç/jenerik kelimeler süzülür.
+const NAME_DEDUP_STOP = new Set(['with', 'and', 'the', 'a', 'in', 'of', 'style', 'recipe']);
+
+function nameTokenSet(name: string): string[] {
+  return tokenize(name).filter((token) => !NAME_DEDUP_STOP.has(token));
+}
+
+/** Bulanık Jaccard: token eşleşmesi tokenMatches ile (prefix/çoğul toleransı). */
+function tokenJaccard(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const matched = a.filter((ta) => b.some((tb) => tokenMatches(ta, tb))).length;
+  return matched / (a.length + b.length - matched);
+}
+
+function dedupeNearNames(recipes: Recipe[]): { kept: Recipe[]; droppedNames: string[] } {
+  const kept: Recipe[] = [];
+  const keptTokens: string[][] = [];
+  const droppedNames: string[] = [];
+  for (const recipe of recipes) {
+    const tokens = nameTokenSet(recipe.name);
+    const clashIndex = keptTokens.findIndex((existing) => tokenJaccard(existing, tokens) >= 0.6);
+    if (clashIndex === -1) {
+      kept.push(recipe);
+      keptTokens.push(tokens);
+    } else if (recipe.missing_count < kept[clashIndex].missing_count) {
+      droppedNames.push(kept[clashIndex].name);
+      kept[clashIndex] = recipe;
+      keptTokens[clashIndex] = tokens;
+    } else {
+      droppedNames.push(recipe.name);
+    }
+  }
+  return { kept, droppedNames };
 }
 
 function countMissing(recipe: MatchedRecipe, availableNames: string[]): number {
@@ -556,7 +646,19 @@ function buildSharedRules(input: GenerateRecipeInput): string {
     '- Shopping ingredients (in_inventory: false) must be genuinely NEW items: never list a variant of ' +
     'something already available (if Vinegar is available, do not list Balsamic Vinegar as a shopping ' +
     'item — either use the available item or pick a truly different ingredient).\n';
-  return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule;
+  // Çeşitlilik ayarı (2026-08-02): son üretimlerin tekrar yasağı — kullanıcı
+  // aynı envanterle yeniden ürettiğinde "hep aynı tarifler" hissinin ana
+  // panzehiri. Arketip tanımı (yıldız + teknik) bilinçli: ad değiştirip aynı
+  // yemeği üretmek de tekrar sayılır (baseline: FD 3/3 koşuda "Pan-Seared
+  // Salmon with Creamed Spinach" varyantı üretmişti).
+  const avoidRule =
+    input.avoid && input.avoid.length > 0
+      ? `- RECENTLY GENERATED for this user — DO NOT REPEAT: ${input.avoid.join('; ')}. ` +
+        'None of your recipes may be the same dish or a close variant of any of these — the same star ' +
+        'ingredient prepared with the same technique counts as a repeat even under a different name. ' +
+        'Deliberately pick different dishes, cuisines, techniques or star ingredients this time.\n'
+      : '';
+  return servingsRule + preferencesRule + pantryRule + languagePurityRule + genuineShoppingRule + avoidRule;
 }
 
 /**
@@ -645,6 +747,11 @@ function buildSystemPrompt(
     'salad, oven bake...) and different cooking techniques; no two recipes may share the same main ' +
     'ingredient combination or star ingredient, and do not base every recipe on the same one or two ' +
     'reference recipes.\n' +
+    // Çeşitlilik ayarı (2026-08-02): jenerik "diverse" kuralının somut/sayılabilir
+    // karşılığı — model gönderim öncesi kendi setini denetleyebilsin.
+    '- DIVERSITY QUOTA (count before submitting): any single main ingredient may be the STAR of at most ' +
+    '2 recipes in your set, and your set must span at least 3 different technique families ' +
+    '(oven/bake, stovetop/pan, soup/stew, salad/raw, egg dishes, grain/pasta dishes...).\n' +
     spec.dominantRule +
     '- COVER the available ingredients broadly: every inventory ingredient that can carry a dish should be ' +
     'the star of at least one recipe. Hearty pantry staples (pasta, rice, bulgur, flour) are REAL ' +
@@ -680,6 +787,14 @@ function buildFineDiningSystemPrompt(input: GenerateRecipeInput, matches: Matche
     'the dish beautifully (composition, garnish, sauce placement).\n' +
     '- The two recipes must NOT share the same primary protein or star ingredient, even if the reference ' +
     'recipes all feature one — build the second dish around a different inventory item.\n' +
+    // Çeşitlilik ayarı (2026-08-02): FD monotonluğu — deterministik retrieval +
+    // sabit prompt her koşuda aynı "bariz" tabağı üretiyordu (baseline: 3/3
+    // koşuda pan-seared yıldız protein). Avoid listesi buildSharedRules'ta;
+    // bu satır FD'ye özgü "bariz tabaktan kaçın" güçlendirmesi.
+    '- SURPRISE THE USER: do not default to the single most obvious fine dining plate for this inventory ' +
+    '(e.g. the classic pan-seared star protein with a creamed vegetable) — especially if the recently ' +
+    'generated list already contains it. Vary the technique (confit, en papillote, terrine, glazing, ' +
+    'tartare, gratin...) and the star ingredient across generations.\n' +
     (dominantToken
       ? `- CONCRETE CAP: the references below are dominated by "${dominantToken}" — only ONE of the two ` +
         `recipes may contain ${dominantToken}; the other must be built entirely without it.\n`
@@ -955,8 +1070,14 @@ Deno.serve(async (request) => {
         ])
       : [[] as MatchedRecipe[], [] as MatchedRecipe[]];
     // Madde 3: aday havuzu başlık-token tavanıyla süzülür (bkz. diversifyMatches).
-    const matches = diversifyMatches(matchCandidates, CONFIG.matchCount);
-    const fineDiningMatches = diversifyMatches(fineDiningCandidates, CONFIG.fineDiningMatchCount);
+    // Çeşitlilik ayarı: süzmeden ÖNCE benzerlik sırası jitter'lanır — aynı
+    // envanterin ardışık üretimleri farklı referans altkümeleri görür
+    // (bkz. jitterCandidates; RAG_RETRIEVAL_JITTER=0 eski davranış).
+    const matches = diversifyMatches(jitterCandidates(matchCandidates), CONFIG.matchCount);
+    const fineDiningMatches = diversifyMatches(
+      jitterCandidates(fineDiningCandidates),
+      CONFIG.fineDiningMatchCount
+    );
     console.log(
       `[rag-gen] retrieval: ${matchCandidates.length} aday → ${matches.length} referans; ` +
         `fine dining ${fineDiningCandidates.length} aday → ${fineDiningMatches.length}`
@@ -1065,7 +1186,25 @@ Deno.serve(async (request) => {
         byName.set(key, recipe);
       }
     }
-    const recipes = Array.from(byName.values());
+    // Çeşitlilik ayarı: yakın-ad varyantları da tekilleştirilir (bkz.
+    // dedupeNearNames) + avoid listesi ihlalleri gözlemlenebilirlik için
+    // sayılır (dropped EDİLMEZ — liste 6'nın altına inmesin; prompt yasağının
+    // tutma oranı loglardan/ölçüm harness'inden izlenir).
+    const { kept: recipes, droppedNames } = dedupeNearNames(Array.from(byName.values()));
+    if (droppedNames.length > 0) {
+      console.warn(`[rag-gen] yakın-ad tekilleştirme düşürdü: ${droppedNames.join(' | ')}`);
+    }
+    const avoidTokenSets = (input.avoid ?? []).map((name) => nameTokenSet(name));
+    const avoidViolations = recipes.filter((recipe) => {
+      const tokens = nameTokenSet(recipe.name);
+      return avoidTokenSets.some((avoidTokens) => tokenJaccard(avoidTokens, tokens) >= 0.6);
+    });
+    if (avoidViolations.length > 0) {
+      console.warn(
+        `[rag-gen] avoid listesi ihlali (${avoidViolations.length}): ` +
+          avoidViolations.map((recipe) => recipe.name).join(' | ')
+      );
+    }
     const fineDiningRecipes = reconcileRecipes(fineDiningResult.recipes, availableNames);
 
     // Madde 5: mutabakat SONRASI katman dağılımı — sunucunun hedeflediği
@@ -1088,7 +1227,17 @@ Deno.serve(async (request) => {
           matchedTitles: matches.map((m) => m.title),
           fineDiningTitles: fineDiningMatches.map((m) => m.title),
         },
-        generation: { normal: normalMeta, fineDining: fineDiningResult.meta },
+        generation: {
+          normal: normalMeta,
+          fineDining: fineDiningResult.meta,
+          // Çeşitlilik gözlemlenebilirliği — ölçüm harness'i okur/loglar.
+          diversity: {
+            jitter: CONFIG.retrievalJitter,
+            avoidCount: input.avoid?.length ?? 0,
+            droppedNearDup: droppedNames.length,
+            avoidViolations: avoidViolations.length,
+          },
+        },
       }),
       { headers: { ...CORS_HEADERS, 'content-type': 'application/json' } }
     );
