@@ -1,8 +1,8 @@
 meta:
   product: "Yemek App"
-  version: 1
+  version: 1.1                # v1.1: inventory.capture_completed += prep_ms/model_ms (2026-08-02)
   created: 2026-07-19
-  updated: 2026-07-19
+  updated: 2026-08-02
   implemented: 2026-07-19   # tracking/ modülü + 23 event + Sentry — delta.md'nin tamamı uygulandı
   owner: "ugurulger"
   destinations: [posthog-eu, sentry]
@@ -151,6 +151,16 @@ events:
       - name: duration_ms
         type: integer
         required: true
+      # v1.1 (2026-08-02, tarama performans işi): aşama kırılımı — sayı,
+      # PII yok. prep_ms = seçimden model isteğine hazırlık (boyutlandırma/
+      # base64 + varsa Files API yüklemesi); model_ms = model isteği → sonuç.
+      # Sağlayıcı onProgress vermiyorsa (eski yol) gönderilmez.
+      - name: prep_ms
+        type: integer
+        required: false
+      - name: model_ms
+        type: integer
+        required: false
       - name: is_first
         type: boolean
         required: true

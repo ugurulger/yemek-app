@@ -25,8 +25,21 @@ export interface UsageEvent {
   outputTokens: number;
 }
 
+/**
+ * Tarama akışının kullanıcıya gösterilebilir kaba aşamaları (performans işi,
+ * 2026-08-02): ekran bunlarla aşamalı ilerleme metni gösterir ve aşama
+ * sürelerini telemetriye yazar. 'uploading' yalnız Files API yoluna düşen
+ * büyük videolarda görülür; 'structuring' yalnız iki aşamalı akışta.
+ */
+export type ScanProgressStage = 'preparing' | 'uploading' | 'analyzing' | 'structuring';
+
 export interface ExtractInventoryOptions {
   onUsage?: (event: UsageEvent) => void;
+  /**
+   * Aşama geçişlerinde çağrılır (bkz. ScanProgressStage) — UI ilerleme metni
+   * + aşama süresi ölçümü için. Sağlanması opsiyonel, akışı etkilemez.
+   */
+  onProgress?: (stage: ScanProgressStage) => void;
   /**
    * Aşama 1 (gözlem) tamamlanır tamamlanmaz, ham serbest metin haliyle
    * (yapılandırma/parse öncesi) çağrılır — DEBUG amaçlı, bkz. SKILL.md

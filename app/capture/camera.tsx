@@ -15,6 +15,19 @@ import { showToast } from '@/store/toastStore';
 
 /** Basılı-tut kaydının üst sınırı (sn) — halka bu sürede tam dolar. */
 const MAX_RECORD_SECONDS = 10;
+/**
+ * PERF (2026-08-02, ölçüm: tests/vision-eval/measure-stages.ts): kayıt
+ * bitrate'i ~5 Mbps'e sabitlenir (1080p'de etiket okunurluğu için yeterli;
+ * cihaz varsayılanı ~8-12 Mbps). 10sn kayıt ≈ 6MB → Gemini Files API
+ * eşiğinin (18MB, +~17s upload/poll maliyeti) güvenle altında kalır ve
+ * inline base64 yükleme yükü yarılanır. iOS'ta videoBitrate ancak
+ * recordAsync'e codec verilince etkilidir (expo-camera v57 dokümanı) —
+ * 'avc1' (H.264) seçildi; Android'de videoQuality="1080p" 4K kayıtları
+ * sınırlar. // DOĞRULA: bitrate'in gerçek cihaz kaydında uygulandığı ve
+ * etiket okunurluğunun düşmediği gerçek iPhone'da doğrulanmalı (Expo Go'da
+ * gözlemlenebilir).
+ */
+const VIDEO_BITRATE = 5_000_000;
 /** İlerleme halkası konteyneri — referans 564: 104×104. */
 const RING_SIZE = 104;
 /** Beyaz kayıt butonunun çapı — referans 569: 76×76. */
@@ -179,7 +192,12 @@ export default function CameraCaptureScreen() {
 
     try {
       // Promise, stopRecording çağrılınca veya maxDuration dolunca çözülür.
-      const video = await cameraRef.current.recordAsync({ maxDuration: MAX_RECORD_SECONDS });
+      // codec 'avc1': iOS'ta videoBitrate prop'unun etkili olması için şart
+      // (bkz. VIDEO_BITRATE notu); Android bu alanı yok sayar.
+      const video = await cameraRef.current.recordAsync({
+        maxDuration: MAX_RECORD_SECONDS,
+        codec: 'avc1',
+      });
       if (video?.uri) {
         finishWithVideo(video.uri, guessVideoMimeType(video.uri));
         return;
@@ -289,6 +307,8 @@ export default function CameraCaptureScreen() {
           style={{ flex: 1 }}
           facing="back"
           mode="video"
+          videoQuality="1080p"
+          videoBitrate={VIDEO_BITRATE}
           onCameraReady={() => setIsCameraReady(true)}
         />
       )}

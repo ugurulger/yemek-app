@@ -3,7 +3,7 @@ import { geminiVisionProvider } from './gemini-provider';
 import type { ExtractInventoryOptions, InventoryItem, VisionProvider, VisionProviderName } from './types';
 
 export { InventoryVisionError } from './types';
-export type { ExtractInventoryOptions, InventoryItem, UsageEvent, VisionProvider, VisionProviderName } from './types';
+export type { ExtractInventoryOptions, InventoryItem, ScanProgressStage, UsageEvent, VisionProvider, VisionProviderName } from './types';
 
 const PROVIDERS: Record<VisionProviderName, VisionProvider> = {
   claude: claudeVisionProvider,

@@ -117,11 +117,22 @@ export function trackInventoryCaptureCompleted(p: {
   uncertain_item_count: number;
   write_mode: 'replace' | 'add';
   duration_ms: number;
+  /**
+   * Aşama kırılımı (tracking-plan v1.1, performans işi 2026-08-02):
+   * prep_ms = seçimden model isteğine kadarki hazırlık (boyutlandırma/base64
+   * + varsa Files API yüklemesi), model_ms = model isteğinden sonuca.
+   * Yalnız sayı — PII yok. Sağlayıcı onProgress vermezse gönderilmez.
+   */
+  prep_ms?: number;
+  model_ms?: number;
 }) {
+  const { prep_ms, model_ms, ...rest } = p;
   const isFirst = claimFirst('capture_completed');
   capture(EVENTS.INVENTORY_CAPTURE_COMPLETED, {
-    ...p,
+    ...rest,
     duration_ms: Math.round(p.duration_ms),
+    ...(prep_ms === undefined ? {} : { prep_ms: Math.round(prep_ms) }),
+    ...(model_ms === undefined ? {} : { model_ms: Math.round(model_ms) }),
     is_first: isFirst,
     $set: { inventory_item_count: p.item_count },
     $set_once: { first_capture_completed_at: milestoneAt('capture_completed') ?? new Date().toISOString() },

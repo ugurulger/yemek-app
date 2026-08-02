@@ -178,6 +178,7 @@ async function extractInventory(
     throw new InventoryVisionError('Çıkarım için en az bir görüntü gerekli');
   }
 
+  options?.onProgress?.('analyzing');
   let observationText: string;
   try {
     observationText = await runObservationStage(images, options?.onUsage);
@@ -195,6 +196,7 @@ async function extractInventory(
   // (bkz. SKILL.md "Debug: Aşama 1 ham metnini gör").
   options?.onObservation?.(observationText);
 
+  options?.onProgress?.('structuring');
   let structuredText: string;
   try {
     structuredText = await runStructuringStage(observationText, options?.onUsage);

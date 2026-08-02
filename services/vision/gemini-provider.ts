@@ -92,6 +92,19 @@ const FILES_API_INLINE_THRESHOLD_BYTES = 18 * 1024 * 1024;
 const FILES_API_POLL_INTERVAL_MS = 1000;
 const FILES_API_POLL_TIMEOUT_MS = 60_000;
 
+// PERF (2026-08-02, ölçüm: tests/vision-eval/measure-stages.ts): Gemini 2.5
+// modellerinde "dynamic thinking" varsayılan AÇIK ve bu tespit görevinde
+// süreyi katlıyordu — iki aşamalı foto akışı (flash) 23.7s → 8.4s
+// (thinkingBudget: 0), native video (pro) 24.8s → 17.8s (thinkingBudget: 128,
+// pro'da izin verilen minimum; 0 yalnız flash'ta geçerli). Ürün listesi
+// kalitesi ölçümde karşılaştırılabilir çıktı. Claude tarafında MVP-3'te aynı
+// gerekçeyle thinking kapatılmıştı (58.2s → 42.5s) — bu onun Gemini
+// karşılığıdır. Video şemasındaki "reasoning" alanı (MVP-13 kalibrasyonu)
+// zaten kısa bir CoT sağlıyor, dynamic thinking'e ihtiyaç bırakmıyor.
+function detectionThinkingConfig(model: string): { thinkingBudget: number } {
+  return { thinkingBudget: model.includes('pro') ? 128 : 0 };
+}
+
 // NOT — Context caching: Gemini 2.5 modelleri "implicit caching"i (tekrar
 // eden prefix'ler için otomatik, kod gerektirmeyen önbellekleme) varsayılan
 // olarak açık sunuyor; bu iki aşamalı akışta her aşamanın kendi sabit
@@ -130,6 +143,7 @@ type GeminiGenerationConfig = {
   responseMimeType?: string;
   responseSchema?: typeof VIDEO_INVENTORY_RESPONSE_SCHEMA;
   temperature?: number;
+  thinkingConfig?: { thinkingBudget: number };
 };
 
 async function callGemini(
@@ -245,11 +259,20 @@ async function runInventoryConversation(
   systemPrompt: string,
   model: string,
   onUsage?: ExtractInventoryOptions['onUsage'],
-  onObservation?: ExtractInventoryOptions['onObservation']
+  onObservation?: ExtractInventoryOptions['onObservation'],
+  onProgress?: ExtractInventoryOptions['onProgress']
 ): Promise<string> {
+  // PERF: her iki turda thinking kısılır — bkz. detectionThinkingConfig notu.
+  const thinkingConfig = detectionThinkingConfig(model);
+  onProgress?.('analyzing');
   let observation: GeminiCallResult;
   try {
-    observation = await callGemini(model, systemPrompt, [{ role: 'user', parts: firstTurnParts }], {});
+    observation = await callGemini(
+      model,
+      systemPrompt,
+      [{ role: 'user', parts: firstTurnParts }],
+      { thinkingConfig }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
     throw new InventoryVisionError(`Gemini gözlem aşaması başarısız oldu: ${message}`, { cause: error });
@@ -265,6 +288,7 @@ async function runInventoryConversation(
   // (bkz. SKILL.md "Debug: Aşama 1 ham metnini gör").
   onObservation?.(observation.text);
 
+  onProgress?.('structuring');
   let tabulation: GeminiCallResult;
   try {
     tabulation = await callGemini(
@@ -275,7 +299,7 @@ async function runInventoryConversation(
         { role: 'model', parts: [{ text: observation.text }] },
         { role: 'user', parts: [{ text: TABULATION_TURN_PROMPT }] },
       ],
-      { responseMimeType: 'application/json' }
+      { responseMimeType: 'application/json', thinkingConfig }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu';
@@ -336,7 +360,8 @@ async function extractInventory(
     systemPrompt,
     model,
     options?.onUsage,
-    options?.onObservation
+    options?.onObservation,
+    options?.onProgress
   );
 
   return parseInventoryItems(structuredText);
@@ -386,11 +411,13 @@ async function extractInventoryFromVideoNative(
 
   let videoPart: GeminiPart;
   try {
+    options?.onProgress?.('preparing');
     const tPrepStart = performance.now();
     const base64 = await video.file.base64();
     if (video.file.size > FILES_API_INLINE_THRESHOLD_BYTES) {
       // RN'in native Blob'unu üretiyoruz — `File`'ı doğrudan vermeyin, bkz.
       // yukarıdaki MVP-9 notu (gerçek cihaz çökmesi).
+      options?.onProgress?.('uploading');
       const uploadBlob = await (await fetch(`data:${video.mimeType};base64,${base64}`)).blob();
       videoPart = { fileData: await uploadVideoToFilesApi(uploadBlob, video.mimeType) };
     } else {
@@ -405,6 +432,7 @@ async function extractInventoryFromVideoNative(
   }
 
   let result: GeminiCallResult;
+  options?.onProgress?.('analyzing');
   const tRequestStart = performance.now();
   try {
     result = await callGemini(
@@ -412,12 +440,14 @@ async function extractInventoryFromVideoNative(
       undefined,
       // Prompt, taramanın başlatıldığı uygulama dilinde seçilir (kullanıcı
       // kararı) — ürün adları o dilde üretilir, karşı dil çeviri adımıyla
-      // doldurulur (bkz. src/i18n/inventoryI18n.ts — bilingualizeItems).
+      // doldurulur (bkz. src/i18n/inventoryI18n.ts — bilingualizeItemsDeferred).
       [{ role: 'user', parts: [videoPart, { text: videoInventoryPrompt(options?.language ?? 'tr') }] }],
       {
         temperature: VIDEO_INVENTORY_TEMPERATURE,
         responseMimeType: 'application/json',
         responseSchema: VIDEO_INVENTORY_RESPONSE_SCHEMA,
+        // PERF: pro'da minimum düşünme bütçesi — bkz. detectionThinkingConfig.
+        thinkingConfig: detectionThinkingConfig(model),
       }
     );
   } catch (error) {

@@ -1,9 +1,10 @@
 /**
  * Envanter adlarının iki dilli yaşam döngüsü (BLOK B devamı):
  *
- * - Tarama/çıkarım SONRASI `bilingualizeItems` karşı dili tek toplu çeviri
- *   çağrısıyla doldurur (video akışı hangi dilde başlatıldıysa API çağrısı o
- *   dilde yapılır — bkz. services/vision/prompt.ts; çeviri adımı burada).
+ * - Tarama/çıkarım SONRASI `bilingualizeItemsDeferred` kaynak dil alanını
+ *   senkron doldurur, karşı dili ARKA PLANDA tek toplu çeviriyle yamalar
+ *   (video akışı hangi dilde başlatıldıysa API çağrısı o dilde yapılır —
+ *   bkz. services/vision/prompt.ts; çeviri ekrana yazımı BEKLETMEZ).
  * - Dil DEĞİŞİMİNDE `backfillInventoryTranslations` eksik karşılıkları
  *   tamamlar (eski kayıtlar + asistanla eklenenler için emniyet ağı) — bkz.
  *   src/i18n/languageSync.ts.
@@ -35,30 +36,44 @@ export function inventoryDisplayName(
 }
 
 /**
- * Çıkarım sonrası (video/fotoğraf/asistan) ürün adlarının karşı dildeki
- * halini TEK toplu çağrıyla üretir. Çeviri başarısız olursa akış BOZULMAZ —
- * yalnızca kaynak dil alanı doldurulmuş kopya döner (karşılık dil değişiminde
- * backfill ile tamamlanır).
+ * Çıkarım sonrası (video/fotoğraf) ürün adlarının iki dilli yaşam döngüsünü
+ * KRİTİK YOL DIŞINDA başlatır (performans işi, 2026-08-02 — önceki
+ * `bilingualizeItems` çeviri çağrısını [~1.1s, claude-haiku] sonuçlar ekrana
+ * yazılmadan ÖNCE bekletiyordu; ölçüm: tests/vision-eval/measure-stages.ts).
+ *
+ * SENKRON döner: kaynak dil alanı doldurulmuş kopyalar hemen store'a
+ * yazılabilir. Karşı dil arka planda tek toplu çeviriyle üretilip
+ * `applyNameTranslations` ile id bazlı yamalanır — kayıt bu arada silindiyse
+ * yama sessizce atlanır (store id eşleşmeyenlere dokunmaz), çeviri hata
+ * verirse akış BOZULMAZ (dil değişimindeki backfill emniyet ağı tamamlar).
  */
-export async function bilingualizeItems(
+export function bilingualizeItemsDeferred(
   items: InventoryItem[],
   sourceLanguage: AppLanguage
-): Promise<InventoryItem[]> {
+): InventoryItem[] {
   const sourceField = sourceLanguage === 'tr' ? 'nameTr' : 'nameEn';
   const targetField = sourceLanguage === 'tr' ? 'nameEn' : 'nameTr';
   const targetLanguage: AppLanguage = sourceLanguage === 'tr' ? 'en' : 'tr';
 
   const withSource = items.map((item) => ({ ...item, [sourceField]: item.name }));
-  try {
-    const translations = await translateTexts(
-      withSource.map((item) => item.name),
-      toTranslationLanguage(targetLanguage)
-    );
-    return withSource.map((item, index) => ({ ...item, [targetField]: translations[index] }));
-  } catch (error) {
-    console.warn('[i18n] envanter adı çevirisi başarısız — kaynak dille devam:', error);
-    return withSource;
-  }
+
+  void (async () => {
+    try {
+      const translations = await translateTexts(
+        withSource.map((item) => item.name),
+        toTranslationLanguage(targetLanguage)
+      );
+      useInventoryStore
+        .getState()
+        .applyNameTranslations(
+          withSource.map((item, index) => ({ id: item.id, [targetField]: translations[index] }))
+        );
+    } catch (error) {
+      console.warn('[i18n] envanter adı çevirisi başarısız — backfill tamamlayacak:', error);
+    }
+  })();
+
+  return withSource;
 }
 
 /**

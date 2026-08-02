@@ -8,13 +8,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
 import i18n, { getAppLanguage } from '@/src/i18n';
-import { bilingualizeItems, inventoryDisplayName } from '@/src/i18n/inventoryI18n';
+import { bilingualizeItemsDeferred, inventoryDisplayName } from '@/src/i18n/inventoryI18n';
 import InventoryList from '@/components/inventory/InventoryList';
 import { LanguageSelector } from '@/components/settings/LanguageSelector';
 import { LastUpdatedLabel } from '@/components/inventory/LastUpdatedLabel';
 import { PantrySection } from '@/components/inventory/PantrySection';
 import { Card, EmptyState, PrimaryButton } from '@/components/ui';
-import { extractInventory, getVisionProvider, InventoryVisionError } from '@/services/vision';
+import {
+  extractInventory,
+  getVisionProvider,
+  InventoryVisionError,
+  type ScanProgressStage,
+} from '@/services/vision';
+import { showToast } from '@/store/toastStore';
 import { extractVideoFramesAsBase64 } from '@/lib/media/extractVideoFrames';
 import { resizeImageToBase64 } from '@/lib/media/resizeImageToBase64';
 import { colors } from '@/lib/theme';
@@ -48,6 +54,16 @@ function countUncertain(items: InventoryItem[]): number {
 // içinde de kamera kısayolu vardır.
 const CAMERA_ROUTE = '/capture/camera' as Href;
 const ASSISTANT_ROUTE = '/capture/assistant' as Href;
+
+// Aşamalı ilerleme metni (algılanan hız işi, 2026-08-02): analiz spinner'ı
+// tek sabit metin yerine sağlayıcının onProgress aşamasını gösterir —
+// kullanıcı 20-45sn'lik beklemede akışın İLERLEDİĞİNİ görür.
+const STAGE_LABEL_KEYS: Record<ScanProgressStage, string> = {
+  preparing: 'inventory.stagePreparing',
+  uploading: 'inventory.stageUploading',
+  analyzing: 'inventory.stageAnalyzing',
+  structuring: 'inventory.stageStructuring',
+};
 
 /**
  * "Last scan" göreli zaman etiketi (kullanıcı isteği, 1 Ağu): gün içindeyse
@@ -270,6 +286,7 @@ export default function MutfagimScreen() {
   const clearPendingVideo = useCaptureStore((state) => state.clearPendingVideo);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStage, setAnalysisStage] = useState<ScanProgressStage>('preparing');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // DEBUG — kaldırılacak: Aşama 1 (gözlem) ham metnini görüntülemek için.
   const [observationText, setObservationText] = useState<string | null>(null);
@@ -305,11 +322,22 @@ export default function MutfagimScreen() {
 
     trackInventoryCaptureStarted('video');
     setIsAnalyzing(true);
+    setAnalysisStage('preparing');
     // MVP-9 (performans): video seçiminden envanterin ekrana gelmesine kadar
     // geçen süreyi aşamalara ayırıp loglamak için — bkz. SKILL.md "Performans
     // notları". Ağ isteği + parse süreleri services/vision/gemini-provider.ts
     // içinde ayrıca loglanıyor (bkz. `logStage`).
     const tPickStart = performance.now();
+    // Aşama telemetrisi: 'analyzing' geçişi = model isteğinin başlangıcı;
+    // öncesi hazırlık (base64 + varsa Files API yüklemesi). prep_ms/model_ms
+    // capture_completed'a yazılır (tracking-plan v1.1).
+    let tModelStart: number | null = null;
+    const onProgress = (stage: ScanProgressStage) => {
+      setAnalysisStage(stage);
+      if (stage === 'analyzing' && tModelStart === null) {
+        tModelStart = performance.now();
+      }
+    };
 
     // Tarama dili = tarama BAŞLATILDIĞI ANDAKİ uygulama dili (kullanıcı
     // kararı): API çağrısı bu dilde yapılır; analiz sürerken dil değişse bile
@@ -332,7 +360,7 @@ export default function MutfagimScreen() {
         );
         extractedItems = await videoProvider.extractInventoryFromVideo(
           { file: videoFile, mimeType },
-          { onObservation: setObservationText, language: scanLanguage }
+          { onObservation: setObservationText, language: scanLanguage, onProgress }
         );
       } else {
         // Geriye dönük uyumluluk: sağlayıcı native-video desteklemiyorsa
@@ -343,15 +371,20 @@ export default function MutfagimScreen() {
         if (frames.length === 0) {
           throw new InventoryVisionError(t('errors.videoProcessing'));
         }
-        extractedItems = await extractInventory(frames, { onObservation: setObservationText });
+        extractedItems = await extractInventory(frames, {
+          onObservation: setObservationText,
+          onProgress,
+        });
       }
 
-      // EKSTRA ÇEVİRİ ADIMI (kullanıcı kararı): çıkarım tarama dilinde
-      // yapıldı — karşı dildeki adlar tek toplu çağrıyla eklenir ki dil
-      // değişiminde "topyekün" takas anında yapılabilsin. Çeviri hatası akışı
-      // BOZMAZ (kaynak dille devam edilir, backfill dil değişiminde tamamlar).
+      // ÇEVİRİ ADIMI KRİTİK YOL DIŞINDA (performans işi, 2026-08-02):
+      // önceki `await bilingualizeItems` karşı dil çevirisini (~1.1s haiku
+      // çağrısı) sonuçlar ekrana yazılmadan ÖNCE bekletiyordu. Deferred sürüm
+      // kaynak dil alanını senkron doldurur, karşı dili arka planda id bazlı
+      // yamalar (bkz. src/i18n/inventoryI18n.ts) — dil değişiminde backfill
+      // emniyet ağı aynen durur.
       const nativeVideoUsed = Boolean(videoProvider.extractInventoryFromVideo);
-      extractedItems = await bilingualizeItems(
+      extractedItems = bilingualizeItemsDeferred(
         extractedItems,
         nativeVideoUsed ? scanLanguage : 'tr'
       );
@@ -359,6 +392,8 @@ export default function MutfagimScreen() {
       const tBeforeReplace = performance.now();
       // Video = TAM TARAMA → değiştir (bkz. store/inventoryStore.ts).
       replaceItems(extractedItems);
+      // Algılanan hız: sonuç anında görünür + sayılı geri bildirim.
+      showToast(t('inventory.scanFoundToast', { count: extractedItems.length }));
       console.log(
         `[perf] state güncelleme (replaceItems): ${(performance.now() - tBeforeReplace).toFixed(0)}ms`
       );
@@ -372,6 +407,12 @@ export default function MutfagimScreen() {
         uncertain_item_count: countUncertain(extractedItems),
         write_mode: 'replace',
         duration_ms: performance.now() - tPickStart,
+        ...(tModelStart === null
+          ? {}
+          : {
+              prep_ms: tModelStart - tPickStart,
+              model_ms: performance.now() - tModelStart,
+            }),
       });
     } catch (error) {
       // Vision hata mesajları (services/vision) Türkçe — ekranda çevrilmiş
@@ -426,7 +467,16 @@ export default function MutfagimScreen() {
 
     trackInventoryCaptureStarted('photo');
     setIsAnalyzing(true);
+    setAnalysisStage('preparing');
     const tPickStart = performance.now();
+    // Aşama telemetrisi — analyzeVideo'daki kalıpla aynı.
+    let tModelStart: number | null = null;
+    const onProgress = (stage: ScanProgressStage) => {
+      setAnalysisStage(stage);
+      if (stage === 'analyzing' && tModelStart === null) {
+        tModelStart = performance.now();
+      }
+    };
 
     try {
       // Fotoğrafı vision'a göndermeden önce boyutlandır: tam çözünürlüklü
@@ -434,15 +484,17 @@ export default function MutfagimScreen() {
       const image = await resizeImageToBase64(asset.uri, asset.width, asset.height);
       const extractedItems = await extractInventory([image], {
         onObservation: setObservationText,
+        onProgress,
       });
 
-      // Fotoğraf akışının prompt'ları Türkçe — EN karşılıkları çeviri adımıyla
-      // eklenir (bkz. analyzeVideo'daki not; hata akışı bozmaz).
-      const bilingualItems = await bilingualizeItems(extractedItems, 'tr');
+      // Fotoğraf akışının prompt'ları Türkçe — EN karşılıkları arka plan
+      // çeviri yamasıyla eklenir (bkz. analyzeVideo'daki deferred notu).
+      const bilingualItems = bilingualizeItemsDeferred(extractedItems, 'tr');
 
       const tBeforeAddItems = performance.now();
       // Fiş/fotoğraf = EKLEME → birleştir (bkz. store/inventoryStore.ts).
       addItems(bilingualItems);
+      showToast(t('inventory.scanFoundToast', { count: bilingualItems.length }));
       console.log(
         `[perf] state güncelleme (addItems): ${(performance.now() - tBeforeAddItems).toFixed(0)}ms`
       );
@@ -456,6 +508,12 @@ export default function MutfagimScreen() {
         uncertain_item_count: countUncertain(bilingualItems),
         write_mode: 'add',
         duration_ms: performance.now() - tPickStart,
+        ...(tModelStart === null
+          ? {}
+          : {
+              prep_ms: tModelStart - tPickStart,
+              model_ms: performance.now() - tModelStart,
+            }),
       });
     } catch (error) {
       console.warn('[inventory] fotoğraf analiz hatası:', error);
@@ -587,7 +645,9 @@ export default function MutfagimScreen() {
         {isAnalyzing && (
           <Card className="mt-3 flex-row items-center px-4 py-3">
             <ActivityIndicator color={colors.forest} size="small" />
-            <Text className="ml-3 font-sans text-sm text-body">{t('inventory.analyzing')}</Text>
+            <Text className="ml-3 font-sans text-sm text-body">
+              {t(STAGE_LABEL_KEYS[analysisStage])}
+            </Text>
           </Card>
         )}
 
